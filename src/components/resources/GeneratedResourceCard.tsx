@@ -5,7 +5,8 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { ContextLineageDisplay } from "@/components/context/ContextLineageDisplay";
-import { Trash } from "@phosphor-icons/react";
+import { Trash, Sparkle } from "@phosphor-icons/react";
+import { Badge } from "@/components/ui/badge";
 import { deleteGeneratedResource } from "@/app/actions/resource-library-actions";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
@@ -54,9 +55,15 @@ export function GeneratedResourceCard({ resource }: GeneratedResourceCardProps) 
             <CardHeader>
                 <div className="flex items-start justify-between">
                     <div className="flex-1">
-                        <CardTitle className="font-display text-xl mb-2">
-                            {resource.title}
-                        </CardTitle>
+                        <div className="flex items-center gap-2 mb-2">
+                            <CardTitle className="font-display text-xl">
+                                {resource.title}
+                            </CardTitle>
+                            <Badge variant="ai" className="text-[10px] gap-1 shrink-0">
+                                <Sparkle size={10} weight="fill" />
+                                AI-Generated
+                            </Badge>
+                        </div>
                         <CardDescription>
                             {resource.resourceKind.label} • Created{" "}
                             {format(new Date(resource.createdAt), "PPP")}

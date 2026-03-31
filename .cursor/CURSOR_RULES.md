@@ -1,71 +1,6 @@
 ---
 alwaysApply: true
 ---
-## 🎨 Design System & UI Rules
-
-### 1. Tailwind CSS v4 Configuration
-**Version:** Tailwind CSS 4.1.17
-
-We do **not** use `tailwind.config.js`. Design tokens are defined in `app/globals.css` using `@theme`. You must use these variables.
-
-**Core Color Palette:**
-* **Primary (Indigo):** `var(--color-qc-primary)` / `#3A3F76`
-* **Secondary (Gold):** `var(--color-qc-secondary)` / `#D9A441`
-* **Background (Parchment):** `var(--color-qc-parchment)` / `#F9F5EF`
-* **Text (Charcoal):** `var(--color-qc-charcoal)` / `#1C1E23`
-
-**Global CSS (`app/globals.css`) Reference:**
-```css
-@import "tailwindcss";
-
-@theme {
-  /* Fonts */
-  --font-display: "Cormorant Garamond", ui-serif, serif;
-  --font-body: "Inter", ui-sans-serif, sans-serif;
-
-  /* Colors */
-  --color-qc-primary: #3A3F76;
-  --color-qc-secondary: #D9A441;
-  --color-qc-charcoal: #1C1E23;
-  --color-qc-warm-stone: #E5E2DC;
-  --color-qc-parchment: #F9F5EF;
-  --color-qc-success: #3DAA75;
-  --color-qc-warning: #E0A03C;
-  --color-qc-error: #B83E3E;
-
-  --color-qc-text-primary: #1C1E23;
-  --color-qc-text-secondary: #3A3F76;
-  --color-qc-text-muted: #6B6E7A;
-
-  --color-qc-border-subtle: #DDD5C7;
-  --color-qc-border-strong: #C8B89F;
-
-  /* Radii */
-  --radius-qc-sm: 6px;
-  --radius-qc-md: 8px;
-  --radius-qc-lg: 12px;
-
-  /* Animations */
-  --animate-qc-fade-in: qc-fade-in 180ms cubic-bezier(0.2, 0, 0.2, 1) both;
-  --animate-qc-shimmer: qc-shimmer 1.25s linear infinite;
-}
-````
-
-### 2\. Implementation Rules for UI
-
-1.  **No Hardcoded Colors:** NEVER use `bg-gray-100` or `text-black`. ALWAYS use `bg-qc-parchment`, `bg-qc-warm-stone`, or `text-qc-charcoal`.
-2.  **Typography:**
-      * **Headings:** Always `font-display` (Cormorant Garamond).
-      * **Body:** Always `font-body` (Inter).
-3.  **Components:**
-      * **Cards:** `bg-white` on `bg-qc-parchment`. Radius `rounded-qc-lg`. Border `border-qc-border-subtle/50`. Shadow `shadow-[0_10px_30px_rgba(10,8,6,0.12)]`.
-      * **Buttons:** Radius `rounded-qc-md`. Primary: `bg-qc-primary`. Secondary: `bg-qc-secondary`.
-4.  **Icons:** Use **Phosphor Icons** (`@phosphor-icons/react@^2.1.10`).
-      * Standard: `weight="regular"`
-      * Active/Nav: `weight="fill"`
-      * Fallback to Lucide ONLY if the metaphor is missing.
-
------
 
 ## 📂 Project Structure & Conventions
 
@@ -102,7 +37,7 @@ We do **not** use `tailwind.config.js`. Design tokens are defined in `app/global
 
 ### 3\. Database (Prisma 7 + Postgres)
 
-  * **Version:** Prisma 7.1.0 (Rust-free client, ESM-first)
+  * **Version:** Prisma 7.2.0 (Rust-free client, ESM-first)
   * **Generator:** Use `provider = "prisma-client"` in `schema.prisma` (Prisma 7 standard).
   * **Schema:** Define models in `prisma/schema.prisma`. Use `PascalCase` for models.
   * **Migrations:** Use `prisma migrate`. Never manually hack the DB.

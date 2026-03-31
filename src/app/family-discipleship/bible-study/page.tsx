@@ -14,7 +14,7 @@ export default async function BibleStudyPage() {
         <div className="min-h-screen bg-qc-parchment/30 pb-20">
             <div className="container mx-auto p-4 md:p-6 space-y-8">
                 <div className="flex flex-col gap-2">
-                    <h1 className="font-display text-4xl font-bold text-qc-primary">Bible Study</h1>
+                    <h1 className="font-display text-4xl font-bold text-qc-primary text-balance">Bible Study</h1>
                     <p className="font-body text-lg text-qc-text-muted">Search the scriptures and read commentary.</p>
                 </div>
                 <BibleStudyClient />

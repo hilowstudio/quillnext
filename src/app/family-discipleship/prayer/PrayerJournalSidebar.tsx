@@ -156,7 +156,7 @@ export default function PrayerJournalSidebar({
                                         e.stopPropagation();
                                         onDeleteEntry(entry);
                                     }}
-                                    className="absolute right-2 bottom-2 p-1.5 rounded-full text-qc-text-muted hover:text-red-600 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-opacity"
+                                    className="absolute right-2 bottom-2 p-1.5 rounded-full text-qc-text-muted hover:text-qc-error hover:bg-qc-error-bg opacity-0 group-hover:opacity-100 transition-opacity"
                                 >
                                     <Trash className="w-4 h-4" />
                                 </button>

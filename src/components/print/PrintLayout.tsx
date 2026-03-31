@@ -17,8 +17,8 @@ export function PrintLayout({ children, className, debug }: PrintLayoutProps) {
                 debug && "outline outline-dashed outline-red-300"
             )}>
                 {debug && (
-                    <div className="absolute inset-[0.5in] border border-blue-200 border-dashed pointer-events-none z-50">
-                        <span className="absolute top-0 right-0 text-[10px] text-blue-400 bg-white px-1">Safe Zone (0.5in)</span>
+                    <div className="absolute inset-[0.5in] border border-qc-info-border border-dashed pointer-events-none z-50">
+                        <span className="absolute top-0 right-0 text-[10px] text-qc-primary/60 bg-white px-1">Safe Zone (0.5in)</span>
                     </div>
                 )}
                 {children}
@@ -66,5 +66,5 @@ export function PrintGrid({ children, cols = 2, className }: { children: React.R
 }
 
 export function PrintTitle({ children }: { children: React.ReactNode }) {
-    return <h1 className="text-3xl font-bold mb-4 font-display text-qc-charcoal border-b-2 border-qc-primary pb-2">{children}</h1>;
+    return <h1 className="text-3xl font-bold mb-4 font-display text-qc-charcoal border-b-2 border-qc-primary pb-2 text-balance">{children}</h1>;
 }

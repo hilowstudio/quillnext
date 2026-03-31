@@ -96,8 +96,8 @@ export default function BibleMemoryDashboard({ initialUserVerses, libraryVerses,
         return folders.map(folder => (
             <Card
                 key={folder.id}
-                className={`hover:shadow-md transition-all cursor-pointer bg-blue-50/30 border-2 group relative
-                    ${dragOverFolderId === folder.id ? 'border-blue-500 bg-blue-100 scale-105 shadow-xl' : 'border-dashed border-blue-100 hover:border-solid'}
+                className={`hover:shadow-md transition-all cursor-pointer bg-qc-info-bg/30 border-2 group relative
+                    ${dragOverFolderId === folder.id ? 'border-qc-primary bg-qc-info-bg scale-105 shadow-xl' : 'border-dashed border-qc-info-border hover:border-solid'}
                 `}
                 onClick={() => setSelectedFolderId(folder.id)}
                 onDragOver={(e) => handleDragOver(e, folder.id)}
@@ -107,24 +107,24 @@ export default function BibleMemoryDashboard({ initialUserVerses, libraryVerses,
                 <div className="absolute top-2 right-2 z-10">
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-400 hover:text-blue-600 hover:bg-blue-100/50"><DotsThreeVertical weight="bold" /></Button>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-qc-primary/60 hover:text-qc-primary hover:bg-qc-info-bg/50"><DotsThreeVertical weight="bold" /></Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent onClick={e => e.stopPropagation()}>
                             <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleRenameFolder(folder.id, folder.name); }}>
                                 <PencilSimple className="mr-2 h-4 w-4" /> Rename
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleDeleteFolder(folder.id); }} className="text-red-600">
+                            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleDeleteFolder(folder.id); }} className="text-qc-error">
                                 <Trash className="mr-2 h-4 w-4" /> Delete
                             </DropdownMenuItem>
                         </DropdownMenuContent>
                     </DropdownMenu>
                 </div>
                 <CardContent className="p-6 flex flex-col items-center justify-center text-center space-y-3 min-h-[220px]">
-                    <div className="p-4 bg-blue-100 rounded-full text-blue-500">
+                    <div className="p-4 bg-qc-info-bg rounded-full text-qc-primary">
                         <Folder className="h-8 w-8" weight="fill" />
                     </div>
                     <div className="space-y-1 w-full">
-                        <h3 className="font-bold text-lg text-gray-800 truncate px-2">{folder.name}</h3>
+                        <h3 className="font-bold text-lg text-qc-charcoal truncate px-2">{folder.name}</h3>
                         <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">{folder._count?.verses || 0} Verses</p>
                     </div>
                 </CardContent>
@@ -268,24 +268,24 @@ export default function BibleMemoryDashboard({ initialUserVerses, libraryVerses,
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={handleDropOnTrash}
             >
-                <div className="bg-red-100 border-2 border-red-500 border-dashed rounded-full h-20 w-20 flex items-center justify-center shadow-2xl hover:bg-red-200 hover:scale-110 transition-transform cursor-pointer">
-                    <Trash className="h-8 w-8 text-red-600" weight="fill" />
+                <div className="bg-qc-error-bg border-2 border-qc-error border-dashed rounded-full h-20 w-20 flex items-center justify-center shadow-2xl hover:bg-qc-error-bg hover:scale-110 transition-transform cursor-pointer">
+                    <Trash className="h-8 w-8 text-qc-error" weight="fill" />
                 </div>
-                <p className="text-center font-bold text-red-600 mt-2 bg-white/80 backdrop-blur px-2 rounded-full text-xs shadow-sm">Drop to Delete</p>
+                <p className="text-center font-bold text-qc-error mt-2 bg-white/80 backdrop-blur px-2 rounded-full text-xs shadow-sm">Drop to Delete</p>
             </div>
 
             {/* Header Area */}
             <div className="flex flex-col md:flex-row items-center justify-between gap-4">
                 <div className="flex items-center gap-4 w-full">
                     {selectedFolderId && (
-                        <Button variant="outline" size="icon" onClick={() => setSelectedFolderId(null)} className="shrink-0 bg-white shadow-sm border-gray-200">
+                        <Button variant="outline" size="icon" onClick={() => setSelectedFolderId(null)} className="shrink-0 bg-white shadow-sm border-qc-border-subtle">
                             <ArrowLeft className="h-4 w-4" />
                         </Button>
                     )}
                     <div>
                         {selectedFolderId && (
                             <h1 className="text-3xl font-bold text-qc-primary flex items-center gap-2">
-                                <Folder className="h-8 w-8 text-blue-400" weight="duotone" />
+                                <Folder className="h-8 w-8 text-qc-primary/60" weight="duotone" />
                                 {folders.find(f => f.id === selectedFolderId)?.name}
                             </h1>
                         )}
@@ -302,7 +302,7 @@ export default function BibleMemoryDashboard({ initialUserVerses, libraryVerses,
                     <TabsTrigger value="learning" className="gap-2 px-6 h-10 data-[state=active]:bg-qc-primary data-[state=active]:text-white transition-all rounded-lg">
                         <BookOpen className="h-4 w-4" /> Learning ({learningVerses.length})
                     </TabsTrigger>
-                    <TabsTrigger value="mastered" className="gap-2 px-6 h-10 data-[state=active]:bg-green-600 data-[state=active]:text-white transition-all rounded-lg">
+                    <TabsTrigger value="mastered" className="gap-2 px-6 h-10 data-[state=active]:bg-qc-success data-[state=active]:text-white transition-all rounded-lg">
                         <Trophy className="h-4 w-4" /> Mastered ({masteredVerses.length})
                     </TabsTrigger>
                 </TabsList>
@@ -310,11 +310,11 @@ export default function BibleMemoryDashboard({ initialUserVerses, libraryVerses,
                 <TabsContent value="learning" className="animate-in fade-in slide-in-from-bottom-4 duration-500">
                     {/* Empty State: Only if NO folders AND NO verses */}
                     {learningVerses.length === 0 && folders.length === 0 && !selectedFolderId ? (
-                        <div className="text-center py-24 border-2 border-dashed rounded-xl bg-gray-50/50">
+                        <div className="text-center py-24 border-2 border-dashed rounded-xl bg-qc-surface-raised/50">
                             <div className="bg-white p-4 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center shadow-sm">
-                                <BookOpen className="h-8 w-8 text-gray-400" />
+                                <BookOpen className="h-8 w-8 text-qc-text-muted" />
                             </div>
-                            <h3 className="text-lg font-semibold text-gray-900">Start Memorizing</h3>
+                            <h3 className="text-lg font-semibold text-qc-charcoal">Start Memorizing</h3>
                             <p className="text-muted-foreground mb-6 max-w-sm mx-auto">Create a folder to organize references or add your first verse to get started.</p>
                             <div className="flex gap-2 justify-center">
                                 <Button variant="outline" onClick={() => setIsAddFolderOpen(true)}>Create Folder</Button>
@@ -370,7 +370,7 @@ export default function BibleMemoryDashboard({ initialUserVerses, libraryVerses,
                                                     {libraryVerses
                                                         .filter(v => v.reference.toLowerCase().includes(searchQuery.toLowerCase()))
                                                         .map(v => (
-                                                            <div key={v.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50">
+                                                            <div key={v.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-qc-surface-hover">
                                                                 <span className="font-medium">{v.reference}</span>
                                                                 <Button size="sm" variant="outline" onClick={() => handleAddLibraryVerse(v)}>Add</Button>
                                                             </div>
@@ -405,7 +405,7 @@ export default function BibleMemoryDashboard({ initialUserVerses, libraryVerses,
                                 {learningVerses.map(verse => (
                                     <Card key={verse.id}
                                         className={`hover:shadow-lg transition-all duration-300 relative group border-t-4 border-t-qc-primary overflow-hidden cursor-move active:cursor-grabbing hover:scale-[1.02] 
-                                            ${isDragging ? 'ring-2 ring-offset-2 ring-blue-500/20' : ''}
+                                            ${isDragging ? 'ring-2 ring-offset-2 ring-qc-primary/20' : ''}
                                         `}
                                         draggable={true}
                                         onDragStart={(e) => handleDragStart(e, verse.id)}
@@ -414,7 +414,7 @@ export default function BibleMemoryDashboard({ initialUserVerses, libraryVerses,
                                         <div className="absolute top-2 right-2 z-10">
                                             <DropdownMenu>
                                                 <DropdownMenuTrigger asChild>
-                                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-gray-900 bg-white/50 backdrop-blur hover:bg-white border border-transparent hover:border-gray-200 shadow-sm"><DotsThreeVertical weight="bold" /></Button>
+                                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-qc-text-muted hover:text-qc-charcoal bg-white/50 backdrop-blur hover:bg-white border border-transparent hover:border-qc-border-subtle shadow-sm"><DotsThreeVertical weight="bold" /></Button>
                                                 </DropdownMenuTrigger>
                                                 <DropdownMenuContent align="end">
                                                     <DropdownMenuLabel>Move to Folder</DropdownMenuLabel>
@@ -424,11 +424,11 @@ export default function BibleMemoryDashboard({ initialUserVerses, libraryVerses,
                                                     </DropdownMenuItem>
                                                     {folders.map(f => (
                                                         <DropdownMenuItem key={f.id} onClick={() => handleMoveVerse(verse.id, f.id)}>
-                                                            <Folder className="mr-2 h-4 w-4 text-blue-500" /> {f.name}
+                                                            <Folder className="mr-2 h-4 w-4 text-qc-primary" /> {f.name}
                                                         </DropdownMenuItem>
                                                     ))}
                                                     <DropdownMenuSeparator />
-                                                    <DropdownMenuItem onClick={() => handleDeleteVerse(verse.id)} className="text-red-600 focus:text-red-600 focus:bg-red-50">
+                                                    <DropdownMenuItem onClick={() => handleDeleteVerse(verse.id)} className="text-qc-error focus:text-qc-error focus:bg-qc-error-bg">
                                                         <Trash className="mr-2 h-4 w-4" /> Delete Verse
                                                     </DropdownMenuItem>
                                                 </DropdownMenuContent>
@@ -461,24 +461,24 @@ export default function BibleMemoryDashboard({ initialUserVerses, libraryVerses,
 
                 <TabsContent value="mastered" className="animate-in fade-in slide-in-from-bottom-4 duration-500">
                     {masteredVerses.length === 0 ? (
-                        <div className="text-center py-24 border-2 border-dashed rounded-xl bg-gray-50/50">
+                        <div className="text-center py-24 border-2 border-dashed rounded-xl bg-qc-surface-raised/50">
                             <div className="bg-white p-4 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center shadow-sm">
-                                <Trophy className="h-8 w-8 text-yellow-500" />
+                                <Trophy className="h-8 w-8 text-qc-warning" />
                             </div>
-                            <h3 className="text-lg font-semibold text-gray-900">No Mastered Verses Yet</h3>
+                            <h3 className="text-lg font-semibold text-qc-charcoal">No Mastered Verses Yet</h3>
                             <p className="text-muted-foreground mb-6 max-w-sm mx-auto">Keep practicing! Your rewards will appear here.</p>
                         </div>
                     ) : (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                             {masteredVerses.map(verse => (
-                                <Card key={verse.id} className="bg-green-50/30 border-green-200 relative group border-t-4 border-t-green-500">
+                                <Card key={verse.id} className="bg-qc-success-bg/30 border-qc-success-border relative group border-t-4 border-t-qc-success">
                                     <div className="absolute top-2 right-2 z-10">
                                         <DropdownMenu>
                                             <DropdownMenuTrigger asChild>
-                                                <Button variant="ghost" size="icon" className="h-8 w-8 text-green-600 hover:text-green-800 hover:bg-green-100/50"><DotsThreeVertical weight="bold" /></Button>
+                                                <Button variant="ghost" size="icon" className="h-8 w-8 text-qc-success-text hover:text-qc-success-text hover:bg-qc-success-bg/50"><DotsThreeVertical weight="bold" /></Button>
                                             </DropdownMenuTrigger>
                                             <DropdownMenuContent align="end">
-                                                <DropdownMenuItem onClick={() => handleDeleteVerse(verse.id)} className="text-red-600 focus:text-red-600 focus:bg-red-50">
+                                                <DropdownMenuItem onClick={() => handleDeleteVerse(verse.id)} className="text-qc-error focus:text-qc-error focus:bg-qc-error-bg">
                                                     <Trash className="mr-2 h-4 w-4" /> Delete Verse
                                                 </DropdownMenuItem>
                                             </DropdownMenuContent>
@@ -487,12 +487,12 @@ export default function BibleMemoryDashboard({ initialUserVerses, libraryVerses,
 
                                     <CardContent className="p-6 flex flex-col h-full justify-between gap-6">
                                         <div className="flex items-start gap-4">
-                                            <div className="bg-green-100 p-2 rounded-full text-green-600 shrink-0">
+                                            <div className="bg-qc-success-bg p-2 rounded-full text-qc-success-text shrink-0">
                                                 <CheckCircle weight="fill" className="h-6 w-6" />
                                             </div>
                                             <div>
-                                                <h3 className="font-bold text-lg text-gray-900">{verse.reference}</h3>
-                                                <p className="text-xs text-green-700 font-medium mt-1">
+                                                <h3 className="font-bold text-lg text-qc-charcoal">{verse.reference}</h3>
+                                                <p className="text-xs text-qc-success-text font-medium mt-1">
                                                     Mastered {verse.masteredAt ? new Date(verse.masteredAt).toLocaleDateString() : ''}
                                                 </p>
                                             </div>
@@ -500,7 +500,7 @@ export default function BibleMemoryDashboard({ initialUserVerses, libraryVerses,
 
                                         <Button
                                             variant="outline"
-                                            className="w-full gap-2 border-green-200 text-green-700 hover:bg-green-100 hover:text-green-800 bg-white"
+                                            className="w-full gap-2 border-qc-success-border text-qc-success-text hover:bg-qc-success-bg hover:text-qc-success-text bg-white"
                                             onClick={() => {
                                                 setPracticeMode('refresh');
                                                 setPracticingVerse(verse);

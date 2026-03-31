@@ -3,6 +3,7 @@ import { Inter, Cormorant_Garamond } from "next/font/google";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
 import { GlobalShell } from "@/components/layout/GlobalShell";
 import { StudentProfileProvider } from "@/components/providers/StudentProfileProvider";
+import { Toaster } from "sonner";
 import "./globals.css";
 
 const inter = Inter({
@@ -40,6 +41,7 @@ export default async function RootLayout({
             <GlobalShell user={session?.user}>
               {children}
             </GlobalShell>
+            <Toaster position="bottom-right" richColors closeButton />
           </StudentProfileProvider>
         </NuqsAdapter>
       </body>

@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { Loader2 } from "lucide-react";
+import { SpinnerGap } from "@phosphor-icons/react";
 
 export const DynamicAssessmentWizard = dynamic(
     () => import("@/components/students/AssessmentWizard").then((mod) => mod.AssessmentWizard),
@@ -9,7 +9,7 @@ export const DynamicAssessmentWizard = dynamic(
         ssr: false,
         loading: () => (
             <div className="flex justify-center p-8">
-                <Loader2 className="h-8 w-8 animate-spin text-qc-primary" />
+                <SpinnerGap size={32} className="animate-spin text-qc-primary" />
             </div>
         ),
     }

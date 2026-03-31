@@ -1,0 +1,1790 @@
+{
+  "version": "1.0",
+  "totalCriteria": 104,
+  "mustPassCount": 27,
+  "scoredCount": 77,
+  "maxPoints": 143,
+  "tiers": {
+    "verified": {
+      "label": "QSF Verified",
+      "minPoints": 57,
+      "requiresDomainMinimums": false
+    },
+    "certified": {
+      "label": "QSF Certified",
+      "minPoints": 86,
+      "requiresDomainMinimums": true
+    },
+    "exemplary": {
+      "label": "QSF Exemplary",
+      "minPoints": 114,
+      "requiresDomainMinimums": true
+    }
+  },
+  "domainMinimumPercent": 40,
+  "domains": [
+    {
+      "id": "ATT",
+      "number": "01",
+      "title": "Attention",
+      "principle": "Design for the smallest possible amount of your attention",
+      "totalCriteria": 23,
+      "mustPassCount": 6,
+      "availablePoints": 26,
+      "criteria": [
+        {
+          "id": "ATT-01",
+          "subdomain": "1A. Notification Architecture",
+          "type": "must-pass",
+          "points": 0,
+          "text": "No push notifications unless user-configured trigger. Marketing and re-engagement notifications are an automatic fail.",
+          "evidenceType": "T",
+          "automationLevel": "full",
+          "auditInstructions": "Install or sign up for the application. Check the default notification permission state. Monitor for any push notifications received without explicit user configuration. Check the application's notification settings to see what is enabled by default. If testing a web app, check if a notification permission prompt appears unprompted. Search source code (if available) for push notification registration, marketing notification triggers, and re-engagement notification scheduling.",
+          "passCondition": "The application sends zero push notifications unless the user has explicitly configured a trigger. No marketing, re-engagement, or 'we miss you' notifications exist in any code path.",
+          "failIndicators": [
+            "Notification permission requested on first visit without user action",
+            "Marketing or re-engagement notification code paths",
+            "Default-on notification categories",
+            "Scheduled notifications not tied to user-configured triggers"
+          ]
+        },
+        {
+          "id": "ATT-02",
+          "subdomain": "1A. Notification Architecture",
+          "type": "must-pass",
+          "points": 0,
+          "text": "Single, accessible control to disable ALL non-critical notifications in one action.",
+          "evidenceType": "U",
+          "automationLevel": "full",
+          "auditInstructions": "Navigate to the application's notification settings. Look for a single master toggle or 'disable all' control that turns off all non-critical notifications in one action. Count how many taps/clicks it takes from the main settings screen. If notifications can only be disabled per-category with no master control, this fails.",
+          "passCondition": "A single control exists that disables all non-critical notifications. It is reachable within 2 taps/clicks from the main settings screen.",
+          "failIndicators": [
+            "Only per-category notification toggles with no master control",
+            "Master toggle buried more than 2 levels deep",
+            "Disabling notifications requires multiple separate actions",
+            "Some notification categories cannot be disabled"
+          ]
+        },
+        {
+          "id": "ATT-03",
+          "subdomain": "1A. Notification Architecture",
+          "type": "must-pass",
+          "points": 0,
+          "text": "Default notification settings are the minimum permission state. User opts in, not out.",
+          "evidenceType": "T",
+          "automationLevel": "full",
+          "auditInstructions": "Create a fresh account or install the application for the first time. Before changing any settings, navigate to the notification settings screen and screenshot the default state. All toggles should be OFF by default. If source code is available, check the default values for notification preferences in the user model/schema/config.",
+          "passCondition": "On a fresh account, all notification settings default to OFF (or minimum). The user must explicitly enable notifications.",
+          "failIndicators": [
+            "Any notification toggle defaulting to ON",
+            "Notification permission requested during onboarding before user initiates",
+            "Default user preferences set to enabled in code"
+          ]
+        },
+        {
+          "id": "ATT-04",
+          "subdomain": "1A. Notification Architecture",
+          "type": "scored",
+          "points": 2,
+          "text": "User-defined quiet hours during which notifications are queued and held, not just muted.",
+          "evidenceType": "U",
+          "automationLevel": "assisted",
+          "auditInstructions": "Check notification settings for a quiet hours / schedule feature. Verify it allows user-defined time ranges. Critically: test whether notifications sent during quiet hours are queued and delivered after quiet hours end, or simply suppressed/lost. If source code is available, check the notification delivery pipeline for queue-during-quiet-hours logic vs mute/discard logic.",
+          "passCondition": "User can define quiet hours. Notifications sent during quiet hours are queued and delivered when quiet hours end, not silently discarded.",
+          "failIndicators": [
+            "No quiet hours feature",
+            "Quiet hours only mute sound but still deliver",
+            "Notifications sent during quiet hours are lost entirely",
+            "Quiet hours only available as OS-level setting with no in-app support"
+          ]
+        },
+        {
+          "id": "ATT-05",
+          "subdomain": "1A. Notification Architecture",
+          "type": "scored",
+          "points": 2,
+          "text": "Notifications contain enough context to be actionable without opening the app.",
+          "evidenceType": "T",
+          "automationLevel": "assisted",
+          "auditInstructions": "Trigger several different notification types from the application. For each notification, evaluate: can the user understand what happened and decide whether to act WITHOUT opening the app? A notification saying 'New update available' is low-context. A notification saying 'Your weekly curriculum report for Emma is ready — 12 of 15 tasks completed' is high-context. Screenshot 5+ notification examples and rate each for actionability.",
+          "passCondition": "The majority of notification types contain sufficient context (who/what/when/action-needed) for the user to decide whether to open the app.",
+          "failIndicators": [
+            "Generic notifications like 'You have a new notification'",
+            "Notifications that require opening the app to understand what happened",
+            "Click-bait style notification text designed to drive opens rather than inform"
+          ]
+        },
+        {
+          "id": "ATT-06",
+          "subdomain": "1A. Notification Architecture",
+          "type": "scored",
+          "points": 2,
+          "text": "Non-urgent notifications batched into digest form rather than delivered individually.",
+          "evidenceType": "T",
+          "automationLevel": "assisted",
+          "auditInstructions": "Check notification settings for digest/batch/summary options. If the app sends multiple non-urgent notifications per day, are they consolidated into a single digest? Monitor notification delivery patterns over a session. Check source code for batch notification logic, digest scheduling, or notification grouping.",
+          "passCondition": "Non-urgent notifications are grouped into periodic digests rather than delivered as individual interruptions.",
+          "failIndicators": [
+            "Each event generates an immediate individual notification",
+            "No digest/batch option in settings",
+            "Notification grouping is cosmetic only (OS-level grouping but each still fires separately)"
+          ]
+        },
+        {
+          "id": "ATT-07",
+          "subdomain": "1A. Notification Architecture",
+          "type": "scored",
+          "points": 1,
+          "text": "User-accessible notification log showing count and content of notifications sent in the last 30 days.",
+          "evidenceType": "U",
+          "automationLevel": "full",
+          "auditInstructions": "Search the application's settings, account, or notification areas for a notification history or log. Check if it shows both the count and content of notifications sent. Verify it covers at least 30 days of history.",
+          "passCondition": "A notification log exists within the application showing notification count and content for the last 30 days.",
+          "failIndicators": [
+            "No notification history feature",
+            "History shows only unread/recent without a full log",
+            "No way to see how many notifications were sent over time"
+          ]
+        },
+        {
+          "id": "ATT-08",
+          "subdomain": "1A. Notification Architecture",
+          "type": "scored",
+          "points": 1,
+          "text": "Respects OS-level notification settings (Do Not Disturb, Focus modes) without circumventing them.",
+          "evidenceType": "T",
+          "automationLevel": "assisted",
+          "auditInstructions": "Enable Do Not Disturb or Focus mode at the OS level. Trigger an action in the application that would normally send a notification. Verify the notification is suppressed. Check source code for any attempts to bypass DND (e.g., using critical alert entitlements on iOS without justification, or using alarm-channel notifications on Android for non-alarm purposes).",
+          "passCondition": "Application respects OS-level DND/Focus modes. No notifications delivered during DND unless using a justified critical alert channel.",
+          "failIndicators": [
+            "Notifications delivered during DND",
+            "Use of critical/alarm notification channels for non-critical content",
+            "Code that checks DND state and attempts workarounds"
+          ]
+        },
+        {
+          "id": "ATT-09",
+          "subdomain": "1B. Engagement Pattern Prohibition",
+          "type": "must-pass",
+          "points": 0,
+          "text": "No infinite scroll. Content feeds must terminate or paginate with a clear endpoint.",
+          "evidenceType": "T",
+          "automationLevel": "full",
+          "auditInstructions": "Navigate to every content feed, list, or grid view in the application. For each: scroll to the bottom and observe behavior. If new content loads automatically without explicit user-initiated pagination (clicking 'Load More', 'Next Page', or a page number), this fails. Screenshot the bottom/end state of each feed. In source code, search for IntersectionObserver patterns, onScroll handlers that trigger data fetching, or infinite-scroll library imports.",
+          "passCondition": "All content feeds terminate with a visible end state or require explicit user action (button click, page navigation) to load more content.",
+          "failIndicators": [
+            "IntersectionObserver or scroll event triggering automatic content fetch",
+            "Skeleton loaders appearing at feed bottom",
+            "Feed that never reaches a final item",
+            "Infinite scroll library in dependencies"
+          ]
+        },
+        {
+          "id": "ATT-10",
+          "subdomain": "1B. Engagement Pattern Prohibition",
+          "type": "must-pass",
+          "points": 0,
+          "text": "No streak mechanics, loss-aversion timers, or any mechanism that penalizes the user for not using the product.",
+          "evidenceType": "T",
+          "automationLevel": "full",
+          "auditInstructions": "Search the entire UI for streak counters, daily login rewards, consecutive-use tracking, or any messaging that implies loss from non-use ('Your streak will reset!', 'Don't lose your progress!'). In source code, search for: streak, consecutive, daily_login, login_bonus, retention_timer, lapsed, inactive_penalty, loss_aversion. Check data models for streak-tracking fields.",
+          "passCondition": "No streak mechanics, loss-aversion timers, or non-use penalties exist anywhere in the application.",
+          "failIndicators": [
+            "Streak counter in UI",
+            "Daily login tracking in data model",
+            "Messaging about losing progress due to inactivity",
+            "Timer-based rewards that reset on non-use",
+            "Any feature that degrades based on usage frequency"
+          ]
+        },
+        {
+          "id": "ATT-11",
+          "subdomain": "1B. Engagement Pattern Prohibition",
+          "type": "must-pass",
+          "points": 0,
+          "text": "No gamification (points, badges, leaderboards, levels, XP) unless the product is explicitly a game.",
+          "evidenceType": "T",
+          "automationLevel": "full",
+          "auditInstructions": "Search the UI for: point systems, badges, achievements, leaderboards, levels, XP bars, rank indicators, or reward animations. In source code, search for: badge, achievement, leaderboard, xp, experience_points, level_up, gamif, reward, rank. Exception: if the product IS a game, this criterion is automatically passed. The auditor must determine if the product's primary purpose is gaming.",
+          "passCondition": "No gamification elements exist in the application, OR the product is explicitly a game.",
+          "failIndicators": [
+            "Points/XP system",
+            "Badge or achievement displays",
+            "Leaderboards",
+            "Level/rank progression",
+            "Reward animations for completing actions",
+            "Progress bars tied to usage rather than task completion"
+          ]
+        },
+        {
+          "id": "ATT-12",
+          "subdomain": "1B. Engagement Pattern Prohibition",
+          "type": "scored",
+          "points": 2,
+          "text": "No auto-play media without explicit user initiation on each piece of content.",
+          "evidenceType": "T",
+          "automationLevel": "full",
+          "auditInstructions": "Navigate to any page containing video or audio content. Observe whether media begins playing automatically. Check if videos in feeds auto-play on scroll. In source code, check for autoplay attributes on media elements, or JavaScript that programmatically triggers play() without user interaction. Note: muted autoplay in hero sections is a gray area — flag for auditor review.",
+          "passCondition": "No media auto-plays without explicit user initiation on each individual piece of content.",
+          "failIndicators": [
+            "autoplay attribute on video/audio elements",
+            "JavaScript calling play() without preceding user gesture",
+            "Videos playing on scroll-into-view",
+            "Auto-advancing to next video/episode"
+          ]
+        },
+        {
+          "id": "ATT-13",
+          "subdomain": "1B. Engagement Pattern Prohibition",
+          "type": "scored",
+          "points": 2,
+          "text": "No variable-ratio reinforcement schedules (pull-to-refresh revealing new content, randomized rewards).",
+          "evidenceType": "T",
+          "automationLevel": "assisted",
+          "auditInstructions": "Test pull-to-refresh behavior: does it sometimes reveal new content and sometimes not, creating a slot-machine dynamic? Check for randomized reward systems, mystery boxes, or any feature where the user takes an action with an unpredictable positive outcome. In source code, look for random reward logic, variable-ratio patterns, or pull-to-refresh that fetches potentially-new content rather than just refreshing current data.",
+          "passCondition": "No features use variable-ratio reinforcement. Pull-to-refresh syncs current data rather than revealing potentially-new content in a gamified way.",
+          "failIndicators": [
+            "Pull-to-refresh that sometimes shows new items unpredictably",
+            "Random reward or loot-box mechanics",
+            "Mystery or surprise content reveals",
+            "Any interaction where the reward is deliberately unpredictable"
+          ]
+        },
+        {
+          "id": "ATT-14",
+          "subdomain": "1B. Engagement Pattern Prohibition",
+          "type": "scored",
+          "points": 2,
+          "text": "Session length is transparent to the user through a visible timer, session summary, or periodic check-in.",
+          "evidenceType": "U",
+          "automationLevel": "full",
+          "auditInstructions": "Use the application for an extended period (10+ minutes). Look for: a visible session timer, a session summary on close, or a periodic 'you've been using this for X minutes' check-in. Check settings for any session awareness features. In source code, search for session duration tracking, time-spent monitoring, or break reminder logic.",
+          "passCondition": "The application provides session length awareness through at least one mechanism: visible timer, session summary, or periodic check-in.",
+          "failIndicators": [
+            "No session duration tracking or display",
+            "No break reminders or time-awareness features",
+            "Session length is tracked only for analytics but never shown to user"
+          ]
+        },
+        {
+          "id": "ATT-15",
+          "subdomain": "1B. Engagement Pattern Prohibition",
+          "type": "scored",
+          "points": 1,
+          "text": "No social comparison metrics (follower counts, like counts, view counts) unless the product's explicit purpose requires it.",
+          "evidenceType": "T",
+          "automationLevel": "assisted",
+          "auditInstructions": "Search the UI for visible follower counts, like counts, view counts, reaction counts, or any numeric social comparison metrics. Check user profiles, content items, and feeds. Exception: analytics dashboards where the user is viewing their own data for business purposes. The auditor must judge whether visible metrics serve the product's core purpose or exist to drive engagement through social comparison.",
+          "passCondition": "No social comparison metrics are visible, OR they are essential to the product's stated purpose (e.g., an analytics dashboard).",
+          "failIndicators": [
+            "Follower/following counts on profiles",
+            "Like or reaction counts on content",
+            "View counts visible to users",
+            "Leaderboard-style comparisons between users"
+          ]
+        },
+        {
+          "id": "ATT-16",
+          "subdomain": "1C. Interface Restraint",
+          "type": "scored",
+          "points": 2,
+          "text": "Primary task flow completable in 3 or fewer screens from launch.",
+          "evidenceType": "U",
+          "automationLevel": "assisted",
+          "auditInstructions": "Identify the application's primary task (what the user opens the app to do most often). Launch the application and count the number of distinct screens/views required to complete that primary task. Include the launch screen. A 'screen' is a distinct view state requiring user attention, not a loading spinner. Present the task flow and screen count to the auditor for confirmation of primary task identification.",
+          "passCondition": "The primary task flow is completable in 3 or fewer distinct screens from app launch.",
+          "failIndicators": [
+            "Primary task requires 4+ screens",
+            "Intermediate screens that add no value (e.g., dashboard before task)",
+            "Forced interstitials or announcements between launch and task"
+          ]
+        },
+        {
+          "id": "ATT-17",
+          "subdomain": "1C. Interface Restraint",
+          "type": "scored",
+          "points": 2,
+          "text": "No interstitial screens or splash animations exceeding 2 seconds when content is available.",
+          "evidenceType": "T",
+          "automationLevel": "full",
+          "auditInstructions": "Launch the application and time any splash screen or loading animation. If content is already available (cached, static, or fast-loading), interstitials should not exceed 2 seconds. Navigate between major sections and time any transition screens. Check source code for hardcoded animation durations on splash/loading screens.",
+          "passCondition": "No splash screen or interstitial animation exceeds 2 seconds when underlying content is available.",
+          "failIndicators": [
+            "Splash screen with fixed duration >2s regardless of load state",
+            "Branded loading animations that play to completion even when content is ready",
+            "Interstitial ads or announcements between sections"
+          ]
+        },
+        {
+          "id": "ATT-18",
+          "subdomain": "1C. Interface Restraint",
+          "type": "scored",
+          "points": 2,
+          "text": "Modal dialogs used only for destructive actions or critical confirmations, not for promotions, upsells, or announcements.",
+          "evidenceType": "T",
+          "automationLevel": "full",
+          "auditInstructions": "Use the application through all major flows. Document every modal dialog that appears. Categorize each as: destructive action confirmation, critical information, or promotional/upsell/announcement. In source code, search for modal/dialog components and their trigger conditions. Newsletter signup modals, feature announcement popups, and upgrade prompts all fail this criterion.",
+          "passCondition": "Every modal dialog serves a destructive action confirmation or critical information purpose. No promotional, upsell, or announcement modals.",
+          "failIndicators": [
+            "Newsletter signup modal",
+            "Feature announcement popup",
+            "Upgrade/upsell modal",
+            "Rating/review request modal",
+            "Any modal triggered by time-on-page or scroll position rather than user action"
+          ]
+        },
+        {
+          "id": "ATT-19",
+          "subdomain": "1C. Interface Restraint",
+          "type": "scored",
+          "points": 2,
+          "text": "Supports prefers-reduced-motion at the OS level and reduces or eliminates animations accordingly.",
+          "evidenceType": "T",
+          "automationLevel": "full",
+          "auditInstructions": "Enable 'Reduce Motion' in OS accessibility settings (or emulate via browser DevTools: CSS media feature prefers-reduced-motion: reduce). Navigate the application and verify that animations are reduced or eliminated. In source code, search for prefers-reduced-motion media queries or matchMedia checks. Check if animation libraries (Framer Motion, GSAP, etc.) are configured to respect this preference.",
+          "passCondition": "With prefers-reduced-motion enabled, the application reduces or eliminates animations. Key transitions still communicate state changes but without motion.",
+          "failIndicators": [
+            "No prefers-reduced-motion media query or matchMedia check in code",
+            "Animations play identically regardless of OS setting",
+            "Only some animations respect the preference while others ignore it"
+          ]
+        },
+        {
+          "id": "ATT-20",
+          "subdomain": "1C. Interface Restraint",
+          "type": "scored",
+          "points": 1,
+          "text": "Visual hierarchy clearly distinguishes primary from secondary actions. No competing calls-to-action of equal weight.",
+          "evidenceType": "T",
+          "automationLevel": "assisted",
+          "auditInstructions": "Screenshot each major screen. Analyze the visual weight of action buttons and CTAs. On any given screen, there should be one clearly primary action with secondary actions visually subordinate. Flag screens where multiple CTAs compete for attention with equal size, color, and prominence. Present screenshots and analysis to auditor.",
+          "passCondition": "Each screen has a clear visual hierarchy with one primary action. Secondary actions are visually subordinate.",
+          "failIndicators": [
+            "Multiple buttons of equal size and color competing for attention",
+            "Two or more CTAs with identical visual treatment",
+            "No clear primary action on key screens"
+          ]
+        },
+        {
+          "id": "ATT-21",
+          "subdomain": "1C. Interface Restraint",
+          "type": "scored",
+          "points": 1,
+          "text": "Empty states are informative and calm. Not used for upselling, cross-promotion, or creating anxiety.",
+          "evidenceType": "T",
+          "automationLevel": "assisted",
+          "auditInstructions": "Find or create empty states in the application (empty inbox, no results, new account with no data). Screenshot each empty state. Evaluate: does it inform the user what to do, or does it use the empty space for upselling, cross-promotion, or anxiety-inducing messaging ('You have no connections yet! Add friends now!')? Present findings to auditor.",
+          "passCondition": "Empty states provide calm, informative guidance. No upselling, cross-promotion, or anxiety-inducing language.",
+          "failIndicators": [
+            "Upsell messaging in empty states",
+            "Cross-promotion of other features/products",
+            "Urgency or anxiety language ('Don't miss out!')",
+            "Gamification prompts in empty states"
+          ]
+        },
+        {
+          "id": "ATT-22",
+          "subdomain": "1C. Interface Restraint",
+          "type": "scored",
+          "points": 1,
+          "text": "No use of color red, urgency language, or pulsing/animating elements to manufacture false urgency.",
+          "evidenceType": "T",
+          "automationLevel": "assisted",
+          "auditInstructions": "Scan all screens for: red-colored elements not associated with genuine errors/destructive actions, urgency language ('Act now!', 'Limited time!', 'Don't miss out!', 'Hurry!'), or pulsing/bouncing/animating elements designed to create urgency. In source code, search for urgency-related copy and pulsing CSS animations on non-error elements. Exception: genuine error states and destructive action warnings may use red.",
+          "passCondition": "Red is used only for genuine errors or destructive action warnings. No urgency language or attention-grabbing animations used to manufacture false urgency.",
+          "failIndicators": [
+            "Red used for promotional elements",
+            "Urgency language in non-time-sensitive contexts",
+            "Pulsing or bouncing animations on CTAs",
+            "Countdown timers for non-genuine deadlines"
+          ]
+        },
+        {
+          "id": "ATT-23",
+          "subdomain": "1C. Interface Restraint",
+          "type": "scored",
+          "points": 1,
+          "text": "Typography and layout maintain a readable measure (line length 45–80 characters for body text).",
+          "evidenceType": "T",
+          "automationLevel": "full",
+          "auditInstructions": "On desktop viewport (1280px), inspect body text elements and measure their character count per line. Use browser DevTools to check max-width or ch-based constraints on text containers. Sample 3-5 body text blocks across different pages. In source code, check for max-width constraints on text containers (e.g., max-w-prose, max-width: 65ch, measure class).",
+          "passCondition": "Body text maintains 45–80 characters per line across primary reading contexts at standard desktop viewport.",
+          "failIndicators": [
+            "Body text spanning full viewport width (>100 characters per line)",
+            "No max-width constraint on text containers",
+            "Inconsistent measure across pages"
+          ]
+        },
+        {
+          "id": "DAT-01",
+          "subdomain": "2A. Data Portability",
+          "type": "must-pass",
+          "points": 0,
+          "text": "Full data export in at least one open, machine-readable format (JSON, CSV, XML, or domain-appropriate open standard).",
+          "evidenceType": "U",
+          "automationLevel": "full",
+          "auditInstructions": "Navigate to account settings or data management. Look for a data export feature. Initiate an export. Verify the format is open and machine-readable (JSON, CSV, XML, or a domain-specific open standard like iCal, OPML, etc.). Proprietary or binary-only formats fail. Check if the feature exists, is functional, and produces valid output.",
+          "passCondition": "A data export feature exists and produces output in at least one open, machine-readable format.",
+          "failIndicators": [
+            "No data export feature",
+            "Export only available in proprietary format",
+            "Export feature exists but is broken or produces empty files",
+            "Export requires contacting support"
+          ]
+        },
+        {
+          "id": "DAT-02",
+          "subdomain": "2A. Data Portability",
+          "type": "must-pass",
+          "points": 0,
+          "text": "Data export is complete — includes ALL user-generated content, metadata, configuration, and history.",
+          "evidenceType": "U",
+          "automationLevel": "assisted",
+          "auditInstructions": "Create several types of content in the application (if testing with a test account). Export data. Compare the export contents against what exists in the application. Check for: user-generated content, metadata (dates, tags, categories), configuration (settings, preferences), and history (activity log, edit history). Flag any data visible in the app that is missing from the export. Present comparison to auditor.",
+          "passCondition": "Export includes all user-generated content, metadata, configuration, and history. Nothing the user created or configured is excluded.",
+          "failIndicators": [
+            "Content types missing from export",
+            "Metadata stripped from exported items",
+            "Settings and preferences not included",
+            "Activity or edit history excluded",
+            "Attachments or media files not included"
+          ]
+        },
+        {
+          "id": "DAT-03",
+          "subdomain": "2A. Data Portability",
+          "type": "must-pass",
+          "points": 0,
+          "text": "Export accessible within 3 clicks from settings. No support ticket, waiting period exceeding 24 hours, or discouragement flow.",
+          "evidenceType": "U",
+          "automationLevel": "full",
+          "auditInstructions": "Starting from the main settings/account screen, count the number of clicks required to initiate a data export. Document each step. Check for: discouragement language ('Are you sure? This may take a while'), artificial delays (processing time stated as days/weeks), or requirements to contact support. The export must be initiatable within 3 clicks and available within 24 hours.",
+          "passCondition": "Data export is initiatable within 3 clicks from settings. No support ticket required. No stated processing time exceeding 24 hours. No discouragement flow.",
+          "failIndicators": [
+            "More than 3 clicks to initiate export",
+            "Requires contacting support",
+            "Stated processing time >24 hours",
+            "Discouragement dialogs or warnings designed to prevent export",
+            "Export feature hidden or difficult to find"
+          ]
+        },
+        {
+          "id": "DAT-04",
+          "subdomain": "2A. Data Portability",
+          "type": "scored",
+          "points": 3,
+          "text": "API or webhook system for real-time or near-real-time data sync with external systems chosen by the user.",
+          "evidenceType": "D",
+          "automationLevel": "full",
+          "auditInstructions": "Check for: public API documentation, webhook configuration in settings, integration marketplace, or documented export APIs. Verify the API/webhook is user-accessible (not just internal). Check if it supports real-time or near-real-time data sync (not just periodic batch export).",
+          "passCondition": "A user-accessible API or webhook system exists that enables real-time or near-real-time data sync with external systems.",
+          "failIndicators": [
+            "No public API",
+            "API exists but is internal/undocumented",
+            "Only batch export available, no real-time sync",
+            "API requires enterprise tier or special approval"
+          ]
+        },
+        {
+          "id": "DAT-05",
+          "subdomain": "2A. Data Portability",
+          "type": "scored",
+          "points": 2,
+          "text": "Exported data structured and documented sufficiently for import into a competing product or custom system.",
+          "evidenceType": "D",
+          "automationLevel": "assisted",
+          "auditInstructions": "Download an export file. Evaluate: is the format well-structured (consistent schema, clear field names)? Is there documentation explaining the export format (field descriptions, data types, relationships)? Could a competent developer import this into another system without reverse-engineering? Present the export sample and any documentation to auditor.",
+          "passCondition": "Export format is well-structured with clear schema, and documentation exists explaining fields and relationships.",
+          "failIndicators": [
+            "Undocumented export format",
+            "Inconsistent or ambiguous field names",
+            "No schema documentation",
+            "Format requires significant reverse-engineering to understand"
+          ]
+        },
+        {
+          "id": "DAT-06",
+          "subdomain": "2A. Data Portability",
+          "type": "scored",
+          "points": 2,
+          "text": "Supports import of data from at least one competing product or common format in its category.",
+          "evidenceType": "U",
+          "automationLevel": "full",
+          "auditInstructions": "Check for import functionality in the application. Look for: import from specific competitors, import from common formats (CSV, JSON, iCal, OPML, etc.), or migration tools. Verify the import feature is functional and accessible.",
+          "passCondition": "The application supports import from at least one competing product or common format in its category.",
+          "failIndicators": [
+            "No import feature",
+            "Import feature exists but is broken",
+            "Only supports proprietary format import"
+          ]
+        },
+        {
+          "id": "DAT-07",
+          "subdomain": "2B. Data Collection Minimalism",
+          "type": "must-pass",
+          "points": 0,
+          "text": "No data collected, stored, or transmitted beyond what is required for features the user is actively using.",
+          "evidenceType": "T",
+          "automationLevel": "assisted",
+          "auditInstructions": "Monitor network requests during normal use. Identify all data being transmitted. For each data point, determine: is this required for the feature the user is currently using? Check for: analytics payloads, device fingerprinting, behavioral tracking, location collection without location features active. In source code, review data models and API payloads for fields not tied to user-facing features. Present findings to auditor for proportionality judgment.",
+          "passCondition": "All data collected is directly tied to features the user is actively using. No extraneous data collection.",
+          "failIndicators": [
+            "Device fingerprinting",
+            "Behavioral tracking beyond feature requirements",
+            "Location collection without active location features",
+            "Data fields in payloads not tied to current feature",
+            "Hidden analytics collecting usage patterns beyond stated purpose"
+          ]
+        },
+        {
+          "id": "DAT-08",
+          "subdomain": "2B. Data Collection Minimalism",
+          "type": "must-pass",
+          "points": 0,
+          "text": "Never sells, shares, or provides user data to third-party advertisers, data brokers, or ad networks.",
+          "evidenceType": "T",
+          "automationLevel": "assisted",
+          "auditInstructions": "Monitor network requests for connections to known ad networks, data brokers, or advertising SDKs. Check for: Google Ads, Facebook Pixel, ad tracking pixels, data broker APIs. Review privacy policy for data sharing disclosures. In source code, search for ad SDK imports, tracking pixel implementations, or data broker integrations. Cross-reference with privacy policy claims. Present all third-party connections to auditor.",
+          "passCondition": "No connections to ad networks, data brokers, or advertising services. Privacy policy confirms no data selling/sharing with advertisers.",
+          "failIndicators": [
+            "Ad network SDKs in dependencies",
+            "Tracking pixels in page source",
+            "Network requests to known ad/data broker domains",
+            "Privacy policy disclosing data sharing with advertising partners"
+          ]
+        },
+        {
+          "id": "DAT-09",
+          "subdomain": "2B. Data Collection Minimalism",
+          "type": "scored",
+          "points": 3,
+          "text": "Real-time, user-accessible inventory of all data held about the user — not just privacy policy categories, but an actual data viewer.",
+          "evidenceType": "U",
+          "automationLevel": "full",
+          "auditInstructions": "Search account settings for a 'my data', 'data inventory', or 'what we know about you' feature. Check if it shows actual data values (not just categories like 'we collect your email'). Verify it is real-time or near-real-time (reflects recently added data).",
+          "passCondition": "A user-accessible data viewer exists showing actual data held, not just categories. It reflects current/recent data state.",
+          "failIndicators": [
+            "No data inventory feature",
+            "Only shows data categories from privacy policy",
+            "Data viewer exists but is stale/not updated",
+            "Requires submitting a data access request instead of self-service"
+          ]
+        },
+        {
+          "id": "DAT-10",
+          "subdomain": "2B. Data Collection Minimalism",
+          "type": "scored",
+          "points": 2,
+          "text": "Analytics and telemetry, if present, are opt-in (not opt-out) and clearly explain what is collected and why.",
+          "evidenceType": "T",
+          "automationLevel": "full",
+          "auditInstructions": "Create a fresh account. Check if analytics/telemetry is active by default (monitor network requests for analytics endpoints). Check settings for analytics opt-in/opt-out controls. If analytics is present, is the default OFF (opt-in) or ON (opt-out)? Is there a clear explanation of what is collected and why? In source code, check if analytics initialization is gated behind a user consent flag.",
+          "passCondition": "Analytics/telemetry defaults to OFF on fresh accounts. User must explicitly opt in. Clear explanation of what is collected and why is provided at the opt-in point.",
+          "failIndicators": [
+            "Analytics active by default",
+            "Opt-out instead of opt-in",
+            "No explanation of what analytics collects",
+            "Analytics initialization not gated behind consent"
+          ]
+        },
+        {
+          "id": "DAT-11",
+          "subdomain": "2B. Data Collection Minimalism",
+          "type": "scored",
+          "points": 2,
+          "text": "Core features function with all optional data collection declined.",
+          "evidenceType": "U",
+          "automationLevel": "full",
+          "auditInstructions": "Decline all optional data collection (analytics, telemetry, optional permissions). Use the application's core features. Verify they all function correctly. Check for: degraded functionality, missing features, error messages, or nag screens when optional collection is declined.",
+          "passCondition": "All core features work correctly with all optional data collection declined. No degradation, nag screens, or feature lockouts.",
+          "failIndicators": [
+            "Features disabled when optional data collection declined",
+            "Error messages related to declined analytics",
+            "Nag screens or repeated prompts to enable data collection",
+            "Subtle degradation of feature quality"
+          ]
+        },
+        {
+          "id": "DAT-12",
+          "subdomain": "2B. Data Collection Minimalism",
+          "type": "scored",
+          "points": 1,
+          "text": "Stated data retention periods with automatic purge when purpose expires.",
+          "evidenceType": "D",
+          "automationLevel": "full",
+          "auditInstructions": "Read the privacy policy and any data handling documentation. Check for stated retention periods for different data categories. Verify that the policy specifies what happens when the retention period expires (automatic purge vs manual review). Look for specific timeframes rather than vague language ('we retain data as long as necessary').",
+          "passCondition": "Privacy policy specifies retention periods for data categories and states that data is automatically purged when the retention period expires.",
+          "failIndicators": [
+            "No retention periods stated",
+            "Vague retention language ('as long as necessary')",
+            "No mention of automatic purge/deletion",
+            "Indefinite retention for any category"
+          ]
+        },
+        {
+          "id": "DAT-13",
+          "subdomain": "2C. Data Security & Deletion",
+          "type": "scored",
+          "points": 3,
+          "text": "Sensitive user data encrypted at rest using industry-standard encryption (AES-256 or equivalent).",
+          "evidenceType": "A",
+          "automationLevel": "manual",
+          "auditInstructions": "This requires attestation. Generate questions: (a) Is sensitive user data encrypted at rest? (b) What encryption algorithm and key length is used? (c) What data is classified as sensitive? (d) How are encryption keys managed? Cross-reference with any public security documentation, SOC 2 reports, or security page claims.",
+          "passCondition": "Company attests to AES-256 or equivalent encryption at rest for sensitive data, consistent with public documentation.",
+          "failIndicators": [
+            "No encryption at rest",
+            "Weak encryption algorithm",
+            "Only some sensitive data encrypted",
+            "Attestation contradicts public security claims"
+          ]
+        },
+        {
+          "id": "DAT-14",
+          "subdomain": "2C. Data Security & Deletion",
+          "type": "scored",
+          "points": 3,
+          "text": "Account deletion is complete, permanent, and accessible within the application. No 'contact support to delete.'",
+          "evidenceType": "U",
+          "automationLevel": "full",
+          "auditInstructions": "Navigate to account settings. Look for an account deletion option. Verify: (1) it exists in-app, (2) it does not require contacting support, (3) it clearly states the deletion is permanent, (4) it initiates immediately (not 'we'll process this in 30 days'). Count clicks to reach deletion. Do not actually delete the account — document the flow up to the final confirmation.",
+          "passCondition": "Account deletion is accessible in-app, clearly permanent, and does not require contacting support. Initiates immediately upon confirmation.",
+          "failIndicators": [
+            "No in-app deletion option",
+            "Requires contacting support",
+            "Only 'deactivation' offered, not deletion",
+            "Excessive waiting period before deletion begins",
+            "Deletion buried behind multiple discouragement screens"
+          ]
+        },
+        {
+          "id": "DAT-15",
+          "subdomain": "2C. Data Security & Deletion",
+          "type": "scored",
+          "points": 2,
+          "text": "Clear distinction between 'deactivation' (data retained) and 'deletion' (data destroyed), with both offered.",
+          "evidenceType": "U",
+          "automationLevel": "full",
+          "auditInstructions": "In account settings, check if both deactivation and deletion are offered. Verify that the difference is clearly explained: deactivation = account suspended but data retained; deletion = data permanently destroyed. Both options should be available and clearly labeled.",
+          "passCondition": "Both deactivation and deletion are offered with clear explanations of data implications for each.",
+          "failIndicators": [
+            "Only one option offered",
+            "Distinction not clearly explained",
+            "Labels are ambiguous",
+            "Deactivation presented as deletion"
+          ]
+        },
+        {
+          "id": "DAT-16",
+          "subdomain": "2C. Data Security & Deletion",
+          "type": "scored",
+          "points": 2,
+          "text": "Backups of user data purged within 30 days of deletion request.",
+          "evidenceType": "A",
+          "automationLevel": "manual",
+          "auditInstructions": "This requires attestation. Generate questions: (a) What is your backup retention policy after user deletion? (b) How long are backups containing deleted user data retained? (c) Is purge from backups automated or manual? (d) What is the maximum calendar days between deletion request and complete purge from all backup systems? Cross-reference with privacy policy and any public data handling documentation.",
+          "passCondition": "Company attests backups are purged within 30 calendar days of deletion, consistent with published documentation.",
+          "failIndicators": [
+            "Attestation states >30 day retention",
+            "Privacy policy contradicts attestation",
+            "No backup purge process",
+            "Manual process with no guaranteed timeline"
+          ]
+        },
+        {
+          "id": "DAT-17",
+          "subdomain": "2C. Data Security & Deletion",
+          "type": "scored",
+          "points": 1,
+          "text": "Supports industry-standard authentication (OAuth 2.0, passkeys); phone number not mandatory.",
+          "evidenceType": "T",
+          "automationLevel": "full",
+          "auditInstructions": "Navigate to signup/login. Check supported authentication methods. Verify at least one industry-standard method is available (OAuth 2.0/social login, passkeys, email+password). Check if phone number is required at any point in the signup flow. A phone number may be offered as an option but must not be mandatory.",
+          "passCondition": "At least one industry-standard auth method available. Phone number is not a mandatory field for account creation.",
+          "failIndicators": [
+            "Phone number required for signup",
+            "Only phone-based auth available",
+            "No standard auth methods (OAuth, passkeys, email+password)"
+          ]
+        },
+        {
+          "id": "DAT-18",
+          "subdomain": "2C. Data Security & Deletion",
+          "type": "scored",
+          "points": 1,
+          "text": "Data transmission uses TLS 1.2 or higher exclusively.",
+          "evidenceType": "T",
+          "automationLevel": "full",
+          "auditInstructions": "Use browser DevTools Security tab or an SSL checker tool to verify the TLS version used for all connections. Check the main domain and any API endpoints. All connections should use TLS 1.2 or higher. Check for mixed content (HTTP resources loaded on HTTPS pages).",
+          "passCondition": "All connections use TLS 1.2 or higher. No mixed content. No fallback to older TLS versions.",
+          "failIndicators": [
+            "TLS 1.0 or 1.1 supported",
+            "Mixed content (HTTP on HTTPS)",
+            "API endpoints without TLS",
+            "SSL certificate issues"
+          ]
+        },
+        {
+          "id": "HON-01",
+          "subdomain": "3A. Dark Pattern Prohibition",
+          "type": "must-pass",
+          "points": 0,
+          "text": "No confirmshaming (guilt-laden language on decline buttons).",
+          "evidenceType": "U",
+          "automationLevel": "assisted",
+          "auditInstructions": "Navigate through all decline, cancel, and opt-out flows in the application. Screenshot every dialog where the user declines something (newsletter signup, feature prompt, upgrade offer, cookie consent). Analyze the language on decline buttons and surrounding text. Flag any language that uses guilt, shame, or emotional manipulation. Examples of confirmshaming: 'No thanks, I don't care about saving money', 'I'll pass on this amazing deal', 'No, I prefer to stay uninformed'. Present all findings to auditor for final judgment on borderline cases.",
+          "passCondition": "No decline/cancel/opt-out button or surrounding text uses guilt, shame, or emotional manipulation.",
+          "failIndicators": [
+            "First-person decline text implying user inadequacy",
+            "Negative framing of the user's choice",
+            "Emotional language on decline but neutral language on accept",
+            "Sad faces, frowns, or negative imagery associated with declining"
+          ]
+        },
+        {
+          "id": "HON-02",
+          "subdomain": "3A. Dark Pattern Prohibition",
+          "type": "must-pass",
+          "points": 0,
+          "text": "No roach motel patterns (easy to sign up, deliberately difficult to cancel or delete).",
+          "evidenceType": "U",
+          "automationLevel": "full",
+          "auditInstructions": "Count the exact steps required for: (1) signing up for the product, (2) canceling a subscription, (3) deleting an account. Compare step counts. The cancellation/deletion flow should not be significantly more complex than signup. Also check: does cancellation require a phone call, live chat, or mailed letter when signup was self-service? Document both flows step-by-step.",
+          "passCondition": "Cancellation and deletion are no more difficult than signup. Same channel (self-service if signup was self-service). No artificial complexity added to the exit flow.",
+          "failIndicators": [
+            "Cancellation requires calling a phone number when signup was online",
+            "More steps to cancel than to sign up",
+            "Cancel button hidden or hard to find",
+            "Retention screens that must be navigated",
+            "Required chat with retention agent"
+          ]
+        },
+        {
+          "id": "HON-03",
+          "subdomain": "3A. Dark Pattern Prohibition",
+          "type": "must-pass",
+          "points": 0,
+          "text": "No bait-and-switch (advertising one feature, price, or capability and delivering another after commitment).",
+          "evidenceType": "U",
+          "automationLevel": "assisted",
+          "auditInstructions": "Compare marketing site claims with actual product experience. Check: (1) advertised features exist and work as described, (2) pricing matches what is charged (no hidden fees at checkout), (3) free tier limitations match what's advertised. Screenshot marketing claims alongside actual product state. Present discrepancies to auditor.",
+          "passCondition": "Marketing claims accurately represent the product experience. No features, prices, or capabilities misrepresented.",
+          "failIndicators": [
+            "Features advertised but not present or functioning differently",
+            "Price increases at checkout beyond what was shown",
+            "Free tier more limited than marketed",
+            "Capabilities that require paid upgrade but were implied as free"
+          ]
+        },
+        {
+          "id": "HON-04",
+          "subdomain": "3A. Dark Pattern Prohibition",
+          "type": "must-pass",
+          "points": 0,
+          "text": "Cancellation or downgrade flow contains no more steps than the signup or upgrade flow.",
+          "evidenceType": "U",
+          "automationLevel": "full",
+          "auditInstructions": "Count exact steps for: (1) signup/upgrade flow, (2) cancellation/downgrade flow. A 'step' is any screen, click, or required input. Include confirmation screens. The cancellation/downgrade flow must have fewer than or equal steps to the signup/upgrade flow.",
+          "passCondition": "Cancellation/downgrade step count is less than or equal to signup/upgrade step count.",
+          "failIndicators": [
+            "More clicks to cancel than to sign up",
+            "Additional survey or feedback screens during cancellation",
+            "Retention offers that add steps",
+            "Confirmation screens not present in signup"
+          ]
+        },
+        {
+          "id": "HON-05",
+          "subdomain": "3A. Dark Pattern Prohibition",
+          "type": "scored",
+          "points": 2,
+          "text": "No pre-checked optional consent boxes, newsletter signups, or add-on purchases.",
+          "evidenceType": "T",
+          "automationLevel": "full",
+          "auditInstructions": "Navigate through signup, checkout, and settings flows. Check every checkbox and toggle. Verify that optional items (newsletter, marketing emails, add-on purchases, data sharing consent) are unchecked/off by default. In source code, check default values for consent-related form fields.",
+          "passCondition": "All optional consent checkboxes, newsletter signups, and add-on purchases default to unchecked/off.",
+          "failIndicators": [
+            "Pre-checked newsletter signup",
+            "Pre-selected add-on in cart",
+            "Default-on marketing consent",
+            "Optional data sharing checked by default"
+          ]
+        },
+        {
+          "id": "HON-06",
+          "subdomain": "3A. Dark Pattern Prohibition",
+          "type": "scored",
+          "points": 2,
+          "text": "Price presented clearly at point of decision. No hidden fees, no 'starting at' pricing that escalates.",
+          "evidenceType": "U",
+          "automationLevel": "assisted",
+          "auditInstructions": "Navigate through the pricing page and full checkout flow. Compare the price shown on the pricing page with the final charge at checkout. Check for: taxes or fees added only at checkout, 'starting at' pricing with actual price higher, subscription cost that differs from displayed price, mandatory add-ons. Document price at each step of the funnel. Present to auditor.",
+          "passCondition": "Price shown at point of decision matches final charge. No fees or additions revealed only at checkout.",
+          "failIndicators": [
+            "Fees added at checkout not shown on pricing page",
+            "'Starting at' pricing where most users pay more",
+            "Mandatory add-ons not disclosed upfront",
+            "Monthly price displayed but annual billing required"
+          ]
+        },
+        {
+          "id": "HON-07",
+          "subdomain": "3A. Dark Pattern Prohibition",
+          "type": "scored",
+          "points": 2,
+          "text": "No false urgency (fake countdown timers, 'only 3 left!' when inventory is not genuinely scarce).",
+          "evidenceType": "T",
+          "automationLevel": "full",
+          "auditInstructions": "Scan all pages for countdown timers, scarcity indicators ('only X left'), or urgency messaging. For each: (1) refresh the page — does the timer reset? (2) check different sessions — does the scarcity number change? (3) check source code — is the urgency based on real data or hardcoded/randomized? Timers that reset on refresh and scarcity numbers that don't correspond to real inventory are false urgency.",
+          "passCondition": "No fake countdown timers, false scarcity indicators, or manufactured urgency messaging.",
+          "failIndicators": [
+            "Countdown timer that resets on page refresh",
+            "Scarcity number that doesn't change across sessions",
+            "Hardcoded urgency text not tied to real data",
+            "Urgency messaging on non-time-sensitive actions"
+          ]
+        },
+        {
+          "id": "HON-08",
+          "subdomain": "3A. Dark Pattern Prohibition",
+          "type": "scored",
+          "points": 1,
+          "text": "No visual misdirection toward company-preferred option and away from user-preferred option.",
+          "evidenceType": "T",
+          "automationLevel": "assisted",
+          "auditInstructions": "Screenshot pricing pages, consent dialogs, and option-selection screens. Analyze visual treatment: is the company-preferred option (e.g., 'Accept All Cookies', higher-priced plan, 'Keep Subscription') given significantly more visual prominence (larger, brighter, colored) while the user-preferred option (e.g., 'Manage Preferences', free plan, 'Cancel') is visually diminished (smaller, gray, text-link)? Present comparison to auditor.",
+          "passCondition": "Options are presented with comparable visual weight. User-preferred options are not visually diminished relative to company-preferred options.",
+          "failIndicators": [
+            "Accept/agree button large and colored while decline is small gray text",
+            "Upgrade button prominent while downgrade is hidden",
+            "Company-preferred option centered/above while alternative is corner/below",
+            "Color contrast difference making one option more visible"
+          ]
+        },
+        {
+          "id": "HON-09",
+          "subdomain": "3B. Algorithmic Transparency",
+          "type": "scored",
+          "points": 3,
+          "text": "If algorithmic curation is used, primary ranking factors disclosed in plain language accessible from the interface.",
+          "evidenceType": "D",
+          "automationLevel": "assisted",
+          "auditInstructions": "Determine if the application uses algorithmic curation, ranking, or recommendation for any content feed. If yes: look for disclosure of ranking factors accessible from the interface (info icon, 'Why am I seeing this?', algorithm explanation page). Evaluate: is the explanation in plain language? Does it cover the primary factors? Is it accessible from the curated content? If no algorithmic curation exists, this criterion is N/A (full points). Present findings to auditor.",
+          "passCondition": "Algorithmic ranking factors are disclosed in plain language accessible from the interface, OR no algorithmic curation exists.",
+          "failIndicators": [
+            "Algorithmic curation with no disclosure",
+            "Disclosure exists but is in technical language",
+            "Disclosure buried in TOS rather than accessible from interface",
+            "Vague disclosure ('we show you relevant content') without specific factors"
+          ]
+        },
+        {
+          "id": "HON-10",
+          "subdomain": "3B. Algorithmic Transparency",
+          "type": "scored",
+          "points": 2,
+          "text": "At least one non-algorithmic view of content (chronological, alphabetical, or user-defined sort) available.",
+          "evidenceType": "U",
+          "automationLevel": "full",
+          "auditInstructions": "If the application has content feeds or lists: check for sort options. Verify at least one non-algorithmic option is available (chronological/newest first, alphabetical, user-defined). If the only view is algorithmically curated with no alternative, this fails. If no content feed exists, this is N/A (full points).",
+          "passCondition": "At least one non-algorithmic sort/view option is available for content feeds, OR no algorithmic curation exists.",
+          "failIndicators": [
+            "Only algorithmic feed with no sort options",
+            "Chronological option exists but is hidden or hard to find",
+            "Sort options available but none are truly non-algorithmic"
+          ]
+        },
+        {
+          "id": "HON-11",
+          "subdomain": "3B. Algorithmic Transparency",
+          "type": "scored",
+          "points": 2,
+          "text": "AI-generated content clearly labeled as such and distinguishable from human-authored content.",
+          "evidenceType": "T",
+          "automationLevel": "full",
+          "auditInstructions": "Search the application for any AI-generated content (text, images, summaries, recommendations). Check if each instance is clearly labeled as AI-generated. Verify the label is visible and distinguishable (not just metadata or tooltip). If no AI-generated content exists, this is N/A (full points). In source code, check if AI outputs are tagged/labeled before display.",
+          "passCondition": "All AI-generated content is clearly labeled and visually distinguishable from human-authored content, OR no AI content exists.",
+          "failIndicators": [
+            "AI-generated content presented without label",
+            "Label only in metadata/tooltip, not visually apparent",
+            "AI content mixed with human content without distinction"
+          ]
+        },
+        {
+          "id": "HON-12",
+          "subdomain": "3B. Algorithmic Transparency",
+          "type": "scored",
+          "points": 1,
+          "text": "No dynamic pricing personalized by user behavior or inferred willingness to pay.",
+          "evidenceType": "T",
+          "automationLevel": "assisted",
+          "auditInstructions": "Check pricing from multiple contexts: different browsers, different locations (via VPN if available), logged-in vs logged-out, new vs returning user. Compare prices. If any variation exists, investigate whether it's based on user behavior, location, or device. In source code, check for pricing logic that references user attributes, cookies, or behavioral signals. Present findings to auditor. Note: currency/tax differences based on location are acceptable; behavioral pricing is not.",
+          "passCondition": "Pricing is consistent regardless of user behavior, browsing history, or inferred willingness to pay. Location-based tax differences are acceptable.",
+          "failIndicators": [
+            "Different prices for same product across sessions/users",
+            "Pricing logic referencing user behavior signals",
+            "A/B testing on pricing",
+            "Prices changing based on browsing history or device"
+          ]
+        },
+        {
+          "id": "HON-13",
+          "subdomain": "3C. Business Model Transparency",
+          "type": "must-pass",
+          "points": 0,
+          "text": "Monetization model stated plainly on marketing site and within the application.",
+          "evidenceType": "D",
+          "automationLevel": "full",
+          "auditInstructions": "Check the marketing website and the application itself for a clear statement of how the product makes money (subscription, one-time purchase, freemium, ad-supported, donation, etc.). The monetization model should be findable without reading legal documents. Check: pricing page, about page, footer, in-app settings or about section.",
+          "passCondition": "Monetization model is clearly stated on the marketing site and accessible within the application.",
+          "failIndicators": [
+            "No mention of how the product makes money",
+            "Monetization only discoverable in TOS",
+            "Ambiguous or misleading revenue model description",
+            "Free product with no explanation of funding"
+          ]
+        },
+        {
+          "id": "HON-14",
+          "subdomain": "3C. Business Model Transparency",
+          "type": "scored",
+          "points": 3,
+          "text": "If the product is free, the application explains how it is funded.",
+          "evidenceType": "D",
+          "automationLevel": "full",
+          "auditInstructions": "If the product is free: check for an explanation of funding (VC-backed, grants, donation, cross-subsidy from paid products, etc.). This should be accessible from the marketing site or in-app about section. If the product is paid, this is N/A (full points).",
+          "passCondition": "Free products clearly explain their funding source. Paid products automatically pass.",
+          "failIndicators": [
+            "Free product with no funding explanation",
+            "Vague statements ('supported by our community') without specifics"
+          ]
+        },
+        {
+          "id": "HON-15",
+          "subdomain": "3C. Business Model Transparency",
+          "type": "scored",
+          "points": 2,
+          "text": "No degrading existing features to upsell paid tiers without advance notice and data export option.",
+          "evidenceType": "A",
+          "automationLevel": "manual",
+          "auditInstructions": "This requires attestation and historical review. Generate questions: (a) Have any previously free features been moved behind a paywall in the last 24 months? (b) If yes, were users notified in advance? (c) Was a data export option provided before the change? Check app store reviews and public forums for complaints about feature removal. Cross-reference with changelog.",
+          "passCondition": "No features have been degraded to force upgrades without advance notice and data export, OR no changes have occurred.",
+          "failIndicators": [
+            "Features moved behind paywall without notice",
+            "User complaints about feature removal in reviews",
+            "Changelog shows feature restrictions without corresponding notice"
+          ]
+        },
+        {
+          "id": "HON-16",
+          "subdomain": "3C. Business Model Transparency",
+          "type": "scored",
+          "points": 2,
+          "text": "Terms of service available in a plain-language summary at maximum 8th-grade reading level.",
+          "evidenceType": "D",
+          "automationLevel": "full",
+          "auditInstructions": "Navigate to the Terms of Service. Check if a plain-language summary exists (separate from or at the top of the legal text). If found, copy the summary and score its readability using Flesch-Kincaid grade level. Must be at 8th-grade level or below. The summary should cover: data rights, service changes, and cancellation.",
+          "passCondition": "A plain-language TOS summary exists at 8th-grade reading level or below, covering data rights, service changes, and cancellation.",
+          "failIndicators": [
+            "No plain-language summary",
+            "Summary above 8th-grade reading level",
+            "Summary missing key topics (data rights, cancellation)",
+            "Summary that is itself legalistic"
+          ]
+        },
+        {
+          "id": "DEP-01",
+          "subdomain": "4A. Session Closure",
+          "type": "scored",
+          "points": 2,
+          "text": "No retention dialogs, 'Are you sure?' prompts, or emotional appeals when closing (unsaved-work warnings permitted).",
+          "evidenceType": "U",
+          "automationLevel": "full",
+          "auditInstructions": "Close the application, navigate away, and log out. Document any dialogs, prompts, or messages that appear. Retention dialogs ('Are you sure you want to leave?'), emotional appeals ('We'll miss you!'), and exit-intent popups all fail. Exception: unsaved-work warnings are permitted. In source code, check for beforeunload handlers, exit-intent detection, or logout interstitials.",
+          "passCondition": "No retention dialogs or emotional appeals on close/logout. Only unsaved-work warnings are present (if any).",
+          "failIndicators": [
+            "Exit-intent popup",
+            "beforeunload handler without unsaved changes",
+            "'Are you sure?' on logout without data loss risk",
+            "Emotional or guilt-based messaging on exit"
+          ]
+        },
+        {
+          "id": "DEP-02",
+          "subdomain": "4A. Session Closure",
+          "type": "scored",
+          "points": 2,
+          "text": "Auto-saves state so user can close at any moment without loss of work.",
+          "evidenceType": "U",
+          "automationLevel": "full",
+          "auditInstructions": "Begin creating or editing content. Close the application mid-action without saving. Reopen and check if the work was preserved. Test across multiple content types. Check source code for auto-save intervals, draft persistence, or state restoration logic.",
+          "passCondition": "User can close the application at any moment and return to find their work preserved. Auto-save is active for all user-generated content.",
+          "failIndicators": [
+            "Work lost on unexpected close",
+            "No auto-save mechanism",
+            "Auto-save only on explicit save action",
+            "Draft content not persisted"
+          ]
+        },
+        {
+          "id": "DEP-03",
+          "subdomain": "4A. Session Closure",
+          "type": "scored",
+          "points": 1,
+          "text": "No re-engagement emails within 72 hours of a user's last session.",
+          "evidenceType": "A",
+          "automationLevel": "manual",
+          "auditInstructions": "This requires attestation and monitoring. Generate questions: (a) Does the application send re-engagement or 'we miss you' emails? (b) What is the minimum delay after last activity before any re-engagement email? (c) Can users disable re-engagement emails? Also monitor: create an account, use the app, then stop. Track emails received in the 72 hours after last use.",
+          "passCondition": "No re-engagement emails within 72 hours of last session. Re-engagement emails either don't exist or have a >72-hour delay.",
+          "failIndicators": [
+            "Re-engagement email within 72 hours",
+            "'We miss you' or 'come back' messaging",
+            "Activity-triggered email within the 72-hour window"
+          ]
+        },
+        {
+          "id": "DEP-04",
+          "subdomain": "4A. Session Closure",
+          "type": "scored",
+          "points": 1,
+          "text": "No ads, surveys, or promotional content displayed at the closing or logout moment.",
+          "evidenceType": "U",
+          "automationLevel": "full",
+          "auditInstructions": "Log out of the application multiple times. Close the application in different contexts. Document everything displayed at the logout/close moment. Check for: ads, surveys, NPS prompts, upgrade offers, or promotional content shown during the exit flow.",
+          "passCondition": "Logout/close flow is clean. No ads, surveys, or promotional content at the moment of departure.",
+          "failIndicators": [
+            "Survey or NPS prompt on logout",
+            "Upgrade offer on exit",
+            "Ad displayed during logout",
+            "Promotional content in logout confirmation"
+          ]
+        },
+        {
+          "id": "DEP-05",
+          "subdomain": "4B. Account Offboarding",
+          "type": "must-pass",
+          "points": 0,
+          "text": "Subscription cancellable entirely within the application or web interface. No phone calls, retention agents, or mailed letters.",
+          "evidenceType": "U",
+          "automationLevel": "full",
+          "auditInstructions": "Navigate to subscription management. Initiate cancellation. Document the entire flow. Verify it can be completed entirely self-service within the app or web interface. Check that no step requires: calling a phone number, chatting with a retention agent, sending a physical letter, or any channel other than the self-service interface.",
+          "passCondition": "Subscription cancellation is entirely self-service within the application or web interface.",
+          "failIndicators": [
+            "Phone number required to cancel",
+            "Live chat with retention agent required",
+            "Mailed letter or fax required",
+            "Cancellation redirects to external call center"
+          ]
+        },
+        {
+          "id": "DEP-06",
+          "subdomain": "4B. Account Offboarding",
+          "type": "must-pass",
+          "points": 0,
+          "text": "After cancellation, previously paid-for data remains accessible and exportable for a minimum of 30 days.",
+          "evidenceType": "D",
+          "automationLevel": "assisted",
+          "auditInstructions": "Check cancellation flow documentation, TOS, and any cancellation confirmation messaging for data access policies post-cancellation. The product must state (or demonstrate) that user data remains accessible and exportable for at least 30 days after subscription cancellation. Cross-reference with privacy policy and support documentation. Present findings to auditor.",
+          "passCondition": "Documentation confirms data remains accessible and exportable for 30+ days post-cancellation.",
+          "failIndicators": [
+            "Immediate data loss on cancellation",
+            "Data access window <30 days",
+            "No stated post-cancellation data access policy",
+            "Data accessible but not exportable after cancellation"
+          ]
+        },
+        {
+          "id": "DEP-07",
+          "subdomain": "4B. Account Offboarding",
+          "type": "must-pass",
+          "points": 0,
+          "text": "Cancellation confirmation is clear and immediate with the effective date and what happens to user data.",
+          "evidenceType": "U",
+          "automationLevel": "full",
+          "auditInstructions": "Initiate (but do not complete unless using test account) the cancellation flow. At the confirmation step, check for: (1) clear confirmation that cancellation will proceed, (2) the effective date, (3) what happens to user data after cancellation. All three must be present and visible at the confirmation moment. Screenshot the confirmation screen.",
+          "passCondition": "Cancellation confirmation clearly states: confirmation of action, effective date, and data fate. All three visible at the confirmation step.",
+          "failIndicators": [
+            "No confirmation screen",
+            "Missing effective date",
+            "No mention of data fate",
+            "Ambiguous language about whether cancellation actually happened"
+          ]
+        },
+        {
+          "id": "DEP-08",
+          "subdomain": "4B. Account Offboarding",
+          "type": "scored",
+          "points": 2,
+          "text": "Transfer ownership capability for shared accounts, teams, or family plans.",
+          "evidenceType": "U",
+          "automationLevel": "full",
+          "auditInstructions": "If the application supports shared accounts, teams, or family plans: check for an ownership transfer feature. Verify the departing owner can transfer to another member without data loss. If the application has no shared/team/family features, this is N/A (full points).",
+          "passCondition": "Ownership transfer is available for shared/team/family accounts, OR no shared accounts exist.",
+          "failIndicators": [
+            "No transfer capability",
+            "Owner departure destroys shared data",
+            "Transfer requires contacting support",
+            "Transfer loses configuration or history"
+          ]
+        },
+        {
+          "id": "DEP-09",
+          "subdomain": "4C. Graceful Degradation",
+          "type": "must-pass",
+          "points": 0,
+          "text": "If internet required for primary functionality, clearly stated before signup and on marketing materials.",
+          "evidenceType": "D",
+          "automationLevel": "full",
+          "auditInstructions": "Check if the application requires internet for primary functionality. If yes: verify this is stated on the marketing site (ideally on features page, pricing page, or FAQ) and visible before the user signs up or purchases. Check app store listing if applicable.",
+          "passCondition": "Internet requirement is clearly disclosed before signup/purchase, OR the application works offline.",
+          "failIndicators": [
+            "Internet required but not disclosed before signup",
+            "Connectivity requirement buried in TOS only",
+            "Marketing implies offline capability that doesn't exist"
+          ]
+        },
+        {
+          "id": "DEP-10",
+          "subdomain": "4C. Graceful Degradation",
+          "type": "scored",
+          "points": 3,
+          "text": "Meaningful offline functionality. Core features degrade gracefully rather than failing completely.",
+          "evidenceType": "T",
+          "automationLevel": "full",
+          "auditInstructions": "Disable network connectivity (airplane mode or DevTools offline). Attempt to use the application's core features. Document what works, what degrades, and what fails completely. 'Meaningful offline' means the user can still accomplish their primary task in some capacity, not just see a 'you're offline' screen.",
+          "passCondition": "Core features provide meaningful functionality offline. Degradation is graceful (reduced capability) rather than catastrophic (blank screen or error).",
+          "failIndicators": [
+            "Application shows only an error or offline screen",
+            "All features require connectivity with no fallback",
+            "Previously loaded content not accessible offline",
+            "No offline data caching or local storage"
+          ]
+        },
+        {
+          "id": "DEP-11",
+          "subdomain": "4C. Graceful Degradation",
+          "type": "scored",
+          "points": 2,
+          "text": "Documented plan for user data if company shuts down, referenced in Terms of Service.",
+          "evidenceType": "D",
+          "automationLevel": "full",
+          "auditInstructions": "Read the Terms of Service and any company documentation for a shutdown/discontinuation plan. Check for: what happens to user data if the product is discontinued, export window provided, open-sourcing commitment, or data return policy. This should be referenced in the TOS.",
+          "passCondition": "TOS includes a documented plan for user data in the event of product discontinuation or company shutdown.",
+          "failIndicators": [
+            "No discontinuation plan in TOS",
+            "TOS only mentions company's right to terminate without data provisions",
+            "No mention of user data fate on shutdown"
+          ]
+        },
+        {
+          "id": "DEP-12",
+          "subdomain": "4C. Graceful Degradation",
+          "type": "scored",
+          "points": 2,
+          "text": "No mandatory updates that remove features, change the interface substantially, or reset preferences without choice.",
+          "evidenceType": "A",
+          "automationLevel": "manual",
+          "auditInstructions": "This requires attestation and historical review. Generate questions: (a) Does the application force mandatory updates? (b) Have any updates in the last 12 months removed features or substantially changed the interface? (c) Are users given a choice or migration period for breaking changes? Check app store reviews and public forums for complaints about forced updates or removed features. Cross-reference with changelog.",
+          "passCondition": "No mandatory updates that remove features or substantially change the interface without user choice, OR no such changes have occurred.",
+          "failIndicators": [
+            "Forced updates that removed features",
+            "Interface overhauls without opt-in or migration period",
+            "User preferences reset by updates",
+            "Complaints in reviews about forced changes"
+          ]
+        },
+        {
+          "id": "RES-01",
+          "subdomain": "5A. Temporal Respect",
+          "type": "scored",
+          "points": 3,
+          "text": "User-defined schedules governing when the application may send notifications, sync data, or perform background activities.",
+          "evidenceType": "U",
+          "automationLevel": "full",
+          "auditInstructions": "Check application settings for scheduling controls. Look for: notification schedule (allowed hours), sync schedule, background activity controls. Verify the user can define specific time windows for these activities.",
+          "passCondition": "User can define time windows for notifications, data sync, and/or background activities.",
+          "failIndicators": [
+            "No scheduling controls",
+            "Only on/off toggle with no time-window option",
+            "Scheduling exists but only for some activity types"
+          ]
+        },
+        {
+          "id": "RES-02",
+          "subdomain": "5A. Temporal Respect",
+          "type": "scored",
+          "points": 2,
+          "text": "Default notification times restricted to 8:00 AM – 9:00 PM in the user's timezone unless explicitly configured otherwise.",
+          "evidenceType": "T",
+          "automationLevel": "assisted",
+          "auditInstructions": "Check notification delivery settings for default time restrictions. In source code, look for notification scheduling logic with timezone-aware quiet hours. Check if the default delivery window is restricted to reasonable hours (8AM-9PM local time). If no notifications are sent, this is N/A (full points).",
+          "passCondition": "Default notification delivery is restricted to 8AM-9PM local time, OR no notifications are sent.",
+          "failIndicators": [
+            "Notifications delivered at any hour by default",
+            "No timezone-aware scheduling",
+            "Default delivery window wider than 8AM-9PM"
+          ]
+        },
+        {
+          "id": "RES-03",
+          "subdomain": "5A. Temporal Respect",
+          "type": "scored",
+          "points": 2,
+          "text": "No time-of-day or day-of-week urgency messaging ('Weekend sale ends tonight!').",
+          "evidenceType": "T",
+          "automationLevel": "full",
+          "auditInstructions": "Search the application and marketing site for time-based urgency messaging. Look for references to: time of day, day of week, weekend, tonight, today only, limited time. Check source code for time-based copy logic. These must be genuinely time-sensitive (event starting) not manufactured urgency.",
+          "passCondition": "No time-based urgency messaging that manufactures pressure based on time-of-day or day-of-week.",
+          "failIndicators": [
+            "'Weekend sale ends tonight!' style messaging",
+            "Time-of-day triggered urgency",
+            "Countdown timers tied to day-of-week",
+            "Artificially time-limited offers"
+          ]
+        },
+        {
+          "id": "RES-04",
+          "subdomain": "5A. Temporal Respect",
+          "type": "scored",
+          "points": 1,
+          "text": "Recurring scheduled actions respect user calendar integrations or quiet periods if offered.",
+          "evidenceType": "U",
+          "automationLevel": "assisted",
+          "auditInstructions": "If the application has recurring actions (reminders, reports, digests): check if they respect user calendar integrations (e.g., not sending during calendar busy times) or user-defined quiet periods. If no recurring actions exist, this is N/A (full points).",
+          "passCondition": "Recurring actions respect calendar integrations or quiet periods, OR no recurring actions exist.",
+          "failIndicators": [
+            "Recurring actions sent during calendar busy times",
+            "No integration with user calendar for scheduling",
+            "Quiet periods ignored for recurring actions"
+          ]
+        },
+        {
+          "id": "RES-05",
+          "subdomain": "5A. Temporal Respect",
+          "type": "scored",
+          "points": 1,
+          "text": "Anniversary, milestone, or commemorative notifications are opt-in only.",
+          "evidenceType": "T",
+          "automationLevel": "full",
+          "auditInstructions": "Check notification settings for anniversary, milestone, or commemorative notification categories. If they exist, verify they default to OFF (opt-in). In source code, search for anniversary, milestone, commemorative, or date-triggered notification logic and check default state. If no such notifications exist, this is N/A (full points).",
+          "passCondition": "Anniversary/milestone notifications are opt-in (default off), OR no such notifications exist.",
+          "failIndicators": [
+            "Milestone notifications enabled by default",
+            "No opt-out for commemorative notifications",
+            "Anniversary notifications sent without user consent"
+          ]
+        },
+        {
+          "id": "RES-06",
+          "subdomain": "5B. Contextual Intelligence",
+          "type": "must-pass",
+          "points": 0,
+          "text": "No device sensor access (camera, microphone, location, contacts, health data) without explicit, per-use or per-session consent revocable at any time.",
+          "evidenceType": "T",
+          "automationLevel": "full",
+          "auditInstructions": "Monitor permission requests during app usage. Check that sensor access (camera, mic, location, contacts, health) is requested only when the user initiates a feature requiring it. Verify permissions are revocable. In source code, check that permission requests are just-in-time (at feature use, not at launch) and that the app handles permission denial gracefully.",
+          "passCondition": "All sensor access is gated behind explicit consent at the moment of use. Permissions are revocable.",
+          "failIndicators": [
+            "Sensor permissions requested at launch",
+            "Sensor access without explicit user initiation",
+            "App crashes or degrades core features when sensor permission denied",
+            "Persistent sensor access without per-use consent"
+          ]
+        },
+        {
+          "id": "RES-07",
+          "subdomain": "5B. Contextual Intelligence",
+          "type": "must-pass",
+          "points": 0,
+          "text": "No sensor use for purposes beyond stated functionality.",
+          "evidenceType": "T",
+          "automationLevel": "assisted",
+          "auditInstructions": "For each sensor permission the app requests: map it to the stated feature that requires it. Check for sensors accessed that don't correspond to any user-facing feature. In source code, trace sensor API calls to their usage context. A note-taking app accessing the microphone is acceptable for voice-to-text; accessing it without that feature is not. Present sensor-to-feature mapping to auditor.",
+          "passCondition": "Every sensor access maps to a stated user-facing feature. No sensor use beyond stated functionality.",
+          "failIndicators": [
+            "Sensor access not tied to any user-facing feature",
+            "Location tracked in a non-location app",
+            "Microphone accessed without voice feature",
+            "Camera permissions for app without camera features"
+          ]
+        },
+        {
+          "id": "RES-08",
+          "subdomain": "5B. Contextual Intelligence",
+          "type": "scored",
+          "points": 2,
+          "text": "Respects OS-level Focus or Do Not Disturb states and adjusts behavior accordingly.",
+          "evidenceType": "T",
+          "automationLevel": "assisted",
+          "auditInstructions": "Enable Focus/DND mode at the OS level. Use the application. Check if it: (1) suppresses notifications, (2) reduces or eliminates background activity, (3) adjusts its behavior in any observable way. In source code, check for Focus/DND state detection or system notification preference checks. Present findings to auditor.",
+          "passCondition": "Application respects OS Focus/DND states by suppressing notifications and reducing background activity.",
+          "failIndicators": [
+            "Notifications delivered during Focus/DND",
+            "No system state detection",
+            "Background activity unchanged during DND"
+          ]
+        },
+        {
+          "id": "RES-09",
+          "subdomain": "5B. Contextual Intelligence",
+          "type": "scored",
+          "points": 2,
+          "text": "If location data is used, provides 'only while using' option. No core degradation if background location denied.",
+          "evidenceType": "U",
+          "automationLevel": "full",
+          "auditInstructions": "If the app uses location: check permission options for 'only while using the app' vs 'always'. Grant only 'while using' and test core features. Verify no degradation of core functionality. If the app doesn't use location, this is N/A (full points).",
+          "passCondition": "'While using' location option available and core features work fully with background location denied, OR no location use.",
+          "failIndicators": [
+            "Only 'always' location option",
+            "Core features degraded with 'while using' only",
+            "Nag prompts to upgrade to 'always' location"
+          ]
+        },
+        {
+          "id": "RES-10",
+          "subdomain": "5B. Contextual Intelligence",
+          "type": "scored",
+          "points": 1,
+          "text": "Just-in-time permission requests only. No requesting permissions at first launch for features not yet attempted.",
+          "evidenceType": "T",
+          "automationLevel": "full",
+          "auditInstructions": "Install the app fresh and launch for the first time. Document any permission requests that appear before the user has attempted to use the corresponding feature. All permission requests should be triggered by user action (tapping a camera button triggers camera permission), not by app launch or onboarding.",
+          "passCondition": "All permission requests are triggered by user action on the corresponding feature, not at first launch.",
+          "failIndicators": [
+            "Permission requests during onboarding",
+            "Multiple permissions requested at launch",
+            "Permissions requested before user attempts the related feature"
+          ]
+        },
+        {
+          "id": "RES-11",
+          "subdomain": "5C. Resource Respect",
+          "type": "must-pass",
+          "points": 0,
+          "text": "No cryptocurrency mining, distributed computation, or use of device resources for purposes unrelated to stated functionality.",
+          "evidenceType": "T",
+          "automationLevel": "full",
+          "auditInstructions": "Monitor CPU, memory, and network usage during normal use and at idle. Check for unusual resource consumption. In source code, search for: WebAssembly crypto modules, mining libraries, distributed computing SDKs, or any code that uses device resources for non-application purposes. Check network requests for connections to mining pools or computation coordination servers.",
+          "passCondition": "No unauthorized use of device resources. All CPU, memory, and network usage is attributable to the application's stated functionality.",
+          "failIndicators": [
+            "Crypto mining code",
+            "Distributed computation SDK",
+            "Unexplained high CPU at idle",
+            "Network connections to mining pools or computation servers"
+          ]
+        },
+        {
+          "id": "RES-12",
+          "subdomain": "5C. Resource Respect",
+          "type": "scored",
+          "points": 2,
+          "text": "Background resource usage (CPU, memory, battery) proportionate to functionality.",
+          "evidenceType": "T",
+          "automationLevel": "assisted",
+          "auditInstructions": "With the app open but idle for 5 minutes, measure CPU and memory usage via Task Manager, Activity Monitor, or browser DevTools. Compare against the app's functionality category. Reference benchmarks: a note-taking app using >5% CPU at idle or >500MB memory is disproportionate. A video editor may justify higher usage. Present measurements and category comparison to auditor for proportionality judgment.",
+          "passCondition": "Background resource usage at idle is consistent with the product's functional category.",
+          "failIndicators": [
+            "CPU >5% at idle for non-media apps",
+            "Memory significantly above category norms",
+            "Continuous network activity while idle without stated real-time feature",
+            "Battery drain disproportionate to functionality"
+          ]
+        },
+        {
+          "id": "RES-13",
+          "subdomain": "5C. Resource Respect",
+          "type": "scored",
+          "points": 2,
+          "text": "No keeping device awake or maintaining persistent background connections when user is not actively using the application.",
+          "evidenceType": "T",
+          "automationLevel": "assisted",
+          "auditInstructions": "Check if the app prevents device sleep or maintains persistent WebSocket/long-polling connections when backgrounded or idle. In source code, search for: wake locks, keep-alive connections, persistent WebSockets, background fetch registrations. Exception: messaging apps or real-time collaboration tools may justify persistent connections if that is their stated purpose.",
+          "passCondition": "No wake locks or persistent connections when inactive, unless required by stated real-time functionality.",
+          "failIndicators": [
+            "Wake lock without justification",
+            "Persistent WebSocket for non-real-time app",
+            "Background fetch for non-essential data",
+            "Device kept awake when app is idle"
+          ]
+        },
+        {
+          "id": "RES-14",
+          "subdomain": "5C. Resource Respect",
+          "type": "scored",
+          "points": 1,
+          "text": "Installation size and ongoing storage usage documented and reasonable for the product's category.",
+          "evidenceType": "D",
+          "automationLevel": "full",
+          "auditInstructions": "Check the app store listing or download page for stated installation size. Check device storage after installation for actual size. Compare against category norms. Check if storage usage is documented (in app info, settings, or marketing). A to-do app at 500MB is unreasonable; a video editing app at 500MB may be acceptable.",
+          "passCondition": "Installation size is documented and reasonable for the product's category.",
+          "failIndicators": [
+            "Installation size not documented",
+            "Size significantly exceeds category norms",
+            "Storage grows unreasonably over time",
+            "Large cached data with no clear button"
+          ]
+        },
+        {
+          "id": "DUR-01",
+          "subdomain": "6A. Accessibility",
+          "type": "must-pass",
+          "points": 0,
+          "text": "WCAG 2.1 Level AA compliance for all primary user flows.",
+          "evidenceType": "T",
+          "automationLevel": "full",
+          "auditInstructions": "Run automated accessibility tools (axe-core, Lighthouse accessibility audit) on all primary user flow pages. Check for WCAG 2.1 AA violations. Focus on primary flows (signup, core task, settings, account management). Automated tools catch ~30-50% of issues; supplement with manual checks for: logical reading order, meaningful sequence, and context-dependent requirements.",
+          "passCondition": "Primary user flows pass WCAG 2.1 Level AA automated checks with no critical violations. Manual spot-checks confirm compliance.",
+          "failIndicators": [
+            "Critical WCAG violations in primary flows",
+            "Missing alt text on functional images",
+            "Insufficient color contrast on interactive elements",
+            "Form inputs without labels",
+            "Missing heading hierarchy"
+          ]
+        },
+        {
+          "id": "DUR-02",
+          "subdomain": "6A. Accessibility",
+          "type": "must-pass",
+          "points": 0,
+          "text": "All interactive elements have minimum 44x44 CSS pixel touch targets (mobile) or equivalent keyboard-navigable focus states (desktop).",
+          "evidenceType": "T",
+          "automationLevel": "full",
+          "auditInstructions": "On mobile viewport: inspect interactive elements (buttons, links, form controls) and measure their touch target size via DevTools. Minimum 44x44 CSS pixels. On desktop: tab through all interactive elements and verify each has a visible focus state. Check for elements that are clickable but not keyboard-focusable.",
+          "passCondition": "All interactive elements meet 44x44px minimum on mobile and have visible focus states on desktop.",
+          "failIndicators": [
+            "Touch targets <44x44px",
+            "Interactive elements without focus states",
+            "Clickable elements not reachable via keyboard",
+            "Focus states invisible or low-contrast"
+          ]
+        },
+        {
+          "id": "DUR-03",
+          "subdomain": "6A. Accessibility",
+          "type": "scored",
+          "points": 3,
+          "text": "Fully navigable via keyboard alone. No mouse or touch-only interactions for primary functionality.",
+          "evidenceType": "T",
+          "automationLevel": "full",
+          "auditInstructions": "Navigate the entire application using only keyboard (Tab, Shift+Tab, Enter, Space, Arrow keys, Escape). Complete the primary task flow. Check for: focus traps, unreachable elements, actions only triggerable by mouse (hover menus, drag-and-drop without keyboard alternative). Document any point where keyboard navigation fails.",
+          "passCondition": "All primary functionality is accessible and operable via keyboard alone.",
+          "failIndicators": [
+            "Focus traps",
+            "Elements unreachable by keyboard",
+            "Actions requiring mouse-only interaction (hover, drag)",
+            "Keyboard shortcuts that conflict with screen reader commands"
+          ]
+        },
+        {
+          "id": "DUR-04",
+          "subdomain": "6A. Accessibility",
+          "type": "scored",
+          "points": 2,
+          "text": "Screen reader support with appropriate ARIA labels, roles, and live regions for dynamic content.",
+          "evidenceType": "T",
+          "automationLevel": "assisted",
+          "auditInstructions": "Navigate the application with a screen reader (NVDA, VoiceOver, or JAWS). Check: are all interactive elements announced with meaningful labels? Are dynamic content updates announced via live regions? Are roles correct (button is announced as button, link as link)? In source code, check for ARIA labels, roles, and aria-live regions. Present findings to auditor.",
+          "passCondition": "Screen reader can navigate all primary flows with meaningful announcements. Dynamic content changes are communicated via live regions.",
+          "failIndicators": [
+            "Interactive elements without labels",
+            "Dynamic content changes not announced",
+            "Incorrect ARIA roles",
+            "Decorative elements announced to screen reader",
+            "Missing landmark regions"
+          ]
+        },
+        {
+          "id": "DUR-05",
+          "subdomain": "6A. Accessibility",
+          "type": "scored",
+          "points": 2,
+          "text": "Color is never the sole means of conveying information (error states, status indicators, form validation).",
+          "evidenceType": "T",
+          "automationLevel": "full",
+          "auditInstructions": "Trigger error states, status changes, and form validation across the application. Check if information is conveyed ONLY through color (e.g., a red border on an invalid field with no error message or icon). View in grayscale (browser DevTools emulation) to verify all information is still distinguishable. Check for: error messages, status text, icons, or patterns accompanying color indicators.",
+          "passCondition": "All color-conveyed information has a non-color supplement (text, icon, pattern). Information is distinguishable in grayscale.",
+          "failIndicators": [
+            "Error indicated only by red border",
+            "Status conveyed only by color dot",
+            "Form validation using color alone",
+            "Charts or graphs using color as sole differentiator"
+          ]
+        },
+        {
+          "id": "DUR-06",
+          "subdomain": "6A. Accessibility",
+          "type": "scored",
+          "points": 1,
+          "text": "Supports user-configurable text size scaling up to 200% without loss of content or functionality.",
+          "evidenceType": "T",
+          "automationLevel": "full",
+          "auditInstructions": "Increase browser zoom to 200% (or use OS text size scaling). Navigate all primary flows. Check for: text overflow, overlapping elements, hidden content, broken layouts, or lost functionality. All content should remain accessible and readable at 200% zoom.",
+          "passCondition": "At 200% zoom/text scaling, all content remains accessible, readable, and functional. No overflow, overlap, or hidden content.",
+          "failIndicators": [
+            "Text overflowing containers",
+            "Elements overlapping at zoom",
+            "Content cut off or hidden",
+            "Functionality broken at 200%",
+            "Horizontal scrolling required for primary content"
+          ]
+        },
+        {
+          "id": "DUR-07",
+          "subdomain": "6B. Standards & Interoperability",
+          "type": "must-pass",
+          "points": 0,
+          "text": "Uses open web standards. No proprietary plugins, browser-specific features, or single-vendor runtimes for core functionality.",
+          "evidenceType": "T",
+          "automationLevel": "full",
+          "auditInstructions": "Test the application in at least 2 different browsers (Chrome and Firefox, or Safari). Verify core functionality works in both. Check source code for: browser-specific APIs without fallbacks, proprietary plugins (Flash, Silverlight, ActiveX), or single-vendor dependencies (Chrome-only Web APIs without polyfills). Check for 'Works best in Chrome' or similar messaging.",
+          "passCondition": "Core functionality works across major browsers using open web standards. No proprietary plugins required.",
+          "failIndicators": [
+            "Core features broken in non-Chrome browsers",
+            "Proprietary plugin required",
+            "'Best viewed in X' messaging",
+            "Browser-specific APIs without fallbacks",
+            "Single-vendor runtime dependency"
+          ]
+        },
+        {
+          "id": "DUR-08",
+          "subdomain": "6B. Standards & Interoperability",
+          "type": "scored",
+          "points": 2,
+          "text": "Supports or implements relevant open protocols for its domain (CalDAV, RSS/Atom, SMTP, ActivityPub, etc.).",
+          "evidenceType": "D",
+          "automationLevel": "assisted",
+          "auditInstructions": "Identify the product's domain and the relevant open protocols (calendar apps → CalDAV, news/blog → RSS/Atom, email → SMTP/IMAP, social → ActivityPub, notes → markdown export, etc.). Check if the product supports these protocols. Check documentation, settings, and integrations. Present findings to auditor with domain-protocol mapping.",
+          "passCondition": "Product supports at least one relevant open protocol for its domain.",
+          "failIndicators": [
+            "No open protocol support",
+            "Only proprietary integrations",
+            "Open protocol mentioned but not functional"
+          ]
+        },
+        {
+          "id": "DUR-09",
+          "subdomain": "6B. Standards & Interoperability",
+          "type": "scored",
+          "points": 2,
+          "text": "Data format publicly documented, enabling third-party tools to read and process exported data.",
+          "evidenceType": "D",
+          "automationLevel": "full",
+          "auditInstructions": "Check for public documentation of the data export format. Look for: developer docs, API docs, export format specification, or schema documentation. The format should be documented enough that a third party could write an import tool without reverse-engineering.",
+          "passCondition": "Export data format is publicly documented with field descriptions and structure sufficient for third-party import development.",
+          "failIndicators": [
+            "No public format documentation",
+            "Documentation exists but is incomplete",
+            "Export format is undocumented proprietary",
+            "Only source code serves as documentation"
+          ]
+        },
+        {
+          "id": "DUR-10",
+          "subdomain": "6C. Longevity",
+          "type": "scored",
+          "points": 2,
+          "text": "Publicly accessible changelog documenting changes, removals, and additions.",
+          "evidenceType": "D",
+          "automationLevel": "full",
+          "auditInstructions": "Search for a public changelog on the website, in the app, in the app store listing, or on a public repository. Verify it documents: recent changes, feature additions, feature removals, and notable bug fixes. Check that it is kept current (updated within the last release cycle).",
+          "passCondition": "A public changelog exists, is current, and documents additions, changes, and removals.",
+          "failIndicators": [
+            "No public changelog",
+            "Changelog exists but is outdated",
+            "Only lists additions, not removals",
+            "Changelog hidden behind login"
+          ]
+        },
+        {
+          "id": "DUR-11",
+          "subdomain": "6C. Longevity",
+          "type": "scored",
+          "points": 2,
+          "text": "Stated support policy: how long the current version will receive security updates and what happens at end-of-life.",
+          "evidenceType": "D",
+          "automationLevel": "full",
+          "auditInstructions": "Search the website, documentation, and TOS for a support or security update policy. Check for: stated support window for current version, security patch commitment, and end-of-life policy (what happens when a version is deprecated).",
+          "passCondition": "A support policy exists stating security update window and end-of-life procedures.",
+          "failIndicators": [
+            "No stated support policy",
+            "No security update commitment",
+            "No end-of-life policy",
+            "Policy exists but is vague ('we'll support it as long as possible')"
+          ]
+        },
+        {
+          "id": "DUR-12",
+          "subdomain": "6C. Longevity",
+          "type": "scored",
+          "points": 1,
+          "text": "Runs on OS versions within 2 major releases. No unreasonably recent hardware requirements.",
+          "evidenceType": "D",
+          "automationLevel": "full",
+          "auditInstructions": "Check system requirements on the app store listing, website, or documentation. Verify the minimum supported OS version is within 2 major releases of current (e.g., if current iOS is 18, supporting iOS 16+ is acceptable). Check for unreasonable hardware requirements (requiring latest-gen device for a simple app).",
+          "passCondition": "Minimum OS requirement is within 2 major versions of current. Hardware requirements are reasonable for the product category.",
+          "failIndicators": [
+            "Requires latest OS version only",
+            "Hardware requirements exceed what functionality demands",
+            "No stated system requirements",
+            "Drops OS support faster than 2 major versions"
+          ]
+        },
+        {
+          "id": "GOV-01",
+          "subdomain": "7A. Privacy & Legal Clarity",
+          "type": "must-pass",
+          "points": 0,
+          "text": "Privacy policy exists, is accessible within the application, and was updated within the last 12 months.",
+          "evidenceType": "D",
+          "automationLevel": "full",
+          "auditInstructions": "Check for a privacy policy link in the application (settings, footer, about section). Verify: (1) it exists, (2) it is accessible within the app (not just on the marketing site), (3) it has an 'effective date' or 'last updated' date within the last 12 months. Screenshot the policy location and date.",
+          "passCondition": "Privacy policy exists, is accessible in-app, and has been updated within the last 12 months.",
+          "failIndicators": [
+            "No privacy policy",
+            "Policy only on marketing site, not in-app",
+            "Last updated date >12 months ago",
+            "No date on policy"
+          ]
+        },
+        {
+          "id": "GOV-02",
+          "subdomain": "7A. Privacy & Legal Clarity",
+          "type": "scored",
+          "points": 3,
+          "text": "Privacy policy contains a plain-language summary (maximum 500 words, 8th-grade reading level) covering what data is collected, why, who can see it, how long it is kept, and how to delete it.",
+          "evidenceType": "D",
+          "automationLevel": "full",
+          "auditInstructions": "Read the privacy policy. Check for a plain-language summary section (at the top or as a separate page). If found: (1) count words (must be ≤500), (2) score Flesch-Kincaid reading level (must be ≤8th grade), (3) verify it covers all five topics: what data is collected, why it is collected, who can see it, how long it is kept, and how to delete it.",
+          "passCondition": "Plain-language summary exists, ≤500 words, ≤8th-grade reading level, covers all five required topics.",
+          "failIndicators": [
+            "No plain-language summary",
+            "Summary >500 words",
+            "Reading level above 8th grade",
+            "Missing required topics"
+          ]
+        },
+        {
+          "id": "GOV-03",
+          "subdomain": "7A. Privacy & Legal Clarity",
+          "type": "scored",
+          "points": 2,
+          "text": "Users notified of material changes to privacy policy or terms of service before they take effect, with a clear summary of what changed.",
+          "evidenceType": "A",
+          "automationLevel": "manual",
+          "auditInstructions": "This requires attestation and historical review. Generate questions: (a) How are users notified of material privacy policy or TOS changes? (b) Is notification sent before changes take effect? (c) Does the notification include a summary of what changed? Check for version history or change log on the policy page. Cross-reference with email communications if available.",
+          "passCondition": "Company attests to pre-effective-date notification with change summary, consistent with observable policy versioning.",
+          "failIndicators": [
+            "No notification process for policy changes",
+            "Notification after changes take effect",
+            "No summary of what changed",
+            "Policy updated silently"
+          ]
+        },
+        {
+          "id": "GOV-04",
+          "subdomain": "7A. Privacy & Legal Clarity",
+          "type": "scored",
+          "points": 2,
+          "text": "All third-party services, SDKs, and trackers identified with their data practices disclosed.",
+          "evidenceType": "T",
+          "automationLevel": "assisted",
+          "auditInstructions": "Monitor network requests to identify all third-party services the app communicates with. In source code, check dependencies for third-party SDKs. Compile a list of all third parties. Then check the privacy policy for: (1) are all identified third parties listed? (2) are their data practices described? Cross-reference the observed third-party list with the disclosed list. Present discrepancies to auditor.",
+          "passCondition": "All third-party services, SDKs, and trackers are disclosed in the privacy policy with their data practices.",
+          "failIndicators": [
+            "Third-party services observed but not disclosed in policy",
+            "SDKs in code not mentioned in policy",
+            "Disclosure exists but data practices not described",
+            "Generic statement ('we use third-party services') without specifics"
+          ]
+        },
+        {
+          "id": "GOV-05",
+          "subdomain": "7B. User Communication",
+          "type": "scored",
+          "points": 2,
+          "text": "Publicly accessible way to report bugs, request features, or provide feedback without requiring a social media account.",
+          "evidenceType": "D",
+          "automationLevel": "full",
+          "auditInstructions": "Check for: contact form, email address, public issue tracker, feedback forum, or support ticket system accessible without a social media login. Verify it is publicly accessible (not behind a paywall or login wall, though product login may be acceptable). Check that social media is not the only feedback channel.",
+          "passCondition": "At least one feedback channel exists that does not require a social media account.",
+          "failIndicators": [
+            "Only feedback channel is Twitter/X replies",
+            "No public bug report mechanism",
+            "Feedback requires social media login",
+            "Contact form exists but is non-functional"
+          ]
+        },
+        {
+          "id": "GOV-06",
+          "subdomain": "7B. User Communication",
+          "type": "scored",
+          "points": 2,
+          "text": "Actual user documentation covering all primary features (not just marketing copy).",
+          "evidenceType": "D",
+          "automationLevel": "full",
+          "auditInstructions": "Search for user documentation: help center, knowledge base, docs site, user guide, FAQ. Verify it covers primary features with actual how-to content (not just marketing descriptions of what features do). Check that documentation exists, is current, and is publicly accessible.",
+          "passCondition": "User documentation exists, covers primary features with how-to content, and is publicly accessible.",
+          "failIndicators": [
+            "No user documentation",
+            "Only marketing copy posing as documentation",
+            "Documentation exists but is severely outdated",
+            "Documentation behind a login wall"
+          ]
+        },
+        {
+          "id": "GOV-07",
+          "subdomain": "7B. User Communication",
+          "type": "scored",
+          "points": 1,
+          "text": "Estimated response time for support requests, met at least 80% of the time.",
+          "evidenceType": "A",
+          "automationLevel": "manual",
+          "auditInstructions": "This requires attestation. Generate questions: (a) What is the stated support response time? (b) What percentage of requests meet that target? (c) Where is the response time commitment published? Check the support page, SLA documentation, or contact page for stated response times. Submit a test inquiry if possible and measure response time.",
+          "passCondition": "Stated support response time exists and is met ≥80% of the time.",
+          "failIndicators": [
+            "No stated response time",
+            "Response time commitment not met",
+            "No data on response time performance",
+            "Significantly different actual vs stated response time"
+          ]
+        },
+        {
+          "id": "GOV-08",
+          "subdomain": "7C. Ethical Commitments",
+          "type": "scored",
+          "points": 2,
+          "text": "Funding sources publicly disclosed, including any investors or board members with interests in advertising, data brokerage, or attention-extraction industries.",
+          "evidenceType": "D",
+          "automationLevel": "full",
+          "auditInstructions": "Check the company website for funding disclosure: about page, team page, investors page, blog posts about fundraising. Look for: stated funding model (bootstrapped, VC, grants), named investors, and disclosure of any investors with advertising or data industry ties. Check Crunchbase or similar databases for public funding data and compare against company disclosures.",
+          "passCondition": "Funding sources are publicly disclosed with attention to conflicts of interest in advertising/data industries.",
+          "failIndicators": [
+            "No funding disclosure",
+            "VC-funded with no investor disclosure",
+            "Known investors in ad/data industries not disclosed",
+            "Funding model unclear"
+          ]
+        },
+        {
+          "id": "GOV-09",
+          "subdomain": "7C. Ethical Commitments",
+          "type": "scored",
+          "points": 2,
+          "text": "Published statement of design principles or ethical commitments that predates and is independent of the QSF certification.",
+          "evidenceType": "D",
+          "automationLevel": "full",
+          "auditInstructions": "Search the company website for a published design philosophy, ethical commitments, values page, or manifesto. Check that it predates the QSF certification application (verify via web archive or publication date). The statement should be substantive (not just 'we care about privacy') and demonstrate genuine commitment independent of certification.",
+          "passCondition": "Published design principles or ethical commitments exist, predate certification, and are substantive.",
+          "failIndicators": [
+            "No published ethical commitments",
+            "Commitments appear created for certification",
+            "Generic statements without substance",
+            "Commitments published after certification application"
+          ]
+        }
+      ]
+    }
+  ]
+}

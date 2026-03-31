@@ -35,7 +35,7 @@ export function TranscriptPreview({ transcript, className }: TranscriptPreviewPr
     });
 
     return (
-        <div className={cn("bg-white text-black p-8 shadow-xl border border-gray-200 print:shadow-none max-w-[8.5in] mx-auto min-h-[11in] text-[12px] leading-tight font-serif transition-shadow duration-300", className)}>
+        <div className={cn("bg-white text-black p-8 shadow-xl border border-qc-border-subtle print:shadow-none max-w-[8.5in] mx-auto min-h-[11in] text-[12px] leading-tight font-serif transition-shadow duration-300", className)}>
             {/* Header */}
             <div className="text-center mb-6 pb-4 border-b-4 border-[#383A57]">
                 <h1 className="text-2xl font-bold text-[#383A57] tracking-wider mb-1">OFFICIAL HIGH SCHOOL TRANSCRIPT</h1>
@@ -70,17 +70,17 @@ export function TranscriptPreview({ transcript, className }: TranscriptPreviewPr
 
             {/* Academic Summary Header */}
             <div className="mb-4">
-                <div className="flex justify-center items-center border-b border-gray-300 pb-2 gap-8 text-[11px]">
+                <div className="flex justify-center items-center border-b border-qc-border-subtle pb-2 gap-8 text-[11px]">
                     <div>
-                        <span className="text-gray-600 font-medium">Weighted GPA: </span>
+                        <span className="text-qc-text-muted font-medium">Weighted GPA: </span>
                         <span className="font-bold text-[#383A57] text-lg">{formatGPA(academicSummary.weightedGPA)}</span>
                     </div>
                     <div>
-                        <span className="text-gray-600 font-medium">Unweighted GPA: </span>
+                        <span className="text-qc-text-muted font-medium">Unweighted GPA: </span>
                         <span className="font-bold text-[#383A57] text-lg">{formatGPA(academicSummary.unweightedGPA)}</span>
                     </div>
                     <div>
-                        <span className="text-gray-600 font-medium">Total Credits: </span>
+                        <span className="text-qc-text-muted font-medium">Total Credits: </span>
                         <span className="font-bold text-[#383A57] text-lg">{formatCredits(academicSummary.totalCredits)}</span>
                     </div>
                 </div>
@@ -99,15 +99,15 @@ export function TranscriptPreview({ transcript, className }: TranscriptPreviewPr
                     <SectionTitle>Test Scores</SectionTitle>
                     <div className="grid grid-cols-1 gap-2">
                         {transcript.tests.map((test) => (
-                            <div key={test.id} className="border border-gray-300 rounded p-2 bg-white flex flex-col gap-2">
-                                <div className="flex justify-between items-center border-b border-gray-100 pb-1">
+                            <div key={test.id} className="border border-qc-border-subtle rounded p-2 bg-white flex flex-col gap-2">
+                                <div className="flex justify-between items-center border-b border-qc-border-subtle/50 pb-1">
                                     <span className="font-bold text-[#383A57] text-[11px] uppercase tracking-wide">{test.testType}</span>
-                                    {test.date && <span className="text-[10px] text-gray-500">{formatDateLocal(test.date)}</span>}
+                                    {test.date && <span className="text-[10px] text-qc-text-muted">{formatDateLocal(test.date)}</span>}
                                 </div>
                                 <div className="flex gap-4 flex-wrap text-[11px]">
                                     {Object.entries(test.scores).map(([key, value]) => (
                                         <div key={key} className="flex gap-1">
-                                            <span className="text-gray-600 font-semibold">{key}:</span>
+                                            <span className="text-qc-text-muted font-semibold">{key}:</span>
                                             <span className="font-bold text-[#383A57]">{value}</span>
                                         </div>
                                     ))}
@@ -119,7 +119,7 @@ export function TranscriptPreview({ transcript, className }: TranscriptPreviewPr
             )}
 
             {/* Grading Scale */}
-            <div className="mb-6 bg-[#563963]/5 p-2 rounded border border-gray-300 border-dashed">
+            <div className="mb-6 bg-[#563963]/5 p-2 rounded border border-qc-border-subtle border-dashed">
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-[10px]">
                     <span className="font-bold text-[#563963] uppercase tracking-wider">Grading Scale:</span>
                     {(transcript.gradingScale?.length > 0
@@ -128,15 +128,15 @@ export function TranscriptPreview({ transcript, className }: TranscriptPreviewPr
                     ).map((scale, i, arr) => (
                         <React.Fragment key={scale.range}>
                             <div className="flex gap-1">
-                                <span className="text-gray-800">{scale.range}:</span>
+                                <span className="text-qc-charcoal">{scale.range}:</span>
                                 <span className="font-bold text-[#383A57]">{scale.points}</span>
                             </div>
-                            {i < arr.length - 1 && <span className="text-gray-300">|</span>}
+                            {i < arr.length - 1 && <span className="text-qc-border-subtle">|</span>}
                         </React.Fragment>
                     ))}
                     {transcript.gradingSettings?.weighted !== false && (
-                        <div className="flex gap-1 ml-2 pl-2 border-l border-gray-300">
-                            <span className="text-gray-500 italic">(*Weighted GPA includes +0.5/1.0 boost)</span>
+                        <div className="flex gap-1 ml-2 pl-2 border-l border-qc-border-subtle">
+                            <span className="text-qc-text-muted italic">(*Weighted GPA includes +0.5/1.0 boost)</span>
                         </div>
                     )}
                 </div>
@@ -148,19 +148,19 @@ export function TranscriptPreview({ transcript, className }: TranscriptPreviewPr
                     <SectionTitle>Activities & Awards</SectionTitle>
                     <div className="space-y-3">
                         {transcript.activities.map((activity) => (
-                            <div key={activity.id} className="border-l-4 border-[#CCAF60] pl-3 py-2 bg-gray-50 rounded-r border-y border-r border-gray-100">
+                            <div key={activity.id} className="border-l-4 border-[#CCAF60] pl-3 py-2 bg-qc-surface-raised rounded-r border-y border-r border-qc-border-subtle/50">
                                 <div className="flex justify-between items-start mb-1">
                                     <span className="font-bold text-[#383A57] text-sm">{activity.title}</span>
-                                    <span className="text-[10px] text-gray-500 font-medium">{activity.years}</span>
+                                    <span className="text-[10px] text-qc-text-muted font-medium">{activity.years}</span>
                                 </div>
                                 {activity.position && (
                                     <div className="text-[11px] text-[#CCAF60] font-bold uppercase tracking-wide mb-1">{activity.position}</div>
                                 )}
                                 {activity.description && (
-                                    <p className="text-[11px] text-gray-700 leading-snug mb-1">{activity.description}</p>
+                                    <p className="text-[11px] text-qc-charcoal leading-snug mb-1">{activity.description}</p>
                                 )}
                                 {(activity.hours || activity.awards) && (
-                                    <div className="flex gap-4 mt-2 pt-2 border-t border-gray-200 text-[10px] text-gray-600">
+                                    <div className="flex gap-4 mt-2 pt-2 border-t border-qc-border-subtle text-[10px] text-qc-text-muted">
                                         {activity.hours && <span><strong>Hours:</strong> {activity.hours}</span>}
                                         {activity.awards && <span className="text-[#CCAF60]"><strong>Awards:</strong> {activity.awards}</span>}
                                     </div>
@@ -177,7 +177,7 @@ export function TranscriptPreview({ transcript, className }: TranscriptPreviewPr
                     <SectionTitle>Additional Notes</SectionTitle>
                     <div className="space-y-1">
                         {transcript.notes.map((note) => (
-                            <div key={note.id} className="text-[11px] text-gray-800 bg-[#CCAF60]/10 border-l-2 border-[#CCAF60] pl-2 py-1">
+                            <div key={note.id} className="text-[11px] text-qc-charcoal bg-[#CCAF60]/10 border-l-2 border-[#CCAF60] pl-2 py-1">
                                 {note.content}
                             </div>
                         ))}
@@ -196,10 +196,10 @@ export function TranscriptPreview({ transcript, className }: TranscriptPreviewPr
                             ) : (
                                 <div className="font-script text-xl text-[#383A57] border-b-2 border-[#383A57] pb-1 mb-1 font-cursive" style={{ fontFamily: 'Nothing You Could Do, cursive' }}>{transcript.signature.data}</div>
                             )}
-                            <div className="text-[10px] font-bold text-gray-800">Date: {formatDateLocal(transcript.signature.date)}</div>
+                            <div className="text-[10px] font-bold text-qc-charcoal">Date: {formatDateLocal(transcript.signature.date)}</div>
                         </div>
                         <div className="flex flex-col justify-end text-right">
-                            <div className="text-[9px] text-gray-500">Official Transcript generated by Quill & Compass</div>
+                            <div className="text-[9px] text-qc-text-muted">Official Transcript generated by Quill & Compass</div>
                         </div>
                     </div>
                 </div>
@@ -221,7 +221,7 @@ function InfoRow({ label, value, className }: { label: string; value?: string; c
     return (
         <div className="flex items-baseline gap-2 mb-1 text-[11px]">
             <span className="font-bold text-[#383A57] uppercase w-24 shrink-0 text-[10px]">{label}:</span>
-            <span className={cn("text-gray-800 break-words", className)}>{value || "—"}</span>
+            <span className={cn("text-qc-charcoal break-words", className)}>{value || "—"}</span>
         </div>
     );
 }
@@ -230,12 +230,12 @@ function YearCard({ summary }: { summary: any }) {
     const sortedCourses = [...summary.courses].sort((a: any, b: any) => a.courseName.localeCompare(b.courseName));
 
     return (
-        <div className="border border-gray-300 rounded overflow-hidden flex flex-col h-full bg-white">
-            <div className="bg-[#563963]/5 border-b border-gray-200 px-3 py-1.5 flex justify-between items-center">
+        <div className="border border-qc-border-subtle rounded overflow-hidden flex flex-col h-full bg-white">
+            <div className="bg-[#563963]/5 border-b border-qc-border-subtle px-3 py-1.5 flex justify-between items-center">
                 <span className="font-bold text-[#563963] text-[11px] uppercase tracking-wider">
                     {summary.yearLabel} {summary.yearRange.start}-{summary.yearRange.end}
                 </span>
-                <div className="text-[10px] text-gray-600 font-medium">
+                <div className="text-[10px] text-qc-text-muted font-medium">
                     <span className="mr-2">GPA: <strong className="text-[#383A57]">{formatGPA(summary.weightedGPA)}</strong></span>
                     <span>Cr: <strong className="text-[#383A57]">{formatCredits(summary.creditTotal)}</strong></span>
                 </div>
@@ -243,11 +243,11 @@ function YearCard({ summary }: { summary: any }) {
 
             <div className="p-2 flex-grow">
                 {sortedCourses.length === 0 ? (
-                    <p className="text-gray-400 italic text-[10px] text-center pt-2">No courses recorded</p>
+                    <p className="text-qc-text-muted italic text-[10px] text-center pt-2">No courses recorded</p>
                 ) : (
                     <table className="w-full text-[10px]">
                         <thead>
-                            <tr className="border-b border-gray-200">
+                            <tr className="border-b border-qc-border-subtle">
                                 <th className="text-left font-semibold text-[#383A57] pb-1 w-full">Course</th>
                                 <th className="text-center font-semibold text-[#383A57] pb-1 w-8">Gr</th>
                                 <th className="text-center font-semibold text-[#383A57] pb-1 w-8">Cr</th>
@@ -256,17 +256,17 @@ function YearCard({ summary }: { summary: any }) {
                         <tbody>
                             {sortedCourses.map((course: any, i: number) => (
                                 <React.Fragment key={course.id}>
-                                    <tr className={cn("border-b border-gray-100 last:border-0", i % 2 !== 0 ? "bg-gray-50/50" : "")}>
-                                        <td className="py-1 pr-2 align-middle text-gray-800 leading-tight">
+                                    <tr className={cn("border-b border-qc-border-subtle/50 last:border-0", i % 2 !== 0 ? "bg-qc-surface-raised/50" : "")}>
+                                        <td className="py-1 pr-2 align-middle text-qc-charcoal leading-tight">
                                             {course.courseName}
                                             {summary.showNarratives && course.courseNotes && (
-                                                <div className="text-[9px] text-gray-500 italic mt-0.5 leading-snug font-serif">
+                                                <div className="text-[9px] text-qc-text-muted italic mt-0.5 leading-snug font-serif">
                                                     {course.courseNotes}
                                                 </div>
                                             )}
                                         </td>
                                         <td className="py-1 text-center font-bold text-[#383A57] align-top">{course.grade || "—"}</td>
-                                        <td className="py-1 text-center text-gray-500 align-top">{formatCredits(course.credits)}</td>
+                                        <td className="py-1 text-center text-qc-text-muted align-top">{formatCredits(course.credits)}</td>
                                     </tr>
                                 </React.Fragment>
                             ))}

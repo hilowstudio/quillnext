@@ -49,7 +49,7 @@ export default async function StudentDashboardPage({
                 {/* Sidebar / Student Selector */}
                 <div className="w-full md:w-64 space-y-4 shrink-0">
                     <Card className="p-4 bg-qc-parchment border-qc-border-subtle">
-                        <h2 className="font-display text-lg mb-3 text-qc-charcoal">Students</h2>
+                        <h2 className="font-display text-lg mb-3 text-qc-charcoal text-balance">Students</h2>
                         <div className="space-y-1">
                             {students.map(s => (
                                 <Link
@@ -75,7 +75,7 @@ export default async function StudentDashboardPage({
 
                 {/* Main Content */}
                 <div className="flex-1 space-y-6">
-                    <div className="bg-white rounded-qc-xl shadow-sm border p-6 min-h-[500px]">
+                    <div className="bg-qc-surface rounded-qc-xl shadow-sm border p-6 min-h-[500px]">
                         <div className="mb-6 flex items-center gap-2 text-sm text-qc-text-muted">
                             <span>Viewing as:</span>
                             <span className="font-bold text-qc-primary">{currentStudent.preferredName || currentStudent.firstName}</span>

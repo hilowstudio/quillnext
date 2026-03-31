@@ -35,15 +35,20 @@ const formSchema = z.object({
 interface SpecFormProps {
     onSubmit: (values: z.infer<typeof formSchema>) => void;
     isLoading: boolean;
+    initialContext?: {
+        subject?: string;
+        topic?: string;
+        readingLevel?: string;
+    };
 }
 
-export function SpecForm({ onSubmit, isLoading }: SpecFormProps) {
+export function SpecForm({ onSubmit, isLoading, initialContext }: SpecFormProps) {
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema) as any,
         defaultValues: {
-            subject: "",
-            topic: "",
-            readingLevel: "",
+            subject: initialContext?.subject || "",
+            topic: initialContext?.topic || "",
+            readingLevel: initialContext?.readingLevel || "",
             durationDays: 1,
             constraints: {
                 noDevices: false,

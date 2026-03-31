@@ -6,7 +6,7 @@ import { addDays, endOfWeek, format, startOfWeek } from "date-fns";
 import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { ArrowLeft, ArrowRight } from "lucide-react";
+import { ArrowLeft, ArrowRight } from "@phosphor-icons/react/dist/ssr";
 import { PlannerGrid } from "@/components/planner/PlannerGrid";
 
 export default async function PlannerPage({
@@ -39,19 +39,19 @@ export default async function PlannerPage({
             {/* Header */}
             <div className="flex items-center justify-between mb-6">
                 <div>
-                    <h1 className="font-display text-3xl font-bold text-qc-charcoal">Weekly Planner</h1>
+                    <h1 className="font-display text-3xl font-bold text-qc-charcoal text-balance">Weekly Planner</h1>
                     <p className="text-qc-text-muted">Manage your family's schedule</p>
                 </div>
                 <div className="flex items-center gap-4">
-                    <div className="flex items-center bg-white rounded-md border shadow-sm">
+                    <div className="flex items-center bg-qc-surface rounded-md border shadow-sm">
                         <Button variant="ghost" size="icon" asChild>
-                            <Link href={`/planner?start=${prevWeek}`}><ArrowLeft className="w-4 h-4" /></Link>
+                            <Link href={`/planner?start=${prevWeek}`}><ArrowLeft size={16} /></Link>
                         </Button>
                         <span className="px-4 font-medium min-w-[200px] text-center">
                             {format(startDate, "MMM d")} - {format(endDate, "MMM d, yyyy")}
                         </span>
                         <Button variant="ghost" size="icon" asChild>
-                            <Link href={`/planner?start=${nextWeek}`}><ArrowRight className="w-4 h-4" /></Link>
+                            <Link href={`/planner?start=${nextWeek}`}><ArrowRight size={16} /></Link>
                         </Button>
                     </div>
                     <Button>Auto-Reschedule</Button>
@@ -59,12 +59,13 @@ export default async function PlannerPage({
             </div>
 
             {/* Grid Container */}
-            <div className="flex-1 bg-white border rounded-qc-lg shadow-sm overflow-hidden flex flex-col">
+            <div className="flex-1 bg-qc-surface border rounded-qc-lg shadow-sm overflow-hidden flex flex-col">
                 <PlannerGrid
                     startDate={startDate}
                     students={students}
                     items={items}
                     events={events}
+                    organizationId={organizationId}
                 />
             </div>
         </div>

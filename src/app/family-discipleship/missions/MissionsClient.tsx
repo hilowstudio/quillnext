@@ -13,7 +13,7 @@ import { GlobeHemisphereWest, List } from "@phosphor-icons/react";
 // Dynamically import map to avoid SSR issues with Leaflet
 const WorldMap = dynamic(() => import('./WorldMap'), {
     ssr: false,
-    loading: () => <div className="h-[400px] w-full flex items-center justify-center bg-gray-100 rounded-lg">Loading Map...</div>
+    loading: () => <div className="h-[400px] w-full flex items-center justify-center bg-qc-surface-raised rounded-lg">Loading Map...</div>
 });
 
 interface MissionsClientProps {
@@ -44,15 +44,15 @@ export default function MissionsClient({ stats }: MissionsClientProps) {
                     <MagnifyingGlass className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
                     <Input
                         placeholder="Search countries..."
-                        className="pl-9 bg-gray-50"
+                        className="pl-9 bg-qc-surface-raised"
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
                     />
                 </div>
-                <div className="flex bg-gray-100 p-1 rounded-lg">
+                <div className="flex bg-qc-surface-raised p-1 rounded-lg">
                     <button
                         onClick={() => setView('map')}
-                        className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${view === 'map' ? 'bg-white shadow text-qc-primary' : 'text-gray-500 hover:text-gray-900'
+                        className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${view === 'map' ? 'bg-white shadow text-qc-primary' : 'text-qc-text-muted hover:text-qc-charcoal'
                             }`}
                     >
                         <GlobeHemisphereWest size={16} />
@@ -60,7 +60,7 @@ export default function MissionsClient({ stats }: MissionsClientProps) {
                     </button>
                     <button
                         onClick={() => setView('list')}
-                        className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${view === 'list' ? 'bg-white shadow text-qc-primary' : 'text-gray-500 hover:text-gray-900'
+                        className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${view === 'list' ? 'bg-white shadow text-qc-primary' : 'text-qc-text-muted hover:text-qc-charcoal'
                             }`}
                     >
                         <List size={16} />
@@ -85,7 +85,7 @@ export default function MissionsClient({ stats }: MissionsClientProps) {
                                 <button
                                     key={c.country}
                                     onClick={() => setSelectedCountry(c)}
-                                    className="flex flex-col items-start p-4 rounded-lg border hover:bg-gray-50 transition-all text-left group hover:border-qc-gold/50"
+                                    className="flex flex-col items-start p-4 rounded-lg border hover:bg-qc-surface-raised transition-all text-left group hover:border-qc-gold/50"
                                 >
                                     <span className="font-semibold text-sm mb-1 group-hover:text-qc-primary transition-colors">{c.country}</span>
                                     <span className="text-xs text-muted-foreground">
@@ -93,10 +93,10 @@ export default function MissionsClient({ stats }: MissionsClientProps) {
                                     </span>
                                     <div className="flex gap-2 mt-2">
                                         {(c.data._evangelical as string)?.startsWith('0') && (
-                                            <span className="w-2 h-2 rounded-full bg-red-500 ring-4 ring-red-50" title="Low Evangelical %" />
+                                            <span className="w-2 h-2 rounded-full bg-qc-error ring-4 ring-qc-error-bg" title="Low Evangelical %" />
                                         )}
                                         {(c.data.persecution_ranking as string) && (
-                                            <span className="w-2 h-2 rounded-full bg-orange-500 ring-4 ring-orange-50" title="Persecution Watch" />
+                                            <span className="w-2 h-2 rounded-full bg-qc-warning ring-4 ring-qc-warning-bg" title="Persecution Watch" />
                                         )}
                                     </div>
                                 </button>

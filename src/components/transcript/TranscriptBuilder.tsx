@@ -6,13 +6,15 @@ import {
     Save,
     Download,
     Settings,
-    BookOpen,
-    Award,
-    FileText,
     Eye,
-    CheckCircle,
-    AlertCircle
 } from "lucide-react";
+import {
+    BookOpen,
+    Trophy,
+    FileText,
+    CheckCircle,
+    WarningCircle,
+} from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -75,11 +77,11 @@ export function TranscriptBuilder({ initialData, studentId }: TranscriptBuilderP
     return (
         <div className="container mx-auto py-6 max-w-7xl animate-in fade-in duration-500">
             {/* Sticky Header */}
-            <div className="sticky top-0 z-40 bg-[#F3F4F6]/80 backdrop-blur-md border-b border-gray-200/50 pb-4 mb-6 pt-2 -mx-4 px-4 sm:-mx-8 sm:px-8 transition-all">
+            <div className="sticky top-0 z-40 bg-[#F3F4F6]/80 backdrop-blur-md border-b border-qc-border-subtle/50 pb-4 mb-6 pt-2 -mx-4 px-4 sm:-mx-8 sm:px-8 transition-all">
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                     <div>
                         <h1 className="text-3xl font-bold text-[#383A57] mb-1">{transcript.name || "Transcript Builder"}</h1>
-                        <p className="text-sm text-gray-500 font-medium">Customize, review, and export your official transcript.</p>
+                        <p className="text-sm text-qc-text-muted font-medium">Customize, review, and export your official transcript.</p>
                     </div>
                     <div className="flex gap-3 shadow-sm rounded-lg bg-white p-1 border">
                         <Button
@@ -89,7 +91,7 @@ export function TranscriptBuilder({ initialData, studentId }: TranscriptBuilderP
                         >
                             <Download className="mr-2 h-4 w-4" /> Export PDF
                         </Button>
-                        <div className="w-px bg-gray-200 my-1" />
+                        <div className="w-px bg-qc-surface-muted my-1" />
                         <Button
                             onClick={handleSave}
                             disabled={isSaving}
@@ -109,7 +111,7 @@ export function TranscriptBuilder({ initialData, studentId }: TranscriptBuilderP
                         <CardContent className="p-0">
                             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                                 <div className="px-6 pt-6 pb-2">
-                                    <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 bg-gray-100/80 p-1.5 rounded-xl border h-auto gap-2">
+                                    <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 bg-qc-surface-raised/80 p-1.5 rounded-xl border h-auto gap-2">
                                         <TabsTrigger
                                             value="info"
                                             className="py-2.5 data-[state=active]:bg-white data-[state=active]:text-[#563963] data-[state=active]:shadow-sm data-[state=active]:ring-1 data-[state=active]:ring-black/5 font-medium transition-all"
@@ -120,13 +122,13 @@ export function TranscriptBuilder({ initialData, studentId }: TranscriptBuilderP
                                             value="courses"
                                             className="py-2.5 data-[state=active]:bg-white data-[state=active]:text-[#563963] data-[state=active]:shadow-sm data-[state=active]:ring-1 data-[state=active]:ring-black/5 font-medium transition-all"
                                         >
-                                            <BookOpen className="h-4 w-4 mr-2" /> Courses
+                                            <BookOpen size={16} className="mr-2" /> Courses
                                         </TabsTrigger>
                                         <TabsTrigger
                                             value="activities"
                                             className="py-2.5 data-[state=active]:bg-white data-[state=active]:text-[#563963] data-[state=active]:shadow-sm data-[state=active]:ring-1 data-[state=active]:ring-black/5 font-medium transition-all"
                                         >
-                                            <Award className="h-4 w-4 mr-2" /> Activities
+                                            <Trophy size={16} className="mr-2" /> Activities
                                         </TabsTrigger>
                                         <TabsTrigger
                                             value="preview"
@@ -144,56 +146,56 @@ export function TranscriptBuilder({ initialData, studentId }: TranscriptBuilderP
 
                                             {/* Student Details Card */}
                                             <Card className="border shadow-sm overflow-hidden">
-                                                <div className="bg-gray-50/50 px-6 py-4 border-b flex items-center gap-3">
+                                                <div className="bg-qc-surface-raised/50 px-6 py-4 border-b flex items-center gap-3">
                                                     <div className="h-8 w-8 rounded-full bg-[#563963]/10 flex items-center justify-center text-[#563963]">
                                                         <Settings className="h-4 w-4" />
                                                     </div>
                                                     <div>
-                                                        <h3 className="font-semibold text-gray-900">Student Information</h3>
-                                                        <p className="text-xs text-gray-500">Personal details for the transcript header.</p>
+                                                        <h3 className="font-semibold text-qc-charcoal">Student Information</h3>
+                                                        <p className="text-xs text-qc-text-muted">Personal details for the transcript header.</p>
                                                     </div>
                                                 </div>
                                                 <CardContent className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
                                                     <div className="space-y-2">
-                                                        <Label className="text-gray-600">First Name</Label>
+                                                        <Label className="text-qc-text-muted">First Name</Label>
                                                         <Input
                                                             value={transcript.studentInfo.firstName}
                                                             onChange={(e) => updateTranscript({
                                                                 studentInfo: { ...transcript.studentInfo, firstName: e.target.value }
                                                             })}
-                                                            className="border-gray-200 focus:border-[#563963] focus:ring-[#563963]/10 transition-all"
+                                                            className="border-qc-border-subtle focus:border-[#563963] focus:ring-[#563963]/10 transition-all"
                                                         />
                                                     </div>
                                                     <div className="space-y-2">
-                                                        <Label className="text-gray-600">Last Name</Label>
+                                                        <Label className="text-qc-text-muted">Last Name</Label>
                                                         <Input
                                                             value={transcript.studentInfo.lastName}
                                                             onChange={(e) => updateTranscript({
                                                                 studentInfo: { ...transcript.studentInfo, lastName: e.target.value }
                                                             })}
-                                                            className="border-gray-200 focus:border-[#563963] focus:ring-[#563963]/10 transition-all"
+                                                            className="border-qc-border-subtle focus:border-[#563963] focus:ring-[#563963]/10 transition-all"
                                                         />
                                                     </div>
                                                     <div className="space-y-2">
-                                                        <Label className="text-gray-600">Date of Birth</Label>
+                                                        <Label className="text-qc-text-muted">Date of Birth</Label>
                                                         <Input
                                                             type="date"
                                                             value={transcript.studentInfo.birthDate?.split('T')[0] || ""}
                                                             onChange={(e) => updateTranscript({
                                                                 studentInfo: { ...transcript.studentInfo, birthDate: e.target.value }
                                                             })}
-                                                            className="border-gray-200 focus:border-[#563963] focus:ring-[#563963]/10 transition-all"
+                                                            className="border-qc-border-subtle focus:border-[#563963] focus:ring-[#563963]/10 transition-all"
                                                         />
                                                     </div>
                                                     <div className="space-y-2">
-                                                        <Label className="text-gray-600">Graduation Date</Label>
+                                                        <Label className="text-qc-text-muted">Graduation Date</Label>
                                                         <Input
                                                             type="date"
                                                             value={transcript.studentInfo.graduationDate?.split('T')[0] || ""}
                                                             onChange={(e) => updateTranscript({
                                                                 studentInfo: { ...transcript.studentInfo, graduationDate: e.target.value }
                                                             })}
-                                                            className="border-gray-200 focus:border-[#563963] focus:ring-[#563963]/10 transition-all"
+                                                            className="border-qc-border-subtle focus:border-[#563963] focus:ring-[#563963]/10 transition-all"
                                                         />
                                                     </div>
                                                 </CardContent>
@@ -201,57 +203,57 @@ export function TranscriptBuilder({ initialData, studentId }: TranscriptBuilderP
 
                                             {/* School Details Card */}
                                             <Card className="border shadow-sm overflow-hidden">
-                                                <div className="bg-gray-50/50 px-6 py-4 border-b flex items-center gap-3">
+                                                <div className="bg-qc-surface-raised/50 px-6 py-4 border-b flex items-center gap-3">
                                                     <div className="h-8 w-8 rounded-full bg-blue-500/10 flex items-center justify-center text-blue-600">
-                                                        <BookOpen className="h-4 w-4" />
+                                                        <BookOpen size={16} />
                                                     </div>
                                                     <div>
-                                                        <h3 className="font-semibold text-gray-900">School Details</h3>
-                                                        <p className="text-xs text-gray-500">Homeschool or organization information.</p>
+                                                        <h3 className="font-semibold text-qc-charcoal">School Details</h3>
+                                                        <p className="text-xs text-qc-text-muted">Homeschool or organization information.</p>
                                                     </div>
                                                 </div>
                                                 <CardContent className="p-6 space-y-6">
                                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                                         <div className="space-y-2">
-                                                            <Label className="text-gray-600">School Name</Label>
+                                                            <Label className="text-qc-text-muted">School Name</Label>
                                                             <Input
                                                                 value={transcript.schoolInfo.name}
                                                                 onChange={(e) => updateTranscript({
                                                                     schoolInfo: { ...transcript.schoolInfo, name: e.target.value }
                                                                 })}
-                                                                className="border-gray-200 focus:border-[#563963] focus:ring-[#563963]/10 transition-all"
+                                                                className="border-qc-border-subtle focus:border-[#563963] focus:ring-[#563963]/10 transition-all"
                                                             />
                                                         </div>
                                                         <div className="space-y-2">
-                                                            <Label className="text-gray-600">School Email</Label>
+                                                            <Label className="text-qc-text-muted">School Email</Label>
                                                             <Input
                                                                 value={transcript.schoolInfo.email}
                                                                 onChange={(e) => updateTranscript({
                                                                     schoolInfo: { ...transcript.schoolInfo, email: e.target.value }
                                                                 })}
-                                                                className="border-gray-200 focus:border-[#563963] focus:ring-[#563963]/10 transition-all"
+                                                                className="border-qc-border-subtle focus:border-[#563963] focus:ring-[#563963]/10 transition-all"
                                                             />
                                                         </div>
                                                     </div>
                                                     <div className="space-y-2">
-                                                        <Label className="text-gray-600">Address</Label>
+                                                        <Label className="text-qc-text-muted">Address</Label>
                                                         <Input
                                                             value={transcript.schoolInfo.address}
                                                             onChange={(e) => updateTranscript({
                                                                 schoolInfo: { ...transcript.schoolInfo, address: e.target.value }
                                                             })}
-                                                            className="border-gray-200 focus:border-[#563963] focus:ring-[#563963]/10 transition-all"
+                                                            className="border-qc-border-subtle focus:border-[#563963] focus:ring-[#563963]/10 transition-all"
                                                         />
                                                     </div>
                                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                                         <div className="space-y-2">
-                                                            <Label className="text-gray-600">Administrator Name</Label>
+                                                            <Label className="text-qc-text-muted">Administrator Name</Label>
                                                             <Input
                                                                 value={transcript.schoolInfo.administrator}
                                                                 onChange={(e) => updateTranscript({
                                                                     schoolInfo: { ...transcript.schoolInfo, administrator: e.target.value }
                                                                 })}
-                                                                className="border-gray-200 focus:border-[#563963] focus:ring-[#563963]/10 transition-all"
+                                                                className="border-qc-border-subtle focus:border-[#563963] focus:ring-[#563963]/10 transition-all"
                                                             />
                                                         </div>
                                                     </div>
@@ -260,20 +262,20 @@ export function TranscriptBuilder({ initialData, studentId }: TranscriptBuilderP
 
                                             {/* Grading Settings Card */}
                                             <Card className="border shadow-sm overflow-hidden">
-                                                <div className="bg-gray-50/50 px-6 py-4 border-b flex items-center gap-3">
+                                                <div className="bg-qc-surface-raised/50 px-6 py-4 border-b flex items-center gap-3">
                                                     <div className="h-8 w-8 rounded-full bg-green-500/10 flex items-center justify-center text-green-600">
-                                                        <CheckCircle className="h-4 w-4" />
+                                                        <CheckCircle size={16} />
                                                     </div>
                                                     <div>
-                                                        <h3 className="font-semibold text-gray-900">Grading & Configuration</h3>
-                                                        <p className="text-xs text-gray-500">GPA scales, weighting, and display options.</p>
+                                                        <h3 className="font-semibold text-qc-charcoal">Grading & Configuration</h3>
+                                                        <p className="text-xs text-qc-text-muted">GPA scales, weighting, and display options.</p>
                                                     </div>
                                                 </div>
                                                 <CardContent className="p-6">
                                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                                                         <div className="space-y-4">
                                                             <div className="space-y-2">
-                                                                <Label className="text-gray-600">Grading Scale</Label>
+                                                                <Label className="text-qc-text-muted">Grading Scale</Label>
                                                                 <Select
                                                                     value={transcript.gradingSettings?.scale || '10-point'}
                                                                     onValueChange={(val) => updateTranscript({
@@ -285,7 +287,7 @@ export function TranscriptBuilder({ initialData, studentId }: TranscriptBuilderP
                                                                         gradingScale: getGradingScaleLegend(val as any)
                                                                     })}
                                                                 >
-                                                                    <SelectTrigger className="h-10 border-gray-200 focus:border-[#563963] focus:ring-[#563963]/10">
+                                                                    <SelectTrigger className="h-10 border-qc-border-subtle focus:border-[#563963] focus:ring-[#563963]/10">
                                                                         <SelectValue />
                                                                     </SelectTrigger>
                                                                     <SelectContent>
@@ -294,21 +296,21 @@ export function TranscriptBuilder({ initialData, studentId }: TranscriptBuilderP
                                                                         <SelectItem value="plus-minus">Plus/Minus (Competitive)</SelectItem>
                                                                     </SelectContent>
                                                                 </Select>
-                                                                <p className="text-[11px] text-gray-400">Select the scale that matches your homeschooling approach.</p>
+                                                                <p className="text-[11px] text-qc-text-muted">Select the scale that matches your homeschooling approach.</p>
                                                             </div>
                                                             <div className="space-y-2">
-                                                                <Label className="text-gray-600">Transcript Title</Label>
+                                                                <Label className="text-qc-text-muted">Transcript Title</Label>
                                                                 <Input
                                                                     value={transcript.name}
                                                                     onChange={(e) => updateTranscript({ name: e.target.value })}
-                                                                    className="h-10 border-gray-200 focus:border-[#563963] focus:ring-[#563963]/10"
+                                                                    className="h-10 border-qc-border-subtle focus:border-[#563963] focus:ring-[#563963]/10"
                                                                 />
                                                             </div>
                                                         </div>
 
                                                         <div className="space-y-6 pt-1">
                                                             {/* Weighted GPA Toggle */}
-                                                            <div className="flex items-start space-x-3 p-3 rounded-lg border border-gray-100 hover:border-gray-200 hover:bg-gray-50/50 transition-colors">
+                                                            <div className="flex items-start space-x-3 p-3 rounded-lg border border-qc-border-subtle/50 hover:border-qc-border-subtle hover:bg-qc-surface-raised/50 transition-colors">
                                                                 <input
                                                                     type="checkbox"
                                                                     id="weighted-toggle"
@@ -320,16 +322,16 @@ export function TranscriptBuilder({ initialData, studentId }: TranscriptBuilderP
                                                                             showNarratives: transcript.gradingSettings?.showNarratives
                                                                         }
                                                                     })}
-                                                                    className="mt-1 h-4 w-4 rounded border-gray-300 text-[#563963] focus:ring-[#563963]"
+                                                                    className="mt-1 h-4 w-4 rounded border-qc-border-subtle text-[#563963] focus:ring-[#563963]"
                                                                 />
                                                                 <div>
-                                                                    <label htmlFor="weighted-toggle" className="text-sm font-medium text-gray-700 block">Weighted GPA (5.0 Add-on)</label>
-                                                                    <p className="text-xs text-gray-500 mt-1 leading-relaxed">Honors courses +0.5, AP/IB/Dual +1.0. Capped at 5.0.</p>
+                                                                    <label htmlFor="weighted-toggle" className="text-sm font-medium text-qc-charcoal block">Weighted GPA (5.0 Add-on)</label>
+                                                                    <p className="text-xs text-qc-text-muted mt-1 leading-relaxed">Honors courses +0.5, AP/IB/Dual +1.0. Capped at 5.0.</p>
                                                                 </div>
                                                             </div>
 
                                                             {/* Narrative Toggle */}
-                                                            <div className="flex items-start space-x-3 p-3 rounded-lg border border-gray-100 hover:border-gray-200 hover:bg-gray-50/50 transition-colors">
+                                                            <div className="flex items-start space-x-3 p-3 rounded-lg border border-qc-border-subtle/50 hover:border-qc-border-subtle hover:bg-qc-surface-raised/50 transition-colors">
                                                                 <input
                                                                     type="checkbox"
                                                                     id="narrative-toggle"
@@ -342,11 +344,11 @@ export function TranscriptBuilder({ initialData, studentId }: TranscriptBuilderP
                                                                             showNarratives: e.target.checked
                                                                         }
                                                                     })}
-                                                                    className="mt-1 h-4 w-4 rounded border-gray-300 text-[#563963] focus:ring-[#563963]"
+                                                                    className="mt-1 h-4 w-4 rounded border-qc-border-subtle text-[#563963] focus:ring-[#563963]"
                                                                 />
                                                                 <div>
-                                                                    <label htmlFor="narrative-toggle" className="text-sm font-medium text-gray-700 block">Narrative Evaluations</label>
-                                                                    <p className="text-xs text-gray-500 mt-1 leading-relaxed">Enable course descriptions & teacher comments.</p>
+                                                                    <label htmlFor="narrative-toggle" className="text-sm font-medium text-qc-charcoal block">Narrative Evaluations</label>
+                                                                    <p className="text-xs text-qc-text-muted mt-1 leading-relaxed">Enable course descriptions & teacher comments.</p>
                                                                 </div>
                                                             </div>
                                                         </div>
@@ -387,7 +389,7 @@ export function TranscriptBuilder({ initialData, studentId }: TranscriptBuilderP
 
                                     {/* PREVIEW TAB (Full Width) */}
                                     <TabsContent value="preview" className="mt-0">
-                                        <div className="overflow-auto border rounded-xl shadow-inner bg-gray-100 p-8 flex justify-center min-h-[800px]">
+                                        <div className="overflow-auto border rounded-xl shadow-inner bg-qc-surface-raised p-8 flex justify-center min-h-[800px]">
                                             <div className="bg-white shadow-2xl" style={{ width: '8.5in', flexShrink: 0 }}>
                                                 <TranscriptPreview transcript={transcript} />
                                             </div>

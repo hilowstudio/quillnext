@@ -88,18 +88,18 @@ export const DiscipleshipDashboard = ({ studentId }: DiscipleshipDashboardProps)
     ];
 
     return (
-        <div className="space-y-8">
+        <section aria-label="Family discipleship suite" className="space-y-8">
             <div className="text-center max-w-2xl mx-auto mb-10">
-                <h1 className="text-4xl font-bold text-qc-primary font-display mb-3">
+                <h1 className="text-4xl font-bold text-qc-primary font-display mb-3 text-balance">
                     Family Discipleship Suite
                     {studentId && <span className="block text-xl font-normal text-qc-text-muted mt-2">Student View</span>}
                 </h1>
-                <p className="text-lg text-qc-text-muted font-body">
+                <p className="text-lg text-qc-text-muted font-body qc-prose">
                     Tools to nurture faith, deepen understanding, and live out the Gospel at home.
                 </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <nav aria-label="Discipleship tools" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {features.map((feature) => (
                     <Link
                         key={feature.title}
@@ -115,7 +115,7 @@ export const DiscipleshipDashboard = ({ studentId }: DiscipleshipDashboardProps)
                             <feature.icon className={cn("w-8 h-8", feature.color)} weight="duotone" />
                         </div>
 
-                        <h2 className="text-xl font-bold text-qc-primary font-display mb-2 group-hover:text-qc-secondary transition-colors">
+                        <h2 className="text-xl font-bold text-qc-primary font-display mb-2 group-hover:text-qc-secondary transition-colors text-balance">
                             {feature.title}
                         </h2>
 
@@ -124,7 +124,7 @@ export const DiscipleshipDashboard = ({ studentId }: DiscipleshipDashboardProps)
                         </p>
                     </Link>
                 ))}
-            </div>
-        </div>
+            </nav>
+        </section>
     );
 };

@@ -20,8 +20,8 @@ export const compileCurriculum = inngest.createFunction(
         // 2. Generate Teacher Guide (TG) - The Source of Truth
         const tgResource = await step.run("generate-teacher-guide", async () => {
             // Find or create "Teacher Guide" ResourceKind
-            const kind = await db.resourceKind.findFirst({ where: { code: "TEACHER_GUIDE" } });
-            if (!kind) throw new NonRetriableError("Teacher Guide ResourceKind not found (code: TEACHER_GUIDE)");
+            const kind = await db.resourceKind.findFirst({ where: { code: "teacher_guide" } });
+            if (!kind) throw new NonRetriableError("Teacher Guide ResourceKind not found (code: teacher_guide)");
 
             // Construct Prompt
             let prompt = `Strictly follow the spec: Grade ${spec.readingLevel}, ${spec.durationDays} Days. Constraints: ${JSON.stringify(spec.constraints)}.`;
@@ -53,7 +53,7 @@ export const compileCurriculum = inngest.createFunction(
 
         // 3. Generate Student Packet (SP) - Derived from TG
         const spResource = await step.run("generate-student-packet", async () => {
-            const kind = await db.resourceKind.findFirst({ where: { code: "STUDENT_PACKET" } });
+            const kind = await db.resourceKind.findFirst({ where: { code: "student_packet" } });
             if (!kind) throw new NonRetriableError("Student Packet ResourceKind not found");
 
             let prompt = `Create student materials based on the Teacher Guide. Adhere to constraints: ${JSON.stringify(spec.constraints)}.`;
@@ -83,7 +83,7 @@ export const compileCurriculum = inngest.createFunction(
 
         // 4. Generate Slides (SL) - Visuals derived from TG
         await step.run("generate-slides", async () => {
-            const kind = await db.resourceKind.findFirst({ where: { code: "SLIDES" } });
+            const kind = await db.resourceKind.findFirst({ where: { code: "slides" } });
             // If SLIDES kind doesn't exist, we might skip or fail. For now, we'll try to find it or fallback.
             if (!kind) return;
 
@@ -113,8 +113,8 @@ export const compileCurriculum = inngest.createFunction(
         // 5. Generate Reading Anthology (RA) - All texts in one place
         const raResource = await step.run("generate-reading-anthology", async () => {
             // specific kind or fallback to ARTICLE
-            let kind = await db.resourceKind.findFirst({ where: { code: "READING_ANTHOLOGY" } });
-            if (!kind) kind = await db.resourceKind.findFirst({ where: { code: "ARTICLE" } });
+            let kind = await db.resourceKind.findFirst({ where: { code: "reading_anthology" } });
+            if (!kind) kind = await db.resourceKind.findFirst({ where: { code: "article" } });
             if (!kind) return null;
 
             let prompt = `Create a Reading Anthology for the Student Packet. Extract and compile all reading passages, primary sources, and poems mentioned in the Teacher Guide. Constraints: ${JSON.stringify(spec.constraints)}.`;
@@ -144,8 +144,8 @@ export const compileCurriculum = inngest.createFunction(
 
         // 6. Generate Organizers (CO) - Charts & Graphic Organizers
         const coResource = await step.run("generate-organizers", async () => {
-            let kind = await db.resourceKind.findFirst({ where: { code: "ORGANIZERS" } });
-            if (!kind) kind = await db.resourceKind.findFirst({ where: { code: "WORKSHEET" } });
+            let kind = await db.resourceKind.findFirst({ where: { code: "graphic_organizers" } });
+            if (!kind) kind = await db.resourceKind.findFirst({ where: { code: "worksheet" } });
             if (!kind) return null;
 
             let prompt = `Create a set of blank Graphic Organizers and Charts needed for the lessons in the Teacher Guide. Constraints: ${JSON.stringify(spec.constraints)}.`;
@@ -179,7 +179,7 @@ export const compileCurriculum = inngest.createFunction(
             // In a full implementation, we would read the TG and SP content and use an LLM to compare them.
             // For this MVP, we will generate a "Manifest" resource that acts as the proof.
 
-            const kind = await db.resourceKind.findFirst({ where: { code: "ARTICLE" } }); // Using ARTICLE for the report/manifest
+            const kind = await db.resourceKind.findFirst({ where: { code: "article" } }); // Using ARTICLE for the report/manifest
             if (!kind) return;
 
             const manifestData = {

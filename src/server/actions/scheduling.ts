@@ -266,3 +266,42 @@ export async function moveScheduleItem(itemId: string, newDate: Date) {
         return { success: false, error: e.message };
     }
 }
+
+export async function addAdHocEvent(
+    studentId: string,
+    date: Date,
+    title: string,
+    description?: string,
+    organizationId?: string,
+) {
+    try {
+        if (!organizationId) {
+            // Infer org from user? Or pass it.
+            // For now, let's look up student's org
+            const student = await db.student.findUnique({
+                where: { id: studentId },
+                select: { organizationId: true }
+            });
+            if (student) organizationId = student.organizationId;
+        }
+
+        if (!organizationId) throw new Error("Organization ID required");
+
+        await (db as any).customEvent.create({
+            data: {
+                organizationId,
+                studentId,
+                date,
+                title,
+                description,
+                isAllDay: true,
+            }
+        });
+
+        revalidateTag(`schedule-${organizationId}`, {});
+        return { success: true };
+    } catch (e: any) {
+        console.error("Failed to create ad-hoc event:", e);
+        return { success: false, error: e.message };
+    }
+}

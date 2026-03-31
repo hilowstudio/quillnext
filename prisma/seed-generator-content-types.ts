@@ -4,264 +4,226 @@ import fs from "fs";
 import path from "path";
 import yaml from "js-yaml";
 
-// Create a direct Prisma client for seeding
-const createPrismaClient = () => {
-  const directUrl = process.env.DIRECT_DATABASE_URL;
-  if (directUrl) {
-    process.env.DATABASE_URL = directUrl;
-  }
+import { PrismaPg } from "@prisma/adapter-pg";
+import { Pool } from "pg";
 
-  if (!process.env.DATABASE_URL) {
-    throw new Error("DATABASE_URL or DIRECT_DATABASE_URL environment variable is required");
-  }
+// --- Configuration ---
+const BATCH_SIZE = 10; // Number of concurrent upserts
+const TIMEOUT_MS = 60000; // 60s timeout for script
 
-  return new PrismaClient();
-};
+// Ensure DATABASE_URL is set
+// NOTE: We use DATABASE_URL (Transaction Pooler) because Direct connection (5432) is timing out.
+// Seeding data (DML) works fine over the pooler.
+if (!process.env.DATABASE_URL) {
+  console.error("❌ Error: DATABASE_URL or DIRECT_DATABASE_URL must be set.");
+  process.exit(1);
+}
 
-const prisma = createPrismaClient();
+// Instantiate Client with Adapter
+const url = new URL(process.env.DATABASE_URL);
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: { rejectUnauthorized: false },
+  connectionTimeoutMillis: 20000,
+  idleTimeoutMillis: 20000,
+});
+const adapter = new PrismaPg(pool);
 
-/**
- * Standalone seed script for Generator Content Types (ResourceKind)
- * 
- * Parses GENERATOR_CONTENT_TYPES.YAML and seeds ResourceKind entries
- * with proper strand and subject associations.
- */
+const prisma = new PrismaClient({
+  adapter,
+  log: ['warn', 'error'],
+});
+
 async function main() {
-  console.log("🌱 Starting generator content types seed...");
+  console.log("🚀 Starting Optimized Generator Content Types Seed...");
+  const startTime = Date.now();
 
   try {
-    // Load YAML file
+    // 1. Load YAML
     const yamlPaths = [
       path.join(process.cwd(), "prisma", "data", "GENERATOR_CONTENT_TYPES.YAML"),
       path.join(process.cwd(), "GENERATOR_CONTENT_TYPES.YAML"),
     ];
     const yamlPath = yamlPaths.find((p) => fs.existsSync(p));
 
-    if (!yamlPath || !fs.existsSync(yamlPath)) {
-      throw new Error(`GENERATOR_CONTENT_TYPES.YAML not found. Tried: ${yamlPaths.join(", ")}`);
+    if (!yamlPath) {
+      throw new Error(`YAML file not found. Checked: ${yamlPaths.join(", ")}`);
     }
 
     console.log(`📄 Loading YAML from: ${yamlPath}`);
     const yamlRaw = fs.readFileSync(yamlPath, "utf-8");
     const contentTypes = yaml.load(yamlRaw) as Record<string, Record<string, string[]>>;
 
-    if (!contentTypes || typeof contentTypes !== "object") {
-      throw new Error("Invalid YAML structure. Expected object with subject -> strand -> generators mapping.");
-    }
+    // 2. Pre-fetch Subjects and Strands (The "Smart" optimization)
+    console.log("📥 Pre-fetching Subjects and Strands...");
 
-    // Helper function to slugify a string for use as a code
-    function slugify(text: string): string {
-      return text
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, "_")
-        .replace(/^_+|_+$/g, "")
-        .substring(0, 100); // Limit length
-    }
+    // Fetch all Subjects
+    const subjects = await prisma.subject.findMany({ select: { id: true, name: true, code: true } });
+    const subjectMap = new Map<string, string>(); // Name/Code -> ID
+    subjects.forEach(s => {
+      subjectMap.set(s.name.toLowerCase(), s.id);
+      subjectMap.set(s.code.toLowerCase(), s.id);
+    });
+    console.log(`   ✓ Loaded ${subjects.length} Subjects`);
 
-    // Helper function to infer content type from generator name
-    function inferContentType(name: string): "WORKSHEET" | "TEMPLATE" | "PROMPT" | "GUIDE" | "QUIZ" | "RUBRIC" | "OTHER" {
-      const lower = name.toLowerCase();
+    // Fetch all Strands
+    const strands = await prisma.strand.findMany({ select: { id: true, name: true, subjectId: true, code: true } });
+    const strandMap = new Map<string, string>(); // "subjectId:strandName" -> ID
+    strands.forEach(s => {
+      // Key needs to be unique enough. We'll use subjectId + name (lowercase)
+      strandMap.set(`${s.subjectId}:${s.name.toLowerCase()}`, s.id);
+      // Also map by code if unique globaly, but let's stick to subject context for safety
+      // actually, the YAML gives us Hierarchy: Subject -> Strand. So lookup should be hierarchical.
+    });
+    console.log(`   ✓ Loaded ${strands.length} Strands`);
 
-      if (lower.includes("worksheet") || lower.includes("practice sheet") || lower.includes("drill")) {
-        return "WORKSHEET";
-      }
-      if (lower.includes("template") || lower.includes("outline")) {
-        return "TEMPLATE";
-      }
-      if (lower.includes("prompt") || lower.includes("generator") || lower.includes("starter")) {
-        return "PROMPT";
-      }
-      if (lower.includes("guide") || lower.includes("instruction") || lower.includes("how-to")) {
-        return "GUIDE";
-      }
-      if (lower.includes("quiz") || lower.includes("test") || lower.includes("assessment")) {
-        return "QUIZ";
-      }
-      if (lower.includes("rubric") || lower.includes("scoring")) {
-        return "RUBRIC";
-      }
-      // Note: LESSON_PLAN is not in the enum, so lesson plans map to OTHER
-      if (lower.includes("lesson plan") || lower.includes("lesson-plan")) {
-        return "OTHER";
-      }
+    // 3. Prepare Payloads
+    console.log("🔄 Processing YAML entries...");
+    const operations: (() => Promise<any>)[] = [];
 
-      return "OTHER";
-    }
-
-    let resourceKindCount = 0;
+    let processedCount = 0;
     let skippedCount = 0;
-    const skippedItems: Array<{ subject: string; strand: string; generator: string; reason: string }> = [];
 
-    // Iterate through subjects (top level)
-    for (const [subjectName, strands] of Object.entries(contentTypes)) {
-      if (!strands || typeof strands !== "object") {
-        console.warn(`⚠️  Skipping invalid subject entry: ${subjectName}`);
-        continue;
-      }
+    for (const [subjectKey, strandsData] of Object.entries(contentTypes)) {
+      // Resolve Subject
+      let subjectId: string | null = null;
+      let isUniversal = false;
 
-      // Find subject by name (try exact match and variations)
-      let subject = await prisma.subject.findFirst({
-        where: {
-          OR: [
-            { name: { equals: subjectName, mode: "insensitive" as const } },
-            { name: subjectName },
-          ],
-        },
-      });
+      if (subjectKey === "Universal Tools & Templates") {
+        isUniversal = true;
+      } else {
+        // Try exact match then fuzzy
+        const lowerKey = subjectKey.toLowerCase();
+        if (subjectMap.has(lowerKey)) {
+          subjectId = subjectMap.get(lowerKey)!;
+        } else {
+          // Simple fuzzy: check if name contains key or vice-versa
+          const found = subjects.find(s => s.name.toLowerCase().includes(lowerKey.split(' ')[0]));
+          if (found) subjectId = found.id;
+        }
 
-      // If exact match failed, try contains
-      if (!subject) {
-        subject = await prisma.subject.findFirst({
-          where: {
-            OR: [
-              { name: { contains: subjectName.split(" ")[0], mode: "insensitive" as const } }, // Try first word
-              { name: { contains: subjectName, mode: "insensitive" as const } },
-            ],
-          },
-        });
-      }
-
-      if (!subject) {
-        console.warn(`⚠️  Subject not found: "${subjectName}". Skipping all strands under this subject.`);
-        skippedCount += Object.values(strands).flat().length;
-        continue;
-      }
-
-      console.log(`\n📚 Processing subject: ${subject.name} (${subject.code})`);
-
-      // Iterate through strands (second level)
-      for (const [strandName, generators] of Object.entries(strands)) {
-        if (!Array.isArray(generators)) {
-          console.warn(`⚠️  Skipping invalid strand entry: ${subjectName} > ${strandName}`);
+        if (!subjectId) {
+          console.warn(`   ⚠️ Subj Not Found: "${subjectKey}". Skipping children.`);
           continue;
         }
+      }
 
-        // Find strand by name within this subject
-        // Try multiple matching strategies for better matching
-        const cleanStrandName = strandName.trim();
-        const strandNameVariations = [
-          cleanStrandName, // Exact match
-          cleanStrandName.split(":")[0].trim(), // Before colon
-          cleanStrandName.split("(")[0].trim(), // Before parenthesis
-          cleanStrandName.replace(/\([^)]*\)/g, "").trim(), // Remove parenthetical content
-        ].filter((v, i, arr) => v && arr.indexOf(v) === i && v.length > 0); // Remove duplicates and empty strings
+      if (!strandsData || typeof strandsData !== 'object') continue;
 
-        let strand = await prisma.strand.findFirst({
-          where: {
-            subjectId: subject.id,
-            OR: [
-              { name: { equals: cleanStrandName, mode: "insensitive" as const } }, // Exact match (case insensitive)
-              ...strandNameVariations.slice(1).map((variant) => ({
-                name: { equals: variant, mode: "insensitive" as const },
-              })),
-            ],
-          },
-        });
+      for (const [strandKey, generators] of Object.entries(strandsData)) {
+        let strandId: string | null = null;
 
-        // If exact match failed, try contains matching
-        if (!strand) {
-          strand = await prisma.strand.findFirst({
-            where: {
-              subjectId: subject.id,
-              OR: [
-                { name: { contains: cleanStrandName.split(":")[0].trim(), mode: "insensitive" as const } },
-                { name: { contains: cleanStrandName.split("(")[0].trim(), mode: "insensitive" as const } },
-                { name: { contains: cleanStrandName, mode: "insensitive" as const } },
-              ],
-            },
-          });
-        }
+        if (!isUniversal && subjectId) {
+          // Resolve Strand
+          // Cleaning the key similar to original script
+          const cleanKey = strandKey.trim().toLowerCase();
+          const variants = [
+            cleanKey,
+            cleanKey.split(':')[0].trim(),
+            cleanKey.split('(')[0].trim()
+          ];
 
+          // Try to find in our loaded strands for this subject
+          // We filter loaded strands by subjectId first
+          const subjectStrands = strands.filter(s => s.subjectId === subjectId);
 
-        if (!strand) {
-          console.warn(`  ⚠️  Strand not found: "${strandName}" in subject "${subjectName}". Skipping ${generators.length} generators.`);
-          skippedCount += generators.length;
-          generators.forEach((gen) => {
-            skippedItems.push({
-              subject: subjectName,
-              strand: strandName,
-              generator: gen,
-              reason: "Strand not found in database",
-            });
-          });
-          continue;
-        }
+          let foundStrand = subjectStrands.find(s =>
+            variants.some(v => s.name.toLowerCase() === v)
+          );
 
-        console.log(`  📖 Processing strand: ${strand.name} (${strand.code})`);
-
-        // Process each generator (third level - array of strings)
-        for (const generatorName of generators) {
-          if (typeof generatorName !== "string" || !generatorName.trim()) {
-            console.warn(`    ⚠️  Skipping invalid generator: ${generatorName}`);
-            skippedCount++;
-            continue;
+          // Fuzzy fallback
+          if (!foundStrand) {
+            foundStrand = subjectStrands.find(s =>
+              variants.some(v => s.name.toLowerCase().includes(v))
+            );
           }
 
-          const code = slugify(generatorName);
-          const contentType = inferContentType(generatorName);
+          if (foundStrand) {
+            strandId = foundStrand.id;
+          } else {
+            console.warn(`     ⚠️ Strand Not Found: "${strandKey}" in Subject "${subjectKey}". items will be unlinked.`);
+            // We continue, but strandId is null.
+          }
+        }
 
-          try {
-            await prisma.resourceKind.upsert({
+        if (!Array.isArray(generators)) continue;
+
+        for (const genName of generators) {
+          if (typeof genName !== 'string' || !genName.trim()) continue;
+
+          const code = slugify(genName);
+          const contentType = inferContentType(genName);
+
+          // Queue the operation
+          operations.push(() =>
+            prisma.resourceKind.upsert({
               where: { code },
               update: {
-                label: generatorName,
+                label: genName,
                 contentType,
-                strandId: strand.id,
-                subjectId: subject.id,
-                isSpecialized: true,
+                strandId,
+                subjectId,
+                isSpecialized: !!(strandId || subjectId),
               },
               create: {
                 code,
-                label: generatorName,
+                label: genName,
                 contentType,
-                strandId: strand.id,
-                subjectId: subject.id,
-                isSpecialized: true,
-              },
-            });
-
-            resourceKindCount++;
-            console.log(`    ✓ ${generatorName} (${code}) -> ${contentType}`);
-          } catch (error) {
-            console.error(`    ❌ Failed to upsert ${generatorName}:`, error);
-            skippedCount++;
-            skippedItems.push({
-              subject: subjectName,
-              strand: strandName,
-              generator: generatorName,
-              reason: `Error: ${error instanceof Error ? error.message : String(error)}`,
-            });
-          }
+                strandId,
+                subjectId,
+                isSpecialized: !!(strandId || subjectId),
+              }
+            }).then(() => {
+              process.stdout.write('.'); // Progress dot
+            }).catch(e => {
+              console.error(`\n❌ Failed: ${genName} (${code})`, e.message);
+              throw e;
+            })
+          );
+          processedCount++;
         }
       }
     }
 
-    console.log(`\n✅ Seed completed!`);
-    console.log(`   ✓ Created/updated ${resourceKindCount} ResourceKind entries`);
-    if (skippedCount > 0) {
-      console.log(`   ⚠️  Skipped ${skippedCount} entries`);
-      if (skippedItems.length > 0) {
-        console.log(`\n   Skipped items:`);
-        skippedItems.slice(0, 10).forEach((item) => {
-          console.log(`     - ${item.subject} > ${item.strand} > ${item.generator} (${item.reason})`);
-        });
-        if (skippedItems.length > 10) {
-          console.log(`     ... and ${skippedItems.length - 10} more`);
-        }
-      }
+    console.log(`\n📋 Prepared ${operations.length} DB operations.`);
+    console.log(`🚀 Executing in batches of ${BATCH_SIZE}...`);
+
+    // 4. Batch Execution
+    for (let i = 0; i < operations.length; i += BATCH_SIZE) {
+      const batch = operations.slice(i, i + BATCH_SIZE);
+      await Promise.all(batch.map(op => op()));
     }
+
+    const duration = ((Date.now() - startTime) / 1000).toFixed(2);
+    console.log(`\n\n✅ Seed Completed in ${duration}s!`);
+    console.log(`   Items Processed: ${processedCount}`);
+
   } catch (error) {
-    console.error("❌ Seed failed:", error);
-    throw error;
+    console.error("\n❌ Fatal Error:", error);
+    process.exit(1);
+  } finally {
+    await prisma.$disconnect();
   }
 }
 
-main()
-  .catch((e) => {
-    console.error("❌ Seed failed:", e);
-    process.exit(1);
-  })
-  .finally(async () => {
-    await prisma.$disconnect();
-  });
+// Helpers
+function slugify(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .substring(0, 100);
+}
 
+function inferContentType(name: string): "WORKSHEET" | "TEMPLATE" | "PROMPT" | "GUIDE" | "QUIZ" | "RUBRIC" | "OTHER" {
+  const lower = name.toLowerCase();
+  if (lower.includes("worksheet") || lower.includes("practice sheet")) return "WORKSHEET";
+  if (lower.includes("template") || lower.includes("outline")) return "TEMPLATE";
+  if (lower.includes("prompt") || lower.includes("generator") || lower.includes("starter")) return "PROMPT";
+  if (lower.includes("guide") || lower.includes("instruction") || lower.includes("how-to")) return "GUIDE";
+  if (lower.includes("quiz") || lower.includes("test") || lower.includes("assessment")) return "QUIZ";
+  if (lower.includes("rubric")) return "RUBRIC";
+  return "OTHER";
+}
+
+main();

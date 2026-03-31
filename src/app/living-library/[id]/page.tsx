@@ -63,7 +63,7 @@ export default async function BookDetailPage({
         <Button variant="outline" asChild className="mb-4">
           <Link href="/living-library">← Back to Library</Link>
         </Button>
-        <h1 className="font-display text-4xl font-bold text-qc-charcoal mb-2">
+        <h1 className="font-display text-4xl font-bold text-qc-charcoal mb-2 text-balance">
           {book.title}
         </h1>
         {book.authors && Array.isArray(book.authors) && (

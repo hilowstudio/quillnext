@@ -17,10 +17,12 @@ const getSubtopicObjectivesSchema = z.object({
 });
 
 export async function getCourseBooks(rawData: unknown) {
-    const data = getCourseBooksSchema.parse(rawData);
+    const courseId = typeof rawData === "string"
+        ? rawData
+        : getCourseBooksSchema.parse(rawData).courseId;
 
     const course = await db.course.findUnique({
-        where: { id: data.courseId },
+        where: { id: courseId },
         select: { subjectId: true, strandId: true },
     });
 
@@ -35,17 +37,19 @@ export async function getCourseBooks(rawData: unknown) {
         },
         select: { id: true, title: true, tableOfContents: true },
         orderBy: { title: "asc" },
-        take: 50, // Explicit bound - reasonable limit for course books
+        take: 50,
     });
 
     return { books };
 }
 
 export async function getBookChapters(rawData: unknown) {
-    const data = getBookChaptersSchema.parse(rawData);
+    const bookId = typeof rawData === "string"
+        ? rawData
+        : getBookChaptersSchema.parse(rawData).bookId;
 
     const book = await db.book.findUnique({
-        where: { id: data.bookId },
+        where: { id: bookId },
         select: { tableOfContents: true },
     });
 
@@ -63,10 +67,12 @@ export async function getBookChapters(rawData: unknown) {
 }
 
 export async function getSubtopicObjectives(rawData: unknown) {
-    const data = getSubtopicObjectivesSchema.parse(rawData);
+    const subtopicId = typeof rawData === "string"
+        ? rawData
+        : getSubtopicObjectivesSchema.parse(rawData).subtopicId;
 
     const objectives = await db.objective.findMany({
-        where: { subtopicId: data.subtopicId },
+        where: { subtopicId: subtopicId },
         select: { id: true, text: true, code: true },
         orderBy: { sortOrder: 'asc' },
         take: 200, // Explicit bound - subtopics can have many objectives

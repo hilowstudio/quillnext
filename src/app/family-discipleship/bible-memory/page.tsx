@@ -27,7 +27,7 @@ export default async function BibleMemoryPage() {
     return (
         <div className="container mx-auto p-4 md:p-6 space-y-8">
             <div className="flex flex-col gap-2">
-                <h1 className="font-display text-4xl font-bold text-qc-primary">Scripture Memory</h1>
+                <h1 className="font-display text-4xl font-bold text-qc-primary text-balance">Scripture Memory</h1>
                 <p className="font-body text-lg text-qc-text-muted">Hide God&apos;s word in your heart.</p>
             </div>
             <BibleMemoryDashboard

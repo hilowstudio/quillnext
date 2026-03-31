@@ -239,7 +239,7 @@ const ColorPicker = ({ label, property, config, onUpdate, options, required }: {
                 })}
                 {!required && (
                     <button
-                        className={`w-8 h-8 rounded-full border-2 border-dashed border-gray-300 flex items-center justify-center text-xs ${!config[property] ? "border-qc-primary" : ""}`}
+                        className={`w-8 h-8 rounded-full border-2 border-dashed border-qc-border-subtle flex items-center justify-center text-xs ${!config[property] ? "border-qc-primary" : ""}`}
                         onClick={() => onUpdate({ [property]: [] })}
                         title="Default / Random"
                     >x</button>

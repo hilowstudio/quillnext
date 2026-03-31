@@ -16,7 +16,7 @@ export async function getLibraryResources(organizationId: string) {
         async () => {
             // Removed defensive try/catch - let database errors surface explicitly
             // Converted include to select for precise field selection
-            const [books, videos, articles, documents, courses, resources] = await Promise.all([
+            const [books, videos, articles, documents, courses, resources, bundles] = await Promise.all([
                 prisma.book.findMany({
                     where: { organizationId },
                     include: {
@@ -96,10 +96,16 @@ export async function getLibraryResources(organizationId: string) {
                     },
                     orderBy: { createdAt: "desc" },
                     take: 100,
+                }),
+                prisma.curriculumBundle.findMany({
+                    where: { spec: { organizationId } },
+                    include: { spec: true },
+                    orderBy: { createdAt: "desc" },
+                    take: 20,
                 })
             ]);
 
-            return { success: true, books, videos, articles, documents, courses, resources };
+            return { success: true, books, videos, articles, documents, courses, resources, bundles };
         },
         [`library-${organizationId}`],
         {

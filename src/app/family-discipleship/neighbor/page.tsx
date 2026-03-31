@@ -8,8 +8,8 @@ export default async function NeighborLovePage() {
     return (
         <div className="container mx-auto p-6 space-y-8">
             <div className="flex flex-col gap-2">
-                <h1 className="font-display text-4xl font-bold text-qc-primary">Neighbor Love</h1>
-                <p className="font-body text-lg text-qc-text-muted">
+                <h1 className="font-display text-4xl font-bold text-qc-primary text-balance">Neighbor Love</h1>
+                <p className="font-body text-lg text-qc-text-muted qc-prose">
                     &quot;And who is my neighbor?&quot; (Luke 10:29)
                 </p>
             </div>

@@ -470,7 +470,7 @@ const EmotionCard = memo<EmotionCardProps>(({ emotion, index, onSelect }) => {
                 {wordRows.map((rowWords, rowIdx) => (
                     <div key={rowIdx} className="flex flex-wrap gap-1 justify-center">
                         {rowWords.map((word, wordIdx) => (
-                            <span key={wordIdx} className="text-[10px] bg-gray-100 text-qc-text-muted px-1.5 py-0.5 rounded leading-tight">
+                            <span key={wordIdx} className="text-[10px] bg-qc-surface-raised text-qc-text-muted px-1.5 py-0.5 rounded leading-tight">
                                 {word}
                             </span>
                         ))}
@@ -522,7 +522,7 @@ export default function HeartCheckClient({ }: HeartCheckClientProps) {
                             <selectedEmotion.icon size={64} />
                         </span>
                         <div>
-                            <h1 className="text-4xl font-bold font-display text-qc-primary">{selectedEmotion.name}</h1>
+                            <h1 className="text-4xl font-bold font-display text-qc-primary text-balance">{selectedEmotion.name}</h1>
                             <p className="text-xl text-qc-text-muted italic">{selectedEmotion.subtitle}</p>
                         </div>
                     </div>
@@ -530,7 +530,7 @@ export default function HeartCheckClient({ }: HeartCheckClientProps) {
 
                 <div className="p-8 space-y-8 font-body text-qc-charcoal">
                     <section>
-                        <h3 className="text-xl font-bold text-qc-primary mb-3 font-display">What is this feeling?</h3>
+                        <h3 className="text-xl font-bold text-qc-primary mb-3 font-display text-balance">What is this feeling?</h3>
                         <div className="prose prose-lg text-qc-charcoal max-w-none">
                             <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>
                                 {selectedEmotion.content.description}
@@ -539,15 +539,15 @@ export default function HeartCheckClient({ }: HeartCheckClientProps) {
                     </section>
 
                     <div className="grid md:grid-cols-2 gap-8">
-                        <section className="bg-green-50 p-6 rounded-lg border border-green-100">
-                            <h3 className="font-bold text-green-800 mb-3 flex items-center gap-2">
+                        <section className="bg-qc-success-bg p-6 rounded-lg border border-qc-success-border">
+                            <h3 className="font-bold text-qc-success-text mb-3 flex items-center gap-2">
                                 <Check className="w-5 h-5" /> God&apos;s Design
                             </h3>
                             <ul className="space-y-2 text-sm">
                                 {selectedEmotion.content.godsDesign.map((item, i) => (
                                     <li key={i} className="flex gap-2 items-start">
                                         <span className="mt-1">•</span>
-                                        <div className="prose prose-sm text-green-900 max-w-none">
+                                        <div className="prose prose-sm text-qc-success-text max-w-none">
                                             <ReactMarkdown
                                                 remarkPlugins={[remarkGfm, remarkBreaks]}
                                                 components={{ p: ({ node, ...props }) => <span {...props} /> }}
@@ -560,13 +560,13 @@ export default function HeartCheckClient({ }: HeartCheckClientProps) {
                             </ul>
                         </section>
 
-                        <section className="bg-blue-50 p-6 rounded-lg border border-blue-100">
-                            <h3 className="font-bold text-blue-800 mb-3">The Need</h3>
+                        <section className="bg-qc-info-bg p-6 rounded-lg border border-qc-info-border">
+                            <h3 className="font-bold text-qc-info-text mb-3">The Need</h3>
                             <ul className="space-y-2 text-sm">
                                 {selectedEmotion.content.theNeed.map((item, i) => (
                                     <li key={i} className="flex gap-2 items-start">
                                         <span className="mt-1">•</span>
-                                        <div className="prose prose-sm text-blue-900 max-w-none">
+                                        <div className="prose prose-sm text-qc-info-text max-w-none">
                                             <ReactMarkdown
                                                 remarkPlugins={[remarkGfm, remarkBreaks]}
                                                 components={{ p: ({ node, ...props }) => <span {...props} /> }}
@@ -580,20 +580,20 @@ export default function HeartCheckClient({ }: HeartCheckClientProps) {
                         </section>
                     </div>
 
-                    <section className="bg-red-50 p-6 rounded-lg border border-red-100">
-                        <h3 className="font-bold text-red-800 mb-3">The Warning</h3>
+                    <section className="bg-qc-error-bg p-6 rounded-lg border border-qc-error-border">
+                        <h3 className="font-bold text-qc-error mb-3">The Warning</h3>
                         <div className="space-y-3 text-sm">
                             <div>
-                                <strong className="block text-red-900 mb-1">Impairment:</strong>
-                                <div className="prose prose-sm text-red-900 max-w-none">
+                                <strong className="block text-qc-error mb-1">Impairment:</strong>
+                                <div className="prose prose-sm text-qc-error max-w-none">
                                     <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>
                                         {selectedEmotion.content.theWarning.impairment}
                                     </ReactMarkdown>
                                 </div>
                             </div>
                             <div>
-                                <strong className="block text-red-900 mb-1">Sin:</strong>
-                                <div className="prose prose-sm text-red-900 max-w-none">
+                                <strong className="block text-qc-error mb-1">Sin:</strong>
+                                <div className="prose prose-sm text-qc-error max-w-none">
                                     <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>
                                         {selectedEmotion.content.theWarning.sin}
                                     </ReactMarkdown>
@@ -603,7 +603,7 @@ export default function HeartCheckClient({ }: HeartCheckClientProps) {
                     </section>
 
                     <section className="bg-qc-parchment/30 p-6 rounded-lg border border-qc-border-subtle">
-                        <h3 className="text-xl font-bold text-qc-primary mb-4 font-display">The Gospel Answer</h3>
+                        <h3 className="text-xl font-bold text-qc-primary mb-4 font-display text-balance">The Gospel Answer</h3>
                         <ul className="space-y-3">
                             {selectedEmotion.content.theGospel.map((item, i) => (
                                 <li key={i} className="flex gap-3 items-start">
@@ -624,7 +624,7 @@ export default function HeartCheckClient({ }: HeartCheckClientProps) {
                     </section>
 
                     <section>
-                        <h3 className="text-xl font-bold text-qc-primary mb-4 font-display">Introspection Questions</h3>
+                        <h3 className="text-xl font-bold text-qc-primary mb-4 font-display text-balance">Introspection Questions</h3>
                         <ul className="list-disc pl-5 space-y-2">
                             {selectedEmotion.content.introspectionQuestions.map((q, i) => (
                                 <li key={i}>
@@ -642,7 +642,7 @@ export default function HeartCheckClient({ }: HeartCheckClientProps) {
                     </section>
 
                     <section>
-                        <h3 className="text-xl font-bold text-qc-primary mb-4 font-display">Prayer Prompts</h3>
+                        <h3 className="text-xl font-bold text-qc-primary mb-4 font-display text-balance">Prayer Prompts</h3>
                         <ul className="space-y-3">
                             {selectedEmotion.content.prayerPrompts.map((p, i) => (
                                 <li key={i} className="bg-qc-parchment/50 p-3 rounded-lg border border-qc-border-subtle italic text-qc-charcoal relative">
@@ -661,7 +661,7 @@ export default function HeartCheckClient({ }: HeartCheckClientProps) {
                     </section>
 
                     <section>
-                        <h3 className="text-xl font-bold text-qc-primary mb-4 font-display">Relational Steps</h3>
+                        <h3 className="text-xl font-bold text-qc-primary mb-4 font-display text-balance">Relational Steps</h3>
                         <ul className="list-decimal pl-5 space-y-2">
                             {selectedEmotion.content.relationalSteps?.map((s, i) => (
                                 <li key={i}>

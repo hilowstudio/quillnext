@@ -30,7 +30,7 @@ export default async function TranscriptBuilderPage({ params }: PageProps) {
         }
 
         return (
-            <div className="min-h-screen bg-gray-50/50">
+            <div className="min-h-screen bg-qc-surface-raised/50">
                 <TranscriptBuilder
                     initialData={initialData}
                     studentId={resolvedParams.studentId}
@@ -41,9 +41,9 @@ export default async function TranscriptBuilderPage({ params }: PageProps) {
         console.error("Transcript Builder Error:", error);
         return (
             <div className="container mx-auto py-12 text-center">
-                <h3 className="text-lg font-bold text-red-600">Error Loading Transcript</h3>
-                <p className="text-gray-600 mb-4">Could not load the student data. Please try again.</p>
-                <p className="text-sm text-gray-500">{(error as Error).message}</p>
+                <h3 className="text-lg font-bold text-qc-error">Error Loading Transcript</h3>
+                <p className="text-qc-text-muted mb-4">Could not load the student data. Please try again.</p>
+                <p className="text-sm text-qc-text-muted">{(error as Error).message}</p>
             </div>
         );
     }

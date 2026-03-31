@@ -1,12 +1,14 @@
-import "dotenv/config";
-import { defineConfig } from "@prisma/config";
+import 'dotenv/config'
+import { defineConfig, env } from '@prisma/config'
 
 export default defineConfig({
-    schema: "prisma/schema.prisma",
-    engineType: "binary",
-    datasource: {
-        // @ts-expect-error - provider property is valid in Prisma 7 but missing in some types
-        provider: "postgresql",
-        url: process.env.DIRECT_DATABASE_URL ?? process.env.DATABASE_URL,
+    schema: 'prisma/schema.prisma',
+    migrations: {
+        path: 'prisma/migrations',
+        seed: 'tsx prisma/seed.ts',
     },
-});
+    datasource: {
+        // Prefer DIRECT TCP via DIRECT_DATABASE_URL for migrations/studio
+        url: env('DIRECT_DATABASE_URL') ?? env('DATABASE_URL'),
+    },
+})

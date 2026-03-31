@@ -17,7 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { toast } from "sonner";
-import { CheckCircle, ArrowRight, Brain, Sparkles, BookOpen, Target } from "lucide-react";
+import { CheckCircle, ArrowRight, Brain, Sparkle, BookOpen, Target } from "@phosphor-icons/react";
 
 // ----------------------------------------------------------------------
 // DATA: QUESTIONNAIRES
@@ -247,7 +247,7 @@ export function AssessmentWizard({ studentId }: AssessmentWizardProps) {
         <Card className="max-w-3xl mx-auto border-2 border-qc-primary/20 shadow-lg">
             <CardHeader className="text-center bg-qc-primary/5 pb-8 pt-8">
                 <div className="mx-auto bg-qc-primary/10 p-4 rounded-full w-20 h-20 flex items-center justify-center mb-4">
-                    <Brain className="w-10 h-10 text-qc-primary" />
+                    <Brain size={40} className="text-qc-primary" />
                 </div>
                 <CardTitle className="text-3xl font-display text-qc-charcoal">
                     Student Inkling Profile Setup
@@ -260,17 +260,17 @@ export function AssessmentWizard({ studentId }: AssessmentWizardProps) {
             <CardContent className="space-y-6 pt-8 px-8">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="bg-qc-parchment p-4 rounded-lg border border-qc-border-subtle">
-                        <Target className="w-6 h-6 text-qc-primary mb-2" />
+                        <Target size={24} className="text-qc-primary mb-2" />
                         <h3 className="font-bold text-qc-charcoal">1. Motivation</h3>
                         <p className="text-sm text-qc-text-muted">Determine what drives them and how to hook their attention.</p>
                     </div>
                     <div className="bg-qc-parchment p-4 rounded-lg border border-qc-border-subtle">
-                        <BookOpen className="w-6 h-6 text-qc-primary mb-2" />
+                        <BookOpen size={24} className="text-qc-primary mb-2" />
                         <h3 className="font-bold text-qc-charcoal">2. Learning Style</h3>
                         <p className="text-sm text-qc-text-muted">Calibrate how content is formatted and delivered.</p>
                     </div>
                     <div className="bg-qc-parchment p-4 rounded-lg border border-qc-border-subtle">
-                        <Sparkles className="w-6 h-6 text-qc-primary mb-2" />
+                        <Sparkle size={24} className="text-qc-primary mb-2" />
                         <h3 className="font-bold text-qc-charcoal">3. Interests</h3>
                         <p className="text-sm text-qc-text-muted">Inject their favorite topics/games into math & reading.</p>
                     </div>
@@ -278,7 +278,7 @@ export function AssessmentWizard({ studentId }: AssessmentWizardProps) {
             </CardContent>
             <CardFooter className="flex justify-center pb-8">
                 <Button size="lg" onClick={() => setStep("personality")} className="w-full md:w-auto px-12">
-                    Start Calibration <ArrowRight className="ml-2 w-4 h-4" />
+                    Start Calibration <ArrowRight size={16} className="ml-2" />
                 </Button>
             </CardFooter>
         </Card>
@@ -305,7 +305,7 @@ export function AssessmentWizard({ studentId }: AssessmentWizardProps) {
                                     key={opt.value}
                                     className={`flex flex-col p-4 border rounded-lg cursor-pointer transition-all hover:bg-qc-primary/5 ${personalityAnswers[q.id] === opt.value
                                         ? "border-qc-primary bg-qc-primary/5 ring-1 ring-qc-primary"
-                                        : "border-gray-200"
+                                        : "border-qc-border-subtle"
                                         }`}
                                 >
                                     <div className="flex items-center gap-2 mb-1">
@@ -321,7 +321,7 @@ export function AssessmentWizard({ studentId }: AssessmentWizardProps) {
                     </div>
                 ))}
             </CardContent>
-            <CardFooter className="flex justify-between border-t pt-6 bg-gray-50/50">
+            <CardFooter className="flex justify-between border-t pt-6 bg-qc-surface-raised/50">
                 <Button variant="ghost" onClick={() => setStep("intro")}>Back</Button>
                 <Button
                     disabled={Object.keys(personalityAnswers).length < PERSONALITY_QUESTIONS.length || isSubmitting}
@@ -354,7 +354,7 @@ export function AssessmentWizard({ studentId }: AssessmentWizardProps) {
                                     key={opt.value}
                                     className={`flex items-center p-4 border rounded-lg cursor-pointer transition-all hover:bg-qc-primary/5 ${learningAnswers[q.id] === opt.value
                                         ? "border-qc-primary bg-qc-primary/5 ring-1 ring-qc-primary"
-                                        : "border-gray-200"
+                                        : "border-qc-border-subtle"
                                         }`}
                                 >
                                     <RadioGroupItem value={opt.value} id={`${q.id}-${opt.value}`} className="mr-3" />
@@ -368,7 +368,7 @@ export function AssessmentWizard({ studentId }: AssessmentWizardProps) {
                     </div>
                 ))}
             </CardContent>
-            <CardFooter className="flex justify-between border-t pt-6 bg-gray-50/50">
+            <CardFooter className="flex justify-between border-t pt-6 bg-qc-surface-raised/50">
                 <Button variant="ghost" onClick={() => setStep("personality")}>Back</Button>
                 <Button
                     disabled={Object.keys(learningAnswers).length < LEARNING_STYLE_QUESTIONS.length || isSubmitting}
@@ -465,7 +465,7 @@ export function AssessmentWizard({ studentId }: AssessmentWizardProps) {
                                 key={opt.value}
                                 className={`flex items-center p-3 border rounded-lg cursor-pointer ${integrationMode === opt.value
                                     ? "border-qc-primary bg-qc-primary/5"
-                                    : "border-gray-200"
+                                    : "border-qc-border-subtle"
                                     }`}
                             >
                                 <RadioGroupItem value={opt.value} id={`int-${opt.value}`} className="mr-3" />
@@ -479,7 +479,7 @@ export function AssessmentWizard({ studentId }: AssessmentWizardProps) {
                 </div>
 
             </CardContent>
-            <CardFooter className="flex justify-between border-t pt-6 bg-gray-50/50">
+            <CardFooter className="flex justify-between border-t pt-6 bg-qc-surface-raised/50">
                 <Button variant="ghost" onClick={() => setStep("learning")}>Back</Button>
                 <Button
                     disabled={isSubmitting}
@@ -500,10 +500,10 @@ export function AssessmentWizard({ studentId }: AssessmentWizardProps) {
         <Card className="max-w-md mx-auto text-center py-10">
             <CardContent className="space-y-6">
                 <div className="mx-auto bg-green-100 text-green-600 w-20 h-20 rounded-full flex items-center justify-center">
-                    <CheckCircle className="w-10 h-10" />
+                    <CheckCircle size={40} />
                 </div>
-                <h2 className="text-3xl font-display text-qc-charcoal">Profile Calibration Complete!</h2>
-                <p className="text-qc-text-muted">
+                <h2 className="text-3xl font-display text-qc-charcoal text-balance">Profile Calibration Complete!</h2>
+                <p className="text-qc-text-muted qc-prose">
                     We have configured Inkling to match this student's learning style.
                 </p>
                 <div className="pt-4">
@@ -516,7 +516,7 @@ export function AssessmentWizard({ studentId }: AssessmentWizardProps) {
     );
 
     return (
-        <div className="min-h-screen bg-gray-50 py-12 px-4">
+        <div className="min-h-screen bg-qc-surface-raisedpy-12 px-4">
             {step === "intro" && renderIntro()}
             {step === "personality" && renderPersonality()}
             {step === "learning" && renderLearning()}

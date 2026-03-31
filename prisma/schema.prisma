@@ -1,8 +1,7 @@
 generator client {
-  provider        = "prisma-client-js"
+  provider        = "prisma-client"
   // previewFeatures = ["postgresqlExtensions"]
   output          = "../src/generated/client"
-  engineType      = "binary"
   binaryTargets   = ["native"]
 }
 
@@ -59,6 +58,7 @@ model User {
   organizationId        String?                @map("account_id")
   createdAt             DateTime               @default(now()) @map("created_at")
   updatedAt             DateTime               @updatedAt @map("updated_at")
+  deactivatedAt         DateTime?              @map("deactivated_at")
   accounts              Account[]
   createdActivities     Activity[]             @relation("CreatedActivities")
   gradedAttempts        AssessmentAttempt[]    @relation("GradedAttempts")
@@ -430,6 +430,7 @@ model CourseBlock {
   id                  String                @id @default(uuid())
   courseId            String                @map("course_id")
   parentBlockId       String?               @map("parent_block_id")
+  sourceBundleId      String?               @map("source_bundle_id")
   kind                CourseBlockKind
   title               String
   description         String?

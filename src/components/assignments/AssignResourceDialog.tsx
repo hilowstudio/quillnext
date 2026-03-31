@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { assignResourceToStudent } from "@/app/actions/assignments";
-import { Loader2, Plus, UserPlus } from "lucide-react";
+import { SpinnerGap, Plus, UserPlus } from "@phosphor-icons/react";
 
 interface AssignResourceDialogProps {
     resourceId: string;
@@ -39,7 +39,7 @@ export function AssignResourceDialog({ resourceId, resourceTitle, type = 'RESOUR
             <DialogTrigger asChild>
                 {trigger || (
                     <Button variant="ghost" size="icon" title="Assign to Student">
-                        <UserPlus className="h-4 w-4 text-qc-text-muted hover:text-qc-primary" />
+                        <UserPlus size={16} className="text-qc-text-muted hover:text-qc-primary" />
                     </Button>
                 )}
             </DialogTrigger>
@@ -67,7 +67,7 @@ export function AssignResourceDialog({ resourceId, resourceTitle, type = 'RESOUR
                 <DialogFooter>
                     <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
                     <Button onClick={handleAssign} disabled={!selectedStudentId || loading}>
-                        {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        {loading && <SpinnerGap size={16} className="mr-2 animate-spin" />}
                         Assign
                     </Button>
                 </DialogFooter>

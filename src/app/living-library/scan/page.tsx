@@ -19,10 +19,10 @@ export default async function BookScanPage() {
   return (
     <div className="container mx-auto max-w-4xl px-4 py-8">
       <div className="mb-8">
-        <h1 className="font-display text-4xl font-bold text-qc-charcoal mb-2">
+        <h1 className="font-display text-4xl font-bold text-qc-charcoal mb-2 text-balance">
           Scan Book
         </h1>
-        <p className="font-body text-qc-text-muted">
+        <p className="font-body text-qc-text-muted qc-prose">
           Upload a book cover image or use your camera to automatically extract book information
         </p>
       </div>

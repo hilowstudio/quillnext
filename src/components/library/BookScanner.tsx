@@ -325,7 +325,7 @@ export function BookScanner({ organizationId }: BookScannerProps) {
         </CardContent>
       </Card>
 
-      <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-800">
+      <div className="p-4 bg-qc-warning-bg border border-qc-warning-border rounded-lg text-sm text-qc-warning-text">
         <p className="font-bold mb-1">💡 Deep Extraction (Alpha)</p>
         <p>After saving, you can upload Table of Contents images to automatically generate chapter-level metadata using AI.</p>
       </div>

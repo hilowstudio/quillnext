@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
-import { Home, Heart } from "lucide-react";
+import { House, Heart } from "@phosphor-icons/react";
 
 import { UserNav } from "@/components/navigation/UserNav";
 import { User } from "next-auth";
@@ -32,7 +32,7 @@ export function MainNav({ user }: MainNavProps) {
 
   if (!mounted) {
     return (
-      <div className="mb-6 rounded-qc-lg border border-qc-border-subtle/50 bg-white shadow-[0_10px_30px_-15px_rgba(0,0,0,0.05)]">
+      <div className="mb-6 rounded-qc-lg border border-qc-border-subtle/50 bg-white shadow-qc-soft">
         <div className="p-4 flex items-center justify-between">
           <nav className="flex items-center gap-2 flex-wrap">
             {/* Render simplified skeleton or empty to avoid hydration mismatch */}
@@ -62,7 +62,7 @@ export function MainNav({ user }: MainNavProps) {
         asChild
       >
         <Link href="/">
-          <Home className="h-8 w-8 text-qc-primary hover:text-qc-primary/80 transition-colors" />
+          <House size={32} className="text-qc-primary hover:text-qc-primary/80 transition-colors" />
         </Link>
       </Button>
 
@@ -74,7 +74,7 @@ export function MainNav({ user }: MainNavProps) {
         asChild
       >
         <Link href="/family-discipleship" title="Family Discipleship">
-          <Heart className="h-8 w-8" />
+          <Heart size={32} />
         </Link>
       </Button>
 

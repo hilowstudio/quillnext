@@ -5,13 +5,12 @@ import { useStudentProfile } from "@/components/providers/StudentProfileProvider
 import { getStudentAssignments } from "@/app/actions/student";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, BookOpen, FileText, CheckCircle, Clock } from "lucide-react";
+import { ArrowLeft, BookOpen, FileText, CheckCircle, Clock, PencilSimple, Users } from "@phosphor-icons/react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { getStudentAvatarUrl } from "@/lib/utils";
 import { AvatarCustomizer } from "@/components/profile/AvatarCustomizer";
-import { Pencil, Users } from "lucide-react";
 import { DiscipleshipDashboard } from "@/components/family-discipleship/DiscipleshipDashboard";
 
 interface StudentDashboardProps {
@@ -59,20 +58,20 @@ export function StudentDashboard({ student }: StudentDashboardProps) {
                             className="absolute bottom-0 right-0 h-8 w-8 rounded-full shadow-md opacity-0 group-hover/avatar:opacity-100 transition-opacity"
                             onClick={() => setCustomizerOpen(true)}
                         >
-                            <Pencil className="h-4 w-4" />
+                            <PencilSimple size={16} />
                         </Button>
                     </div>
                     <div>
-                        <h1 className="font-display text-4xl font-bold text-qc-charcoal">
+                        <h1 className="font-display text-4xl font-bold text-qc-charcoal text-balance">
                             {student.preferredName || student.firstName}'s Dashboard
                         </h1>
-                        <p className="font-body text-lg text-qc-text-muted">
+                        <p className="font-body text-lg text-qc-text-muted qc-prose">
                             Let's see what we're learning today!
                         </p>
                     </div>
                 </div>
                 <Button variant="secondary" onClick={() => setActiveStudentId(null)} className="gap-2 self-start">
-                    <ArrowLeft className="w-4 h-4" /> Switch Profile
+                    <ArrowLeft size={16} /> Switch Profile
                 </Button>
             </div>
 
@@ -83,9 +82,9 @@ export function StudentDashboard({ student }: StudentDashboardProps) {
             ) : (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                     {/* Courses Section */}
-                    <div className="space-y-6">
-                        <h2 className="font-display text-2xl font-bold text-qc-charcoal flex items-center gap-2">
-                            <BookOpen className="w-6 h-6 text-qc-primary" />
+                    <section aria-label="My courses" className="space-y-6">
+                        <h2 className="font-display text-2xl font-bold text-qc-charcoal flex items-center gap-2 text-balance">
+                            <BookOpen size={24} className="text-qc-primary" />
                             My Courses
                         </h2>
 
@@ -102,7 +101,7 @@ export function StudentDashboard({ student }: StudentDashboardProps) {
                                         <Card className="transition-all duration-300 group-hover:shadow-md group-hover:border-qc-primary/50">
                                             <CardContent className="p-5 flex items-start justify-between">
                                                 <div>
-                                                    <h3 className="font-display text-xl font-bold text-qc-charcoal group-hover:text-qc-primary transition-colors">
+                                                    <h3 className="font-display text-xl font-bold text-qc-charcoal group-hover:text-qc-primary transition-colors text-balance">
                                                         {enrollment.course.title}
                                                     </h3>
                                                     <p className="text-sm text-qc-text-muted mb-2">{enrollment.course.subject?.name}</p>
@@ -113,7 +112,7 @@ export function StudentDashboard({ student }: StudentDashboardProps) {
                                                     </div>
                                                 </div>
                                                 <div className="h-10 w-10 flex items-center justify-center rounded-full bg-qc-parchment group-hover:bg-qc-primary group-hover:text-white transition-colors">
-                                                    <ArrowLeft className="w-5 h-5 rotate-180" />
+                                                    <ArrowLeft size={20} className="rotate-180" />
                                                 </div>
                                             </CardContent>
                                         </Card>
@@ -121,12 +120,12 @@ export function StudentDashboard({ student }: StudentDashboardProps) {
                                 ))}
                             </div>
                         )}
-                    </div>
+                    </section>
 
                     {/* Assignments Section */}
-                    <div className="space-y-6">
-                        <h2 className="font-display text-2xl font-bold text-qc-charcoal flex items-center gap-2">
-                            <FileText className="w-6 h-6 text-qc-primary" />
+                    <section aria-label="Assignments and resources" className="space-y-6">
+                        <h2 className="font-display text-2xl font-bold text-qc-charcoal flex items-center gap-2 text-balance">
+                            <FileText size={24} className="text-qc-primary" />
                             Assignments & Resources
                         </h2>
 
@@ -142,11 +141,11 @@ export function StudentDashboard({ student }: StudentDashboardProps) {
                                     <Card key={assignment.id} className="cursor-pointer hover:shadow-md transition-shadow">
                                         <CardContent className="p-5">
                                             <div className="flex gap-4">
-                                                <div className="h-12 w-12 rounded-qc-md bg-blue-50 flex items-center justify-center text-blue-600 shrink-0">
-                                                    <FileText className="w-6 h-6" />
+                                                <div className="h-12 w-12 rounded-qc-md bg-qc-info-bg flex items-center justify-center text-qc-info-text shrink-0">
+                                                    <FileText size={24} />
                                                 </div>
                                                 <div>
-                                                    <h3 className="font-display text-lg font-bold text-qc-charcoal">
+                                                    <h3 className="font-display text-lg font-bold text-qc-charcoal text-balance">
                                                         {assignment.resource.title}
                                                     </h3>
                                                     <p className="text-sm text-qc-text-muted">
@@ -169,19 +168,19 @@ export function StudentDashboard({ student }: StudentDashboardProps) {
                                 ))}
                             </div>
                         )}
-                    </div>
+                    </section>
                 </div>
             )}
 
             {/* Family Discipleship Section */}
             {!loading && (
-                <div className="mt-12 space-y-6">
-                    <h2 className="font-display text-2xl font-bold text-qc-charcoal flex items-center gap-2">
-                        <Users className="w-6 h-6 text-qc-primary" />
+                <section aria-label="Family discipleship" className="mt-12 space-y-6">
+                    <h2 className="font-display text-2xl font-bold text-qc-charcoal flex items-center gap-2 text-balance">
+                        <Users size={24} className="text-qc-primary" />
                         Family Discipleship
                     </h2>
                     <DiscipleshipDashboard studentId={student.id} />
-                </div>
+                </section>
             )}
 
             <AvatarCustomizer

@@ -249,7 +249,7 @@ export default function EditCourseBlockPage() {
         <Button variant="outline" asChild className="mb-4">
           <Link href={`/courses/${courseId}/builder`}>← Back to Course Builder</Link>
         </Button>
-        <h1 className="font-display text-4xl font-bold text-qc-charcoal mb-2">
+        <h1 className="font-display text-4xl font-bold text-qc-charcoal mb-2 text-balance">
           Edit Block: {block.title}
         </h1>
         <p className="font-body text-qc-text-muted">

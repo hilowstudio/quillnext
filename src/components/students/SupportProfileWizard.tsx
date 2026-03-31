@@ -5,7 +5,7 @@ import { UseFormRegister, UseFormSetValue, UseFormWatch } from "react-hook-form"
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
-import { Check, ChevronRight, ChevronDown, Info } from "lucide-react";
+import { Check, CaretRight, CaretDown, Info } from "@phosphor-icons/react";
 import { StudentFormData } from "@/lib/schemas/students";
 
 // -----------------------------------------------------------------------
@@ -163,7 +163,7 @@ export function SupportProfileWizard({ register, setValue, watch }: WizardProps)
         <div className="space-y-8 border-t border-qc-border-subtle pt-6">
             {/* SECTION 1: FRAMING */}
             <div className="space-y-2">
-                <h3 className="font-display text-lg font-bold text-qc-charcoal">
+                <h3 className="font-display text-lg font-bold text-qc-charcoal text-balance">
                     Learning Support Preferences
                 </h3>
                 <div className="bg-qc-primary/5 p-4 rounded-qc-md border border-qc-primary/10">
@@ -194,7 +194,7 @@ export function SupportProfileWizard({ register, setValue, watch }: WizardProps)
               `}
                             onClick={() => handleGatewaySelect(option)}
                         >
-                            <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${gatewayAnswer === option ? "border-qc-primary" : "border-gray-400"}`}>
+                            <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${gatewayAnswer === option ? "border-qc-primary" : "border-qc-text-muted"}`}>
                                 {gatewayAnswer === option && <div className="w-2 h-2 rounded-full bg-qc-primary" />}
                             </div>
                             <span className="text-sm font-medium">
@@ -231,12 +231,12 @@ export function SupportProfileWizard({ register, setValue, watch }: WizardProps)
                     flex items-center gap-3 p-3 rounded-qc-md border cursor-pointer transition-all
                     ${isSelected
                                             ? "border-qc-primary bg-qc-primary/5 text-qc-primary-dark font-medium"
-                                            : "border-qc-border-subtle hover:bg-gray-50 text-qc-charcoal"}
+                                            : "border-qc-border-subtle hover:bg-qc-surface-hover text-qc-charcoal"}
                   `}
                                 >
                                     <div className={`
                     w-4 h-4 rounded border flex items-center justify-center
-                    ${isSelected ? "bg-qc-primary border-qc-primary text-white" : "border-gray-300 bg-white"}
+                    ${isSelected ? "bg-qc-primary border-qc-primary text-white" : "border-qc-border-subtle bg-white"}
                   `}>
                                         {isSelected && <Check size={12} strokeWidth={3} />}
                                     </div>
@@ -245,7 +245,7 @@ export function SupportProfileWizard({ register, setValue, watch }: WizardProps)
                             );
                         })}
                     </div>
-                    <div className="flex items-start gap-2 text-xs text-qc-text-muted bg-gray-50 p-3 rounded-md">
+                    <div className="flex items-start gap-2 text-xs text-qc-text-muted bg-qc-surface-raised p-3 rounded-md">
                         <Info size={14} className="mt-0.5 flex-shrink-0" />
                         <p>You don’t need a formal diagnosis to select any option. This information is used only to help suggest customized learning supports.</p>
                     </div>
@@ -256,7 +256,7 @@ export function SupportProfileWizard({ register, setValue, watch }: WizardProps)
             {(showCoreSupports || showOptionalLabels) && (
                 <div className="space-y-6 animate-in fade-in slide-in-from-top-8 duration-700">
                     <div className="space-y-1 pt-4 border-t border-qc-border-subtle">
-                        <h3 className="text-xl font-display font-bold text-qc-charcoal">
+                        <h3 className="text-xl font-display font-bold text-qc-charcoal text-balance">
                             What supports help your child learn best?
                         </h3>
                         <p className="text-sm text-qc-text-muted">
@@ -284,7 +284,7 @@ export function SupportProfileWizard({ register, setValue, watch }: WizardProps)
                             mt-0.5 w-4 h-4 rounded border flex-shrink-0 flex items-center justify-center transition-colors
                             ${isChecked
                                                             ? "bg-qc-primary border-qc-primary text-white"
-                                                            : "border-gray-300 bg-white group-hover:border-qc-primary/50"}
+                                                            : "border-qc-border-subtle bg-white group-hover:border-qc-primary/50"}
                           `}>
                                                         {isChecked && <Check size={12} strokeWidth={3} />}
                                                     </div>

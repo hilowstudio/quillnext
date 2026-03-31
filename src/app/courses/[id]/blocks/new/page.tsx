@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter, useParams } from "next/navigation";
+import { useRouter, useParams, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { courseBlockSchema, type CourseBlockFormData } from "@/lib/schemas/courses";
@@ -57,6 +57,10 @@ export default function NewCourseBlockPage() {
   const [selectedBookId, setSelectedBookId] = useState<string>("");
   const [selectedChapterId, setSelectedChapterId] = useState<string>("");
 
+  const searchParams = useSearchParams();
+  const initialParentId = searchParams.get("parentId");
+  const initialPosition = searchParams.get("position");
+
   const {
     register,
     handleSubmit,
@@ -66,7 +70,8 @@ export default function NewCourseBlockPage() {
   } = useForm<CourseBlockFormData>({
     resolver: zodResolver(courseBlockSchema) as any,
     defaultValues: {
-      position: 1,
+      position: initialPosition ? parseInt(initialPosition) : 1,
+      parentBlockId: initialParentId || "",
     },
   });
 
@@ -216,7 +221,7 @@ export default function NewCourseBlockPage() {
         <Button variant="outline" asChild className="mb-4">
           <Link href={`/courses/${courseId}/builder`}>← Back to Course Builder</Link>
         </Button>
-        <h1 className="font-display text-4xl font-bold text-qc-charcoal mb-2">
+        <h1 className="font-display text-4xl font-bold text-qc-charcoal mb-2 text-balance">
           Add Course Block
         </h1>
         <p className="font-body text-qc-text-muted">

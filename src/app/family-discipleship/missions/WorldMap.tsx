@@ -87,7 +87,7 @@ export default function WorldMap({ stats, onCountrySelect }: WorldMapProps) {
     };
 
     if (isLoading) {
-        return <div className="h-full w-full flex items-center justify-center bg-gray-100 rounded-lg">Loading Map...</div>;
+        return <div className="h-full w-full flex items-center justify-center bg-qc-surface-raised rounded-lg">Loading Map...</div>;
     }
 
     return (

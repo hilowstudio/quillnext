@@ -157,7 +157,7 @@ export default function BibleStudyClient() {
                             {passageData ? (
                                 <div className="p-6 md:p-10 prose prose-slate max-w-none prose-headings:font-display prose-headings:text-qc-primary prose-p:text-lg prose-p:leading-relaxed">
                                     <div className="flex items-center justify-between gap-3 mb-6 pb-4 border-b border-stone-200">
-                                        <h2 className="text-3xl md:text-4xl font-display font-bold text-qc-primary m-0">
+                                        <h2 className="text-3xl md:text-4xl font-display font-bold text-qc-primary m-0 text-balance">
                                             {passageData.reference}
                                         </h2>
                                         <BibleAudioPlayer
@@ -195,7 +195,7 @@ export default function BibleStudyClient() {
                                                 disabled={isSummarizing}
                                                 className="bg-white/80 backdrop-blur-sm shadow-sm hover:bg-qc-primary/5 border-qc-primary/20 text-qc-primary gap-2 transition-all group"
                                             >
-                                                {isSummarizing ? <Spinner className="animate-spin" /> : <MagicWand className="w-4 h-4 group-hover:text-amber-500 transition-colors" />}
+                                                {isSummarizing ? <Spinner className="animate-spin" /> : <MagicWand className="w-4 h-4 group-hover:text-qc-warning transition-colors" />}
                                                 Plain English, please
                                             </Button>
                                         ) : (
@@ -219,11 +219,11 @@ export default function BibleStudyClient() {
                                     {/* Content Area */}
                                     {summaryHtml ? (
                                         <div className="animate-in fade-in slide-in-from-top-2 duration-300">
-                                            <div className="bg-amber-50/50 p-6 rounded-lg border border-amber-100 mb-6">
-                                                <h4 className="flex items-center gap-2 text-amber-700 font-bold text-sm uppercase tracking-wider mb-4">
+                                            <div className="bg-qc-warning-bg/50 p-6 rounded-lg border border-qc-warning-border mb-6">
+                                                <h4 className="flex items-center gap-2 text-qc-warning-text font-bold text-sm uppercase tracking-wider mb-4">
                                                     <MagicWand className="w-4 h-4" /> Inkling Generic Summary
                                                 </h4>
-                                                <div className="prose prose-sm prose-p:text-base prose-p:text-stone-700 prose-headings:text-amber-800 prose-strong:text-amber-900 max-w-none">
+                                                <div className="prose prose-sm prose-p:text-base prose-p:text-stone-700 prose-headings:text-qc-warning-text prose-strong:text-qc-warning-text max-w-none">
                                                     <ReactMarkdown
                                                         remarkPlugins={[remarkGfm, remarkBreaks]}
                                                         components={{
@@ -231,7 +231,7 @@ export default function BibleStudyClient() {
                                                             ul: ({ node, ...props }) => <ul className="list-disc pl-5 mb-4 space-y-1" {...props} />,
                                                             ol: ({ node, ...props }) => <ol className="list-decimal pl-5 mb-4 space-y-1" {...props} />,
                                                             li: ({ node, ...props }) => <li className="pl-1" {...props} />,
-                                                            strong: ({ node, ...props }) => <span className="font-bold text-amber-900" {...props} />,
+                                                            strong: ({ node, ...props }) => <span className="font-bold text-qc-warning-text" {...props} />,
                                                         }}
                                                     >
                                                         {summaryHtml}

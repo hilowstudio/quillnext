@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Plus, Trash2, GripVertical, BookOpen, FileText } from "lucide-react";
+import { Plus, Trash, DotsSixVertical, BookOpen, FileText } from "@phosphor-icons/react";
 import type { TranscriptCourse, CourseType, GPASettings } from "./types";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -48,16 +48,16 @@ export function CourseEntrySection({ gradeLevel, courses, onChange, yearRange, s
 
     return (
         <Card className="border shadow-sm overflow-hidden mb-6">
-            <div className="flex items-center justify-between px-6 py-4 bg-gray-50/50 border-b">
+            <div className="flex items-center justify-between px-6 py-4 bg-qc-surface-raised/50 border-b">
                 <div className="flex items-center gap-3">
                     <div className="h-8 w-8 rounded-full bg-[#563963] flex items-center justify-center text-white font-bold text-sm shadow-sm">
                         {gradeLevel}
                     </div>
                     <div>
-                        <h3 className="font-semibold text-gray-900 leading-none">
+                        <h3 className="font-semibold text-qc-charcoal leading-none">
                             {gradeLevel === 0 ? "Pre-High School" : `${gradeLevel}th Grade`}
                         </h3>
-                        <p className="text-xs text-gray-500 mt-1 font-medium">{yearRange.start} - {yearRange.end}</p>
+                        <p className="text-xs text-qc-text-muted mt-1 font-medium">{yearRange.start} - {yearRange.end}</p>
                     </div>
                 </div>
                 <Button
@@ -66,19 +66,19 @@ export function CourseEntrySection({ gradeLevel, courses, onChange, yearRange, s
                     variant="ghost"
                     className="text-[#563963] hover:text-[#563963] hover:bg-[#563963]/10 h-8 text-xs font-medium"
                 >
-                    <Plus className="h-3 w-3 mr-1.5" /> ADD COURSE
+                    <Plus size={12} className="mr-1.5" /> ADD COURSE
                 </Button>
             </div>
 
             <div className="bg-white min-h-[100px]">
                 {currentCourses.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-12 text-center space-y-3">
-                        <div className="h-10 w-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-400">
-                            <BookOpen className="h-5 w-5 opacity-50" />
+                        <div className="h-10 w-10 rounded-full bg-qc-surface-raised flex items-center justify-center text-qc-text-muted">
+                            <BookOpen size={20} className="opacity-50" />
                         </div>
                         <div className="space-y-1">
-                            <p className="text-sm font-medium text-gray-900">No courses yet</p>
-                            <p className="text-xs text-gray-500 max-w-[200px] mx-auto">Add regular, honors, or AP courses taken during this academic year.</p>
+                            <p className="text-sm font-medium text-qc-charcoal">No courses yet</p>
+                            <p className="text-xs text-qc-text-muted max-w-[200px] mx-auto">Add regular, honors, or AP courses taken during this academic year.</p>
                         </div>
                         <Button onClick={handleAddCourse} variant="outline" size="sm" className="mt-2 text-xs">
                             Add First Course
@@ -87,7 +87,7 @@ export function CourseEntrySection({ gradeLevel, courses, onChange, yearRange, s
                 ) : (
                     <div>
                         {/* Header Row */}
-                        <div className="grid grid-cols-12 gap-3 px-4 py-2 bg-gray-50/30 border-b text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                        <div className="grid grid-cols-12 gap-3 px-4 py-2 bg-qc-surface-raised/30 border-b text-[10px] font-bold text-qc-text-muted uppercase tracking-wider">
                             <div className="col-span-5 md:col-span-4 pl-2">Course Title</div>
                             <div className="col-span-2 md:col-span-2">Subject</div>
                             <div className="col-span-2 md:col-span-2 text-center">Level</div>
@@ -96,9 +96,9 @@ export function CourseEntrySection({ gradeLevel, courses, onChange, yearRange, s
                             <div className="col-span-1 md:col-span-2"></div>
                         </div>
 
-                        <div className="divide-y divide-gray-100">
+                        <div className="divide-y divide-qc-border-subtle">
                             {currentCourses.map((course) => (
-                                <div key={course.id} className="group hover:bg-gray-50/40 transition-colors p-2">
+                                <div key={course.id} className="group hover:bg-qc-surface-hover/40 transition-colors p-2">
                                     <div className="grid grid-cols-12 gap-3 items-center">
                                         {/* Name */}
                                         <div className="col-span-5 md:col-span-4">
@@ -106,14 +106,14 @@ export function CourseEntrySection({ gradeLevel, courses, onChange, yearRange, s
                                                 value={course.courseName}
                                                 onChange={(e) => handleUpdateCourse(course.id, { courseName: e.target.value })}
                                                 placeholder="e.g. Algebra I"
-                                                className="h-9 border-transparent bg-transparent hover:bg-white hover:border-gray-200 focus:bg-white focus:border-[#563963] focus:ring-2 focus:ring-[#563963]/10 font-medium text-gray-900 transition-all placeholder:text-gray-300"
+                                                className="h-9 border-transparent bg-transparent hover:bg-white hover:border-qc-border-subtle focus:bg-white focus:border-[#563963] focus:ring-2 focus:ring-[#563963]/10 font-medium text-qc-charcoal transition-all placeholder:text-qc-border-subtle"
                                             />
                                         </div>
 
                                         {/* Subject */}
                                         <div className="col-span-2 md:col-span-2">
                                             <Select value={course.subject} onValueChange={(val) => handleUpdateCourse(course.id, { subject: val })}>
-                                                <SelectTrigger className="h-9 border-transparent bg-transparent hover:bg-white hover:border-gray-200 focus:bg-white focus:border-[#563963] focus:ring-2 focus:ring-[#563963]/10 text-xs transition-all text-gray-600">
+                                                <SelectTrigger className="h-9 border-transparent bg-transparent hover:bg-white hover:border-qc-border-subtle focus:bg-white focus:border-[#563963] focus:ring-2 focus:ring-[#563963]/10 text-xs transition-all text-qc-text-muted">
                                                     <SelectValue />
                                                 </SelectTrigger>
                                                 <SelectContent>
@@ -137,7 +137,7 @@ export function CourseEntrySection({ gradeLevel, courses, onChange, yearRange, s
                                                 value={course.courseType}
                                                 onValueChange={(val) => handleUpdateCourse(course.id, { courseType: val as CourseType })}
                                             >
-                                                <SelectTrigger className="h-9 border-transparent bg-transparent hover:bg-white hover:border-gray-200 focus:bg-white focus:border-[#563963] focus:ring-2 focus:ring-[#563963]/10 text-xs transition-all text-gray-600">
+                                                <SelectTrigger className="h-9 border-transparent bg-transparent hover:bg-white hover:border-qc-border-subtle focus:bg-white focus:border-[#563963] focus:ring-2 focus:ring-[#563963]/10 text-xs transition-all text-qc-text-muted">
                                                     <SelectValue />
                                                 </SelectTrigger>
                                                 <SelectContent>
@@ -154,7 +154,7 @@ export function CourseEntrySection({ gradeLevel, courses, onChange, yearRange, s
                                                 value={course.grade}
                                                 onChange={(e) => handleUpdateCourse(course.id, { grade: e.target.value })}
                                                 placeholder="-"
-                                                className="h-9 text-center border-transparent bg-transparent hover:bg-white hover:border-gray-200 focus:bg-white focus:border-[#563963] focus:ring-2 focus:ring-[#563963]/10 transition-all font-semibold text-gray-700"
+                                                className="h-9 text-center border-transparent bg-transparent hover:bg-white hover:border-qc-border-subtle focus:bg-white focus:border-[#563963] focus:ring-2 focus:ring-[#563963]/10 transition-all font-semibold text-qc-charcoal"
                                             />
                                         </div>
 
@@ -165,7 +165,7 @@ export function CourseEntrySection({ gradeLevel, courses, onChange, yearRange, s
                                                 step="0.25"
                                                 value={course.credits}
                                                 onChange={(e) => handleUpdateCourse(course.id, { credits: Number(e.target.value) })}
-                                                className="h-9 text-center border-transparent bg-transparent hover:bg-white hover:border-gray-200 focus:bg-white focus:border-[#563963] focus:ring-2 focus:ring-[#563963]/10 transition-all text-gray-600"
+                                                className="h-9 text-center border-transparent bg-transparent hover:bg-white hover:border-qc-border-subtle focus:bg-white focus:border-[#563963] focus:ring-2 focus:ring-[#563963]/10 transition-all text-qc-text-muted"
                                             />
                                         </div>
 
@@ -174,10 +174,10 @@ export function CourseEntrySection({ gradeLevel, courses, onChange, yearRange, s
                                             <Button
                                                 variant="ghost"
                                                 size="icon"
-                                                className="h-8 w-8 text-gray-400 hover:text-red-600 hover:bg-red-50"
+                                                className="h-8 w-8 text-qc-text-muted hover:text-red-600 hover:bg-red-50"
                                                 onClick={() => handleDeleteCourse(course.id)}
                                             >
-                                                <Trash2 className="h-4 w-4" />
+                                                <Trash size={16} />
                                             </Button>
                                         </div>
                                     </div>
@@ -186,14 +186,14 @@ export function CourseEntrySection({ gradeLevel, courses, onChange, yearRange, s
                                     {settings?.showNarratives && (
                                         <div className="px-1 pb-1 pt-1 ml-1">
                                             <div className="relative">
-                                                <div className="absolute left-3 top-2.5 text-gray-300">
-                                                    <FileText className="h-3 w-3" />
+                                                <div className="absolute left-3 top-2.5 text-qc-border-subtle">
+                                                    <FileText size={12} />
                                                 </div>
                                                 <Input
                                                     value={course.courseNotes || ""}
                                                     onChange={(e) => handleUpdateCourse(course.id, { courseNotes: e.target.value })}
                                                     placeholder="Add course details or teacher comments..."
-                                                    className="pl-8 h-8 text-xs border-transparent bg-gray-50/50 hover:bg-white hover:border-gray-200 focus:bg-white focus:border-[#563963] focus:ring-2 focus:ring-[#563963]/10 transition-all text-gray-600 placeholder:text-gray-400"
+                                                    className="pl-8 h-8 text-xs border-transparent bg-qc-surface-raised/50 hover:bg-white hover:border-qc-border-subtle focus:bg-white focus:border-[#563963] focus:ring-2 focus:ring-[#563963]/10 transition-all text-qc-text-muted placeholder:text-qc-text-muted"
                                                 />
                                             </div>
                                         </div>

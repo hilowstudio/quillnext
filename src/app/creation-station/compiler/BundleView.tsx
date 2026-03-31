@@ -176,5 +176,5 @@ function ArtifactIcon({ code }: { code: string }) {
     if (code === "SLIDES") return <Presentation className="text-orange-500" />;
     if (code === "READING_ANTHOLOGY") return <FileText className="text-purple-500" />;
     if (code === "ORGANIZERS") return <FileText className="text-teal-500" />;
-    return <FileText className="text-gray-500" />;
+    return <FileText className="text-qc-text-muted" />;
 }

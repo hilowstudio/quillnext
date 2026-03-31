@@ -81,8 +81,8 @@ export function ContextCompleteness({
 
   const getColor = (score: number) => {
     if (score >= 80) return "text-qc-primary";
-    if (score >= 50) return "text-yellow-500";
-    return "text-red-500";
+    if (score >= 50) return "text-qc-warning";
+    return "text-qc-error";
   };
 
   return (
@@ -135,8 +135,8 @@ export function ContextCompleteness({
           </div>
 
           <div className="mt-4 text-center">
-            <h3 className="font-display text-lg font-bold text-qc-charcoal">Context Health</h3>
-            <p className="text-sm text-qc-text-muted px-4">
+            <h3 className="font-display text-lg font-bold text-qc-charcoal text-balance">Context Health</h3>
+            <p className="text-sm text-qc-text-muted px-4 qc-prose">
               {completeness >= 80
                 ? "Excellent! Your Inkling context is rich and personalized."
                 : "Complete your profile to receive the full benefits of the Inkling personalization engine."}
@@ -145,9 +145,9 @@ export function ContextCompleteness({
         </div>
 
         {/* Right: Pillars Checklist */}
-        <div className="col-span-2 p-6 bg-white">
+        <div className="col-span-2 p-6 bg-qc-surface">
           <div className="flex items-center justify-between mb-4">
-            <h4 className="font-display text-base font-semibold text-qc-charcoal">Context Pillars</h4>
+            <h4 className="font-display text-base font-semibold text-qc-charcoal text-balance">Context Pillars</h4>
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger>
@@ -164,22 +164,22 @@ export function ContextCompleteness({
             {pillars.map((pillar) => (
               <div
                 key={pillar.id}
-                className={`flex items-start justify-between p-3 rounded-lg border transition-all ${pillar.status === 'missing' ? 'bg-red-50 border-red-100' :
-                  pillar.status === 'partial' ? 'bg-yellow-50 border-yellow-100' :
-                    'bg-white border-qc-border-subtle hover:border-qc-primary/30'
+                className={`flex items-start justify-between p-3 rounded-lg border transition-all ${pillar.status === 'missing' ? 'bg-qc-error-bg border-qc-error-border' :
+                  pillar.status === 'partial' ? 'bg-qc-warning-bg border-qc-warning-border' :
+                    'bg-qc-surface border-qc-border-subtle hover:border-qc-primary/30'
                   }`}
               >
                 <div className="flex items-start gap-3">
-                  <div className={`mt-0.5 p-1.5 rounded-full ${pillar.status === 'complete' ? 'bg-green-100 text-green-600' :
-                    pillar.status === 'partial' ? 'bg-yellow-100 text-yellow-600' :
-                      'bg-red-100 text-red-600'
+                  <div className={`mt-0.5 p-1.5 rounded-full ${pillar.status === 'complete' ? 'bg-qc-success-bg text-qc-success' :
+                    pillar.status === 'partial' ? 'bg-qc-warning-bg text-qc-warning' :
+                      'bg-qc-error-bg text-qc-error'
                     }`}>
                     <pillar.icon size={16} weight="fill" />
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
                       <span className="font-medium text-sm text-qc-charcoal">{pillar.label}</span>
-                      {pillar.status === 'complete' && <CheckCircle size={16} weight="fill" className="text-green-500" />}
+                      {pillar.status === 'complete' && <CheckCircle size={16} weight="fill" className="text-qc-success" />}
                     </div>
 
                     {pillar.status !== 'complete' && pillar.suggestion && (
@@ -205,7 +205,7 @@ export function ContextCompleteness({
                   </Button>
                 ) : (
                   <div className="h-8 flex items-center px-3">
-                    <span className="text-xs font-medium text-green-600 bg-green-50 px-2 py-0.5 rounded-full border border-green-100">
+                    <span className="text-xs font-medium text-qc-success-text bg-qc-success-bg px-2 py-0.5 rounded-full border border-qc-success-border">
                       Active
                     </span>
                   </div>

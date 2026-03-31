@@ -57,6 +57,9 @@ export default function LoginPage() {
               Create an Account
             </Link>
           </Button>
+          <p className="text-center text-xs font-body text-qc-text-muted/70">
+            QuillNext requires an internet connection for all features.
+          </p>
           <p className="text-center text-xs font-body text-qc-text-muted">
             By continuing, you agree to our{" "}
             <Link href="/terms" className="underline hover:text-qc-primary">

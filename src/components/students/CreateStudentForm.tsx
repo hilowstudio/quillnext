@@ -85,7 +85,7 @@ export function CreateStudentForm() {
             </CardHeader>
             <CardContent>
                 {serverError && (
-                    <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded text-red-700 text-sm whitespace-pre-wrap">
+                    <div className="mb-6 p-4 bg-qc-error-bg border border-qc-error-border rounded text-qc-error-text text-sm whitespace-pre-wrap">
                         <p className="font-bold">Server Error:</p>
                         <p>{serverError}</p>
                     </div>

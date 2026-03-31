@@ -87,9 +87,9 @@ export default function BibleAudioPlayer({ audioUrl, reference, isLoading }: Bib
 
     if (isLoading) {
         return (
-            <div className="flex items-center gap-3 p-4 bg-amber-50/50 border border-amber-100 rounded-lg animate-pulse">
-                <div className="w-10 h-10 rounded-full bg-gray-200" />
-                <div className="flex-1 h-2 bg-gray-200 rounded-full" />
+            <div className="flex items-center gap-3 p-4 bg-qc-warning-bg/50 border border-qc-warning-border rounded-lg animate-pulse">
+                <div className="w-10 h-10 rounded-full bg-qc-surface-raised" />
+                <div className="flex-1 h-2 bg-qc-surface-raised rounded-full" />
             </div>
         );
     }
@@ -97,7 +97,7 @@ export default function BibleAudioPlayer({ audioUrl, reference, isLoading }: Bib
     if (!audioUrl) return null;
 
     return (
-        <div className="bg-white border border-gray-100 rounded-lg p-4 shadow-sm flex flex-col gap-4 w-full">
+        <div className="bg-white border border-qc-border-subtle rounded-lg p-4 shadow-sm flex flex-col gap-4 w-full">
             <div className="flex items-center gap-4">
                 {/* Play Control */}
                 <button
@@ -115,7 +115,7 @@ export default function BibleAudioPlayer({ audioUrl, reference, isLoading }: Bib
                 {/* Progress Bar and Time */}
                 <div className="flex-1 space-y-1">
                     <div
-                        className="h-2 bg-gray-200 rounded-full cursor-pointer relative group"
+                        className="h-2 bg-qc-surface-raised rounded-full cursor-pointer relative group"
                         onClick={handleSeek}
                     >
                         <div
@@ -128,7 +128,7 @@ export default function BibleAudioPlayer({ audioUrl, reference, isLoading }: Bib
                             style={{ left: `${(currentTime / (duration || 1)) * 100}%` }}
                         />
                     </div>
-                    <div className="flex justify-between text-xs text-gray-500 font-medium tabular-nums">
+                    <div className="flex justify-between text-xs text-qc-text-muted font-medium tabular-nums">
                         <span>{formatTime(currentTime)}</span>
                         <span>{formatTime(duration)}</span>
                     </div>
@@ -136,7 +136,7 @@ export default function BibleAudioPlayer({ audioUrl, reference, isLoading }: Bib
 
                 {/* Volume */}
                 <div className="hidden sm:flex items-center gap-2 group w-24">
-                    {volume === 0 ? <SpeakerX className="w-5 h-5 text-gray-400" /> : <SpeakerHigh className="w-5 h-5 text-gray-400" />}
+                    {volume === 0 ? <SpeakerX className="w-5 h-5 text-qc-text-muted" /> : <SpeakerHigh className="w-5 h-5 text-qc-text-muted" />}
                     <input
                         type="range"
                         min="0"
@@ -144,7 +144,7 @@ export default function BibleAudioPlayer({ audioUrl, reference, isLoading }: Bib
                         step="0.1"
                         value={volume}
                         onChange={(e) => setVolume(parseFloat(e.target.value))}
-                        className="w-full h-1 bg-gray-200 rounded-lg cursor-pointer opacity-50 group-hover:opacity-100 transition-opacity"
+                        className="w-full h-1 bg-qc-surface-raised rounded-lg cursor-pointer opacity-50 group-hover:opacity-100 transition-opacity"
                     />
                 </div>
             </div>

@@ -138,7 +138,7 @@ export default async function CourseBuilderPage({
   return (
     <div className="container mx-auto max-w-6xl px-4 py-8">
       <div className="mb-8">
-        <h1 className="font-display text-4xl font-bold text-qc-charcoal mb-2">
+        <h1 className="font-display text-4xl font-bold text-qc-charcoal mb-2 text-balance">
           {course.title}
         </h1>
         <p className="font-body text-qc-text-muted mb-4">{course.description}</p>
@@ -198,6 +198,11 @@ export default async function CourseBuilderPage({
                   organizationId={organizationId}
                   initialBlocks={course.blocks}
                   availableTools={availableTools}
+                  initialContext={{
+                    subject: course.subject.name,
+                    topic: course.strand?.name,
+                    readingLevel: course.gradeBand?.name
+                  }}
                 />
               )}
             </CardContent>

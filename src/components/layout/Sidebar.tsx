@@ -17,6 +17,7 @@ import {
 } from "@phosphor-icons/react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
+import { SessionTimer } from "@/components/layout/SessionTimer";
 import { useState } from "react";
 
 const NAV_ITEMS = [
@@ -100,7 +101,14 @@ export function Sidebar({ user }: SidebarProps) {
 
                     {/* Footer Area */}
                     <div className="border-t border-qc-border-subtle/50 p-4 space-y-4">
-
+                        <SessionTimer />
+                        <div className="flex flex-wrap gap-x-3 gap-y-1 px-2 text-xs text-qc-text-muted">
+                            <Link href="/about" className="hover:text-qc-primary transition-colors">About</Link>
+                            <Link href="/changelog" className="hover:text-qc-primary transition-colors">Changelog</Link>
+                            <Link href="/privacy" className="hover:text-qc-primary transition-colors">Privacy</Link>
+                            <Link href="/terms" className="hover:text-qc-primary transition-colors">Terms</Link>
+                            <a href="mailto:adam@quillandcompass.app" className="hover:text-qc-primary transition-colors">Feedback</a>
+                        </div>
 
                         {user && (
                             <div className="pt-2 border-t border-qc-border-subtle/30">

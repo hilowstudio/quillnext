@@ -7,6 +7,10 @@ import { moveScheduleItem } from "@/server/actions/scheduling";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { useState } from "react";
+import { Plus } from "@phosphor-icons/react";
+import { ResourcePicker } from "../courses/ResourcePicker";
+import { addAdHocEvent } from "@/server/actions/scheduling";
+import { getCurrentUserOrg } from "@/lib/auth-helpers";
 
 function DraggableItem({ item }: { item: any }) {
     const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
@@ -38,7 +42,7 @@ function DraggableItem({ item }: { item: any }) {
     );
 }
 
-function DroppableCell({ studentId, date, children }: { studentId: string, date: Date, children: React.ReactNode }) {
+function DroppableCell({ studentId, date, children, onAdd }: { studentId: string, date: Date, children: React.ReactNode, onAdd: () => void }) {
     const { setNodeRef, isOver } = useDroppable({
         id: `${studentId}:${date.toISOString()}`,
     });
@@ -46,9 +50,20 @@ function DroppableCell({ studentId, date, children }: { studentId: string, date:
     return (
         <div
             ref={setNodeRef}
-            className={`flex-1 p-2 border-r last:border-r-0 transition-colors min-h-[100px] ${isOver ? "bg-blue-50/50 ring-inset ring-2 ring-blue-200" : "hover:bg-slate-50"}`}
+            className={`flex-1 p-2 border-r last:border-r-0 transition-colors min-h-[100px] relative group/cell ${isOver ? "bg-qc-info-bg/50 ring-inset ring-2 ring-qc-info-border" : "hover:bg-qc-surface-hover"}`}
         >
             {children}
+            {/* Smart Slot Add Button */}
+            <button
+                onClick={(e) => {
+                    e.stopPropagation();
+                    onAdd();
+                }}
+                className="absolute top-1 right-1 opacity-0 group-hover/cell:opacity-100 p-1 rounded-full bg-qc-surface-muted text-qc-text-muted hover:bg-qc-primary hover:text-white transition-all"
+                title="Add Activity"
+            >
+                <Plus size={12} weight="bold" />
+            </button>
         </div>
     );
 }
@@ -57,15 +72,56 @@ export function PlannerGrid({
     startDate,
     students,
     items,
-    events
+    events,
+    organizationId
 }: {
     startDate: Date,
     students: any[],
     items: any[],
-    events: any[]
+    events: any[],
+    organizationId: string
 }) {
     const router = useRouter();
     const days = Array.from({ length: 7 }).map((_, i) => addDays(startDate, i));
+
+    // Smart Slot State
+    const [pickerOpen, setPickerOpen] = useState(false);
+    const [targetSlot, setTargetSlot] = useState<{ studentId: string, date: Date } | null>(null);
+
+    const handleAddClick = (studentId: string, date: Date) => {
+        setTargetSlot({ studentId, date });
+        setPickerOpen(true);
+    };
+
+    const handleResourceSelected = async (resource: any, type: string) => {
+        if (!targetSlot) return;
+
+        let title = "Untitled Activity";
+        let description = "";
+
+        // Format title based on type
+        if (type === "BOOK") {
+            title = `Read: ${resource.title}`;
+            description = `Read from ${resource.title}`; // TODO: Add link
+        } else if (type === "VIDEO") {
+            title = `Watch: ${resource.title}`;
+            description = resource.url || "";
+        } else if (type === "GENERATED") {
+            title = `${resource.kindLabel || 'Activity'}: ${resource.title || 'New Item'}`;
+        } else {
+            title = resource.title;
+        }
+
+        toast.promise(
+            addAdHocEvent(targetSlot.studentId, targetSlot.date, title, description, organizationId),
+            {
+                loading: "Adding to schedule...",
+                success: "Added to schedule",
+                error: (e) => `Failed to add: ${e.message}`
+            }
+        );
+        router.refresh();
+    };
 
     async function handleDragEnd(event: DragEndEvent) {
         const { active, over } = event;
@@ -97,13 +153,13 @@ export function PlannerGrid({
             <div className="flex flex-col h-full overflow-hidden">
                 {/* Header Row: Days */}
                 <div className="flex border-b">
-                    <div className="w-48 bg-gray-50 border-r p-4 shrink-0 font-medium text-gray-500">
+                    <div className="w-48 bg-qc-surface-raised border-r p-4 shrink-0 font-medium text-qc-text-muted">
                         Student
                     </div>
                     {days.map(day => (
-                        <div key={day.toISOString()} className="flex-1 p-2 text-center border-r last:border-r-0 bg-gray-50">
-                            <div className="font-display font-medium text-gray-900">{format(day, "EEEE")}</div>
-                            <div className="text-sm text-gray-500">{format(day, "MMM d")}</div>
+                        <div key={day.toISOString()} className="flex-1 p-2 text-center border-r last:border-r-0 bg-qc-surface-raised">
+                            <div className="font-display font-medium text-qc-charcoal">{format(day, "EEEE")}</div>
+                            <div className="text-sm text-qc-text-muted">{format(day, "MMM d")}</div>
                         </div>
                     ))}
                 </div>
@@ -113,7 +169,7 @@ export function PlannerGrid({
                     {students.map(student => (
                         <div key={student.id} className="flex border-b min-h-[150px]">
                             {/* Student Column */}
-                            <div className="w-48 p-4 border-r bg-white shrink-0 sticky left-0 z-10 flex flex-col justify-center">
+                            <div className="w-48 p-4 border-r bg-qc-surface shrink-0 sticky left-0 z-10 flex flex-col justify-center">
                                 <div className="font-display font-bold text-lg text-qc-charcoal">
                                     {student.preferredName || student.firstName}
                                 </div>
@@ -134,10 +190,15 @@ export function PlannerGrid({
                                 );
 
                                 return (
-                                    <DroppableCell key={day.toISOString()} studentId={student.id} date={day}>
+                                    <DroppableCell
+                                        key={day.toISOString()}
+                                        studentId={student.id}
+                                        date={day}
+                                        onAdd={() => handleAddClick(student.id, day)}
+                                    >
                                         <div className="space-y-2">
                                             {dayEvents.map(event => (
-                                                <div key={event.id} className="bg-amber-100 text-amber-800 p-1.5 rounded text-xs font-medium border border-amber-200">
+                                                <div key={event.id} className="bg-qc-warning-bg text-qc-warning-text p-1.5 rounded text-xs font-medium border border-qc-warning-border">
                                                     {event.title}
                                                 </div>
                                             ))}
@@ -153,6 +214,24 @@ export function PlannerGrid({
                     ))}
                 </div>
             </div>
+
+            <ResourcePicker
+                organizationId={organizationId}
+                open={pickerOpen}
+                onOpenChange={setPickerOpen}
+                mode="universal"
+                onSelectBook={(book) => handleResourceSelected(book, "BOOK")}
+                onSelectVideo={(video) => handleResourceSelected(video, "VIDEO")}
+                onSelectArticle={(article) => handleResourceSelected(article, "ARTICLE")}
+                onSelectDocument={(doc) => handleResourceSelected(doc, "DOCUMENT")}
+                onSelectResource={(res) => handleResourceSelected(res, "RESOURCE")}
+                onGenerate={(kindId, kindLabel) => {
+                    // Todo: Handle generation. For now just a toast.
+                    // Ideally this opens the Generator form pre-filled.
+                    // But we don't have a course context here.
+                    toast.info("Generators in Calendar view coming soon!");
+                }}
+            />
         </DndContext>
     );
 }

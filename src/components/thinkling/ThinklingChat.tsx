@@ -128,7 +128,7 @@ export function ThinklingChat({ studentId, mode, onModeChange }: ThinklingChatPr
                                 </AvatarFallback>
                             </Avatar>
 
-                            <div className={`p-3 rounded-lg max-w-[80%] ${m.role === 'user' ? 'bg-qc-primary text-white' : 'bg-gray-100 text-gray-800'}`}>
+                            <div className={`p-3 rounded-lg max-w-[80%] ${m.role === 'user' ? 'bg-qc-primary text-white' : 'bg-qc-surface-raised text-qc-charcoal'}`}>
                                 <div className="text-sm prose prose-sm max-w-none dark:prose-invert">
                                     <ReactMarkdown
                                         remarkPlugins={[remarkGfm, remarkBreaks, remarkMath]}
@@ -161,11 +161,11 @@ export function ThinklingChat({ studentId, mode, onModeChange }: ThinklingChatPr
                             <AvatarImage src="/assets/branding/Inkling.png" alt="Thinkling" />
                             <AvatarFallback className="bg-qc-accent text-white"><Robot /></AvatarFallback>
                         </Avatar>
-                        <div className="bg-gray-100 rounded-lg px-4 py-2 text-sm text-gray-500 animate-pulse">
+                        <div className="bg-qc-surface-raised rounded-lg px-4 py-2 text-sm text-qc-text-muted animate-pulse">
                             <div className="flex gap-1">
-                                <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce"></span>
-                                <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce delay-75"></span>
-                                <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce delay-150"></span>
+                                <span className="w-1.5 h-1.5 bg-qc-text-muted rounded-full animate-bounce"></span>
+                                <span className="w-1.5 h-1.5 bg-qc-text-muted rounded-full animate-bounce delay-75"></span>
+                                <span className="w-1.5 h-1.5 bg-qc-text-muted rounded-full animate-bounce delay-150"></span>
                             </div>
                         </div>
                     </div>

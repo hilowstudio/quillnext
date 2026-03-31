@@ -269,7 +269,7 @@ export default function PracticeMode({ verse, onComplete, onExit, initialStep = 
         // Handle loading state explicitly
         if (!verseText) {
             return (
-                <div className="flex flex-col items-center gap-2 text-gray-400">
+                <div className="flex flex-col items-center gap-2 text-qc-text-muted">
                     {isTextLoading ? (
                         <>
                             <div className="animate-spin h-5 w-5 border-2 border-qc-primary border-t-transparent rounded-full" />
@@ -284,7 +284,7 @@ export default function PracticeMode({ verse, onComplete, onExit, initialStep = 
 
         if (step.mode === 'hidden') {
             return (
-                <div className="text-center italic text-gray-400 py-8">
+                <div className="text-center italic text-qc-text-muted py-8">
                     (Verse Hidden)
                 </div>
             );
@@ -339,11 +339,11 @@ export default function PracticeMode({ verse, onComplete, onExit, initialStep = 
             <Progress value={(currentStepIndex / 8) * 100} className="h-2 w-full" />
 
             {/* Main Content */}
-            <Card className="min-h-[400px] flex flex-col items-center justify-center p-8 bg-amber-50/50 border-qc-primary/20 shadow-sm relative">
+            <Card className="min-h-[400px] flex flex-col items-center justify-center p-8 bg-qc-warning-bg/50 border-qc-primary/20 shadow-sm relative">
 
                 {isRefresh && (
                     <div className="absolute top-4 right-4">
-                        <Button variant="ghost" className="text-xs text-amber-700 hover:text-amber-900 hover:bg-amber-100" onClick={handleNeedsPractice}>
+                        <Button variant="ghost" className="text-xs text-qc-warning-text hover:text-qc-warning-text hover:bg-qc-warning-bg" onClick={handleNeedsPractice}>
                             I need practice 😓
                         </Button>
                     </div>
@@ -368,7 +368,7 @@ export default function PracticeMode({ verse, onComplete, onExit, initialStep = 
                         {step.type === 'listen' && (
                             <div className="space-y-4">
                                 <div className="p-4 bg-white rounded-xl shadow-sm border text-left">
-                                    <h3 className="text-sm font-semibold text-gray-500 mb-2 uppercase tracking-wider">ESV Audio Bible</h3>
+                                    <h3 className="text-sm font-semibold text-qc-text-muted mb-2 uppercase tracking-wider">ESV Audio Bible</h3>
                                     <BibleAudioPlayer
                                         audioUrl={audioUrl}
                                         reference={verse.reference}
@@ -386,19 +386,19 @@ export default function PracticeMode({ verse, onComplete, onExit, initialStep = 
                                 <button
                                     className={cn(
                                         "w-full p-8 border-2 border-dashed rounded-2xl transition-all duration-300 flex flex-col items-center gap-3",
-                                        isListening ? "border-red-500 bg-red-50 scale-[1.02]" : "border-gray-300 hover:border-gray-400 hover:bg-white",
+                                        isListening ? "border-qc-error bg-qc-error-bg scale-[1.02]" : "border-qc-border-subtle hover:border-qc-border-subtle hover:bg-white",
                                         !verseText && "opacity-50 cursor-not-allowed"
                                     )}
                                     onClick={verseText ? toggleListening : undefined}
                                     disabled={!verseText}
                                 >
-                                    <div className={cn("p-4 rounded-full bg-white shadow-sm", isListening && "animate-pulse ring-4 ring-red-100")}>
-                                        <Microphone className={cn("h-8 w-8", isListening ? "text-red-500" : "text-gray-400")} />
+                                    <div className={cn("p-4 rounded-full bg-white shadow-sm", isListening && "animate-pulse ring-4 ring-qc-error-bg")}>
+                                        <Microphone className={cn("h-8 w-8", isListening ? "text-qc-error" : "text-qc-text-muted")} />
                                     </div>
-                                    <p className="font-medium text-gray-600">{isListening ? "Listening..." : "Tap to Speak"}</p>
+                                    <p className="font-medium text-qc-text-muted">{isListening ? "Listening..." : "Tap to Speak"}</p>
                                 </button>
 
-                                <div className="min-h-[2rem] text-sm text-gray-500 font-medium space-y-1">
+                                <div className="min-h-[2rem] text-sm text-qc-text-muted font-medium space-y-1">
                                     {userInput ? (
                                         <>
                                             <p className="italic">"{userInput}"</p>
@@ -408,7 +408,7 @@ export default function PracticeMode({ verse, onComplete, onExit, initialStep = 
                                 </div>
 
                                 {feedback === 'success' && (
-                                    <Button size="lg" className="w-full h-12 text-lg gap-2 bg-green-600 hover:bg-green-700 animate-in fade-in slide-in-from-bottom-2" onClick={handleNext}>
+                                    <Button size="lg" className="w-full h-12 text-lg gap-2 bg-qc-success hover:bg-qc-success/90 animate-in fade-in slide-in-from-bottom-2" onClick={handleNext}>
                                         Perfect! Next Step <ArrowRight className="h-5 w-5" />
                                     </Button>
                                 )}
@@ -433,7 +433,7 @@ export default function PracticeMode({ verse, onComplete, onExit, initialStep = 
                                     disabled={!verseText}
                                 />
                                 {feedback === 'success' && (
-                                    <Button size="lg" className="w-full h-12 text-lg gap-2 bg-green-600 hover:bg-green-700 animate-in fade-in slide-in-from-bottom-2" onClick={handleNext}>
+                                    <Button size="lg" className="w-full h-12 text-lg gap-2 bg-qc-success hover:bg-qc-success/90 animate-in fade-in slide-in-from-bottom-2" onClick={handleNext}>
                                         Correct! Next Step <ArrowRight className="h-5 w-5" />
                                     </Button>
                                 )}

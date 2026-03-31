@@ -59,6 +59,9 @@ export default function SignupPage() {
               Sign In Instead
             </Link>
           </Button>
+          <p className="text-center text-xs font-body text-qc-text-muted/70">
+            QuillNext requires an internet connection for all features.
+          </p>
           <p className="text-center text-xs font-body text-qc-text-muted">
             By creating an account, you agree to our{" "}
             <Link href="/terms" className="underline hover:text-qc-primary">

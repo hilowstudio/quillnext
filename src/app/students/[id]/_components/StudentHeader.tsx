@@ -14,7 +14,7 @@ export function StudentHeader({ student }: StudentHeaderProps) {
         <div className="mb-8">
             <div className="flex items-center justify-between mb-3">
                 <div>
-                    <h1 className="font-display text-4xl font-bold text-qc-charcoal mb-2">
+                    <h1 className="font-display text-4xl font-bold text-qc-charcoal mb-2 text-balance">
                         {student.preferredName || student.firstName} {student.lastName}
                     </h1>
                     <p className="font-body text-qc-text-muted">

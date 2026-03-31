@@ -9,8 +9,8 @@ export default function Error({
 }) {
   return (
     <div className="flex min-h-screen items-center justify-center bg-qc-parchment">
-      <div className="mx-auto max-w-md rounded-qc-lg bg-white p-8 shadow-[0_10px_30px_rgba(10,8,6,0.12)]">
-        <h2 className="font-display text-2xl font-bold text-qc-error">
+      <div className="mx-auto max-w-md rounded-qc-lg bg-white p-8 shadow-qc-lg">
+        <h2 className="font-display text-2xl font-bold text-qc-error text-balance">
           Something went wrong!
         </h2>
         <p className="mt-4 font-body text-qc-text-muted">{error.message}</p>

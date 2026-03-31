@@ -5,14 +5,14 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
-import { Sparkles, Hammer, Library, ArrowRight, Lightbulb } from "lucide-react";
+import { Sparkle, Hammer, Books, ArrowRight, Lightbulb } from "@phosphor-icons/react";
 
 const navItems = [
     {
         href: "/creation-station",
         label: "Creation Station",
         description: "Generate lesson plans, activities, and quizzes instantly.",
-        icon: Sparkles,
+        icon: Sparkle,
     },
     {
         href: "/courses",
@@ -30,7 +30,7 @@ const navItems = [
         href: "/living-library",
         label: "Living Library",
         description: "Manage books, videos, and educational resources.",
-        icon: Library,
+        icon: Books,
     },
 ];
 
@@ -71,11 +71,11 @@ export function InklingToolkit() {
                                     `}
                                 >
                                     <div className="p-4 rounded-full bg-qc-parchment shadow-sm text-qc-primary">
-                                        <Icon className="w-8 h-8" />
+                                        <Icon size={32} />
                                     </div>
 
                                     <div>
-                                        <h3 className="font-display text-lg font-bold text-qc-charcoal mb-2">
+                                        <h3 className="font-display text-lg font-bold text-qc-charcoal mb-2 text-balance">
                                             {item.label}
                                         </h3>
                                         <p className="text-sm text-qc-text-muted leading-relaxed">
@@ -84,7 +84,7 @@ export function InklingToolkit() {
                                     </div>
 
                                     <div className="mt-auto pt-4 text-xs font-bold uppercase tracking-wider flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity text-qc-primary">
-                                        Open Tool <ArrowRight className="w-3 h-3" />
+                                        Open Tool <ArrowRight size={12} />
                                     </div>
                                 </motion.div>
                             </Link>

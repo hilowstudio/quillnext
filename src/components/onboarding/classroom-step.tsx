@@ -164,7 +164,7 @@ export function ClassroomStep({
                       type="button"
                       variant="outline"
                       size="icon"
-                      className="h-8 w-8 rounded-full shadow-md border-red-100 bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700 hover:border-red-200"
+                      className="h-8 w-8 rounded-full shadow-md border-qc-error-border bg-qc-error-bg text-qc-error hover:bg-qc-error-bg hover:text-qc-error hover:border-qc-error-border"
                       onClick={() => removeInstructor(index)}
                     >
                       <Trash weight="fill" size={14} />
@@ -386,7 +386,7 @@ export function ClassroomStep({
                   className={`flex items-start gap-3 p-3 rounded-lg border transition-all cursor-pointer ${isSelected
                     ? "bg-qc-primary/5 border-qc-primary shadow-sm"
                     : isDisabled
-                      ? "opacity-50 cursor-not-allowed border-qc-border-subtle bg-gray-50"
+                      ? "opacity-50 cursor-not-allowed border-qc-border-subtle bg-qc-surface-raised"
                       : "bg-white border-qc-border-strong hover:border-qc-primary hover:bg-qc-parchment/50"
                     }`}
                 >

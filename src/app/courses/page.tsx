@@ -6,7 +6,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
-import { Plus, BookOpen, GraduationCap } from "lucide-react";
+import { Plus, BookOpen, GraduationCap } from "@phosphor-icons/react/dist/ssr";
 import { cacheQuery } from "@/lib/utils/prisma-cache";
 
 function formatDate(date: Date) {
@@ -107,12 +107,12 @@ export default async function CoursesIndexPage() {
         <div className="container mx-auto py-8">
             <div className="flex items-center justify-between mb-8">
                 <div>
-                    <h1 className="text-3xl font-display font-bold text-qc-charcoal">Courses</h1>
-                    <p className="text-qc-text-muted mt-1">Manage your curriculum and class materials</p>
+                    <h1 className="text-3xl font-display font-bold text-qc-charcoal text-balance">Courses</h1>
+                    <p className="text-qc-text-muted mt-1 qc-prose">Manage your curriculum and class materials</p>
                 </div>
                 <Button asChild>
                     <Link href="/courses/new" className="gap-2">
-                        <Plus className="h-4 w-4" />
+                        <Plus size={16} />
                         Create Course
                     </Link>
                 </Button>
@@ -120,7 +120,7 @@ export default async function CoursesIndexPage() {
 
             {courses.length === 0 ? (
                 <div className="text-center py-16 bg-qc-parchment rounded-xl border border-dashed border-qc-border-subtle">
-                    <BookOpen className="h-12 w-12 text-qc-text-muted mx-auto mb-4" />
+                    <BookOpen size={48} className="text-qc-text-muted mx-auto mb-4" />
                     <h3 className="text-lg font-medium text-qc-charcoal mb-2">No courses yet</h3>
                     <p className="text-qc-text-muted mb-6 max-w-sm mx-auto">
                         Get started by creating your first course to organize lessons, assignments, and resources.
@@ -159,11 +159,11 @@ export default async function CoursesIndexPage() {
                                 <CardContent>
                                     <div className="flex items-center gap-4 text-sm text-qc-text-muted">
                                         <div className="flex items-center gap-1">
-                                            <GraduationCap className="h-4 w-4" />
+                                            <GraduationCap size={16} />
                                             <span>{course._count.students} Students</span>
                                         </div>
                                         <div className="flex items-center gap-1">
-                                            <BookOpen className="h-4 w-4" />
+                                            <BookOpen size={16} />
                                             <span>{course._count.blocks} Units</span>
                                         </div>
                                     </div>

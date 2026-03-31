@@ -71,7 +71,7 @@ export function YouTubeImport({ onImport }: YouTubeImportProps) {
                         </div>
                     </div>
 
-                    <div className="bg-blue-50 border border-blue-200 p-3 rounded-md flex gap-2 items-start text-sm text-blue-800">
+                    <div className="bg-qc-info-bg border border-qc-info-border p-3 rounded-md flex gap-2 items-start text-sm text-qc-info-text">
                         <CheckCircle className="w-5 h-5 shrink-0 mt-0.5" weight="fill" />
                         <div>
                             <p className="font-bold">Ready to Generate Curriculum</p>

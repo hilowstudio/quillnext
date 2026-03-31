@@ -13,6 +13,16 @@ const badgeVariants = cva(
           "border-transparent bg-qc-secondary text-qc-charcoal hover:bg-qc-secondary/80",
         outline:
           "text-qc-charcoal border-qc-border-subtle bg-transparent hover:bg-qc-parchment",
+        success:
+          "border-qc-success-border bg-qc-success-bg text-qc-success-text",
+        warning:
+          "border-qc-warning-border bg-qc-warning-bg text-qc-warning-text",
+        error:
+          "border-qc-error-border bg-qc-error-bg text-qc-error-text",
+        info:
+          "border-qc-info-border bg-qc-info-bg text-qc-info-text",
+        ai:
+          "border-violet-300 bg-violet-50 text-violet-700 dark:border-violet-600 dark:bg-violet-950 dark:text-violet-300",
       },
     },
     defaultVariants: {

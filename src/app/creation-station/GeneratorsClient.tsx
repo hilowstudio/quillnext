@@ -203,10 +203,10 @@ export default function GeneratorsClient({ organizationId }: { organizationId: s
     <div className="container mx-auto max-w-5xl px-4 py-8">
       <div className="mb-6">
 
-        <h1 className="font-display text-4xl font-bold text-qc-charcoal mb-2">
+        <h1 className="font-display text-4xl font-bold text-qc-charcoal mb-2 text-balance">
           Creation Station
         </h1>
-        <p className="font-body text-qc-text-muted">
+        <p className="font-body text-qc-text-muted qc-prose">
           Create worksheets, quizzes, and lesson plans from any source.
         </p>
       </div>
@@ -339,7 +339,7 @@ export default function GeneratorsClient({ organizationId }: { organizationId: s
                     }`}
                 >
                   <div className="font-bold text-sm flex justify-between">
-                    {kind.subject && <span className="text-[10px] bg-gray-100 px-1.5 py-0.5 rounded text-gray-500 uppercase tracking-wider">{kind.subject.name}</span>}
+                    {kind.subject && <span className="text-[10px] bg-qc-surface-raised px-1.5 py-0.5 rounded text-qc-text-muted uppercase tracking-wider">{kind.subject.name}</span>}
                   </div>
                   {kind.description && <div className="text-xs text-qc-text-muted mt-1">{kind.description}</div>}
                 </div>

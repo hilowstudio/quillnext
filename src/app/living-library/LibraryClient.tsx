@@ -45,10 +45,10 @@ export function LibraryClient({ initialData, organizationId, userId }: LibraryCl
 
     return (
         <div className="container mx-auto max-w-6xl px-4 py-8">
-            <h1 className="font-display text-4xl font-bold text-qc-charcoal mb-2">
+            <h1 className="font-display text-4xl font-bold text-qc-charcoal mb-2 text-balance">
                 Living Library
             </h1>
-            <p className="font-body text-qc-text-muted mb-8">
+            <p className="font-body text-qc-text-muted mb-8 qc-prose">
                 Your collection of books, videos, articles, documents, and generated resources.
             </p>
 

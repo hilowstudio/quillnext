@@ -86,7 +86,7 @@ export default async function GradingPage({
         <Button variant="outline" asChild className="mb-4">
           <Link href="/grading">← Back to Grading</Link>
         </Button>
-        <h1 className="font-display text-4xl font-bold text-qc-charcoal mb-2">
+        <h1 className="font-display text-4xl font-bold text-qc-charcoal mb-2 text-balance">
           Grading: {attempt.assessment.title}
         </h1>
         <div className="flex gap-2 flex-wrap">

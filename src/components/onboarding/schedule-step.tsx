@@ -153,7 +153,7 @@ export function ScheduleStep({
   // Custom Calendar Renderers
   const footer = (
     <div className="flex gap-4 text-xs text-qc-text-muted mt-2 justify-center">
-      <div className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-indigo-100 border border-indigo-300"></span> Holiday</div>
+      <div className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-qc-info-bg border border-qc-info-border"></span> Holiday</div>
       <div className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-qc-secondary border border-qc-secondary"></span> Off Day</div>
     </div>
   );
@@ -553,7 +553,7 @@ export function ScheduleStep({
                     type="button"
                     variant="ghost"
                     size="icon"
-                    className="h-8 w-8 rounded-full shadow-md bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700"
+                    className="h-8 w-8 rounded-full shadow-md bg-qc-error-bg text-qc-error hover:bg-qc-error-bg hover:text-qc-error"
                     onClick={() => removeBreak(index)}
                   >
                     <Trash weight="fill" size={14} />

@@ -31,14 +31,15 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { DotsSixVertical, Plus, Trash, PencilSimple, Check, X, Sparkle as SparkleIcon, Book as BookIcon, Video as VideoIcon, FileText as FileTextIcon, File as FileIcon, XCircle } from "@phosphor-icons/react";
+import { DotsSixVertical, Plus, Trash, PencilSimple, Check, X, Sparkle as SparkleIcon, Book as BookIcon, Video as VideoIcon, FileText as FileTextIcon, File as FileIcon, XCircle, Brain } from "@phosphor-icons/react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { ResourcePicker } from "./ResourcePicker";
 import { GeneratorForm } from "@/components/generators/GeneratorForm";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { ResourceKind, Book, VideoResource as Video, Article, DocumentResource } from "@/generated/client";
-import { Brain, Sparkles } from "lucide-react";
+import { SpecForm } from "@/app/creation-station/compiler/SpecForm";
+import { compileCurriculumAction } from "@/app/actions/compile-curriculum-action";
 
 // Stub for toast since no library is installed
 const toast = {
@@ -59,14 +60,10 @@ interface Block {
     resourceId?: string | null;
     children?: Block[];
     activities: any[];
+    courseId?: string;
 }
 
-interface CourseBuilderProps {
-    courseId: string;
-    organizationId: string;
-    initialBlocks: Block[];
-    availableTools: ResourceKind[];
-}
+
 
 // Separate component for sortable item to allow clean drag overlay
 function SortableBlockItem({
@@ -76,7 +73,8 @@ function SortableBlockItem({
     onUpdate,
     onAttachResource,
     onDetachResource,
-    onGenerate
+    onGenerate,
+    courseId,
 }: {
     block: Block;
     depth?: number;
@@ -85,6 +83,7 @@ function SortableBlockItem({
     onAttachResource: (blockId: string) => void;
     onDetachResource: (id: string, type: "BOOK" | "VIDEO" | "ARTICLE" | "DOCUMENT" | "RESOURCE") => void;
     onGenerate: (id: string) => void;
+    courseId: string;
 }) {
     const {
         attributes,
@@ -102,7 +101,7 @@ function SortableBlockItem({
     const style = {
         transform: CSS.Transform.toString(transform),
         transition,
-        marginLeft: `${depth * 24} px`, // Visual indentation
+        marginLeft: `${depth * 24}px`, // Visual indentation
         opacity: isDragging ? 0.5 : 1,
     };
 
@@ -111,7 +110,7 @@ function SortableBlockItem({
             case "UNIT": return "bg-qc-primary/10 text-qc-primary border-qc-primary/20";
             case "MODULE": return "bg-qc-secondary/10 text-qc-secondary-dark border-qc-secondary/20";
             case "LESSON": return "bg-qc-parchment text-qc-text-muted border-qc-border-subtle";
-            default: return "bg-gray-100 text-gray-600";
+            default: return "bg-qc-surface-raised text-qc-text-muted";
         }
     };
 
@@ -172,7 +171,7 @@ function SortableBlockItem({
                                 <Button
                                     size="icon"
                                     variant="ghost"
-                                    className="h-7 w-7 text-green-600 hover:text-green-700 hover:bg-green-50"
+                                    className="h-7 w-7 text-qc-success hover:text-qc-success-text hover:bg-qc-success-bg"
                                     onClick={(e) => { e.stopPropagation(); handleSave(); }}
                                     disabled={isSaving}
                                 >
@@ -181,7 +180,7 @@ function SortableBlockItem({
                                 <Button
                                     size="icon"
                                     variant="ghost"
-                                    className="h-7 w-7 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                    className="h-7 w-7 text-qc-error hover:text-qc-error-text hover:bg-qc-error-bg"
                                     onClick={(e) => {
                                         e.stopPropagation();
                                         setIsEditing(false);
@@ -208,18 +207,18 @@ function SortableBlockItem({
 
                             {/* Resource Indicators (Badge Style) */}
                             {block.bookId && (
-                                <div className="mt-2 flex items-center justify-between rounded-md border border-amber-200 bg-amber-50 p-2">
+                                <div className="mt-2 flex items-center justify-between rounded-md border border-qc-warning-border bg-qc-warning-bg p-2">
                                     <div className="flex items-center gap-2">
-                                        <div className="rounded-full bg-amber-100 p-1">
-                                            <BookIcon className="h-4 w-4 text-amber-600" />
+                                        <div className="rounded-full bg-qc-warning-border/30 p-1">
+                                            <BookIcon className="h-4 w-4 text-qc-warning-text" />
                                         </div>
-                                        <span className="text-sm font-medium text-amber-900">Book Attached</span>
+                                        <span className="text-sm font-medium text-qc-warning-text">Book Attached</span>
                                     </div>
                                     <Button
                                         variant="ghost"
                                         size="sm"
                                         onClick={() => onDetachResource(block.id, "BOOK")}
-                                        className="h-6 w-6 p-0 text-amber-500 hover:text-amber-700 hover:bg-amber-100"
+                                        className="h-6 w-6 p-0 text-qc-warning hover:text-qc-warning-text hover:bg-qc-warning-border/30"
                                     >
                                         <X className="h-4 w-4" />
                                     </Button>
@@ -227,18 +226,18 @@ function SortableBlockItem({
                             )}
 
                             {block.videoId && (
-                                <div className="mt-2 flex items-center justify-between rounded-md border border-red-200 bg-red-50 p-2">
+                                <div className="mt-2 flex items-center justify-between rounded-md border border-qc-error-border bg-qc-error-bg p-2">
                                     <div className="flex items-center gap-2">
-                                        <div className="rounded-full bg-red-100 p-1">
-                                            <VideoIcon className="h-4 w-4 text-red-600" />
+                                        <div className="rounded-full bg-qc-error-border/30 p-1">
+                                            <VideoIcon className="h-4 w-4 text-qc-error-text" />
                                         </div>
-                                        <span className="text-sm font-medium text-red-900">Video Attached</span>
+                                        <span className="text-sm font-medium text-qc-error-text">Video Attached</span>
                                     </div>
                                     <Button
                                         variant="ghost"
                                         size="sm"
                                         onClick={() => onDetachResource(block.id, "VIDEO")}
-                                        className="h-6 w-6 p-0 text-red-500 hover:text-red-700 hover:bg-red-100"
+                                        className="h-6 w-6 p-0 text-qc-error hover:text-qc-error-text hover:bg-qc-error-border/30"
                                     >
                                         <X className="h-4 w-4" />
                                     </Button>
@@ -246,18 +245,18 @@ function SortableBlockItem({
                             )}
 
                             {block.articleId && (
-                                <div className="mt-2 flex items-center justify-between rounded-md border border-blue-200 bg-blue-50 p-2">
+                                <div className="mt-2 flex items-center justify-between rounded-md border border-qc-info-border bg-qc-info-bg p-2">
                                     <div className="flex items-center gap-2">
-                                        <div className="rounded-full bg-blue-100 p-1">
-                                            <FileTextIcon className="h-4 w-4 text-blue-600" />
+                                        <div className="rounded-full bg-qc-info-border/30 p-1">
+                                            <FileTextIcon className="h-4 w-4 text-qc-info-text" />
                                         </div>
-                                        <span className="text-sm font-medium text-blue-900">Article Attached</span>
+                                        <span className="text-sm font-medium text-qc-info-text">Article Attached</span>
                                     </div>
                                     <Button
                                         variant="ghost"
                                         size="sm"
                                         onClick={() => onDetachResource(block.id, "ARTICLE")}
-                                        className="h-6 w-6 p-0 text-blue-500 hover:text-blue-700 hover:bg-blue-100"
+                                        className="h-6 w-6 p-0 text-qc-info-text hover:text-qc-info-text hover:bg-qc-info-border/30"
                                     >
                                         <X className="h-4 w-4" />
                                     </Button>
@@ -265,18 +264,18 @@ function SortableBlockItem({
                             )}
 
                             {block.documentId && (
-                                <div className="mt-2 flex items-center justify-between rounded-md border border-slate-200 bg-slate-50 p-2">
+                                <div className="mt-2 flex items-center justify-between rounded-md border border-qc-border-subtle bg-qc-surface-raised p-2">
                                     <div className="flex items-center gap-2">
-                                        <div className="rounded-full bg-slate-100 p-1">
-                                            <FileIcon className="h-4 w-4 text-slate-600" />
+                                        <div className="rounded-full bg-qc-surface-muted p-1">
+                                            <FileIcon className="h-4 w-4 text-qc-text-muted" />
                                         </div>
-                                        <span className="text-sm font-medium text-slate-900">Document Attached</span>
+                                        <span className="text-sm font-medium text-qc-charcoal">Document Attached</span>
                                     </div>
                                     <Button
                                         variant="ghost"
                                         size="sm"
                                         onClick={() => onDetachResource(block.id, "DOCUMENT")}
-                                        className="h-6 w-6 p-0 text-slate-500 hover:text-slate-700 hover:bg-slate-100"
+                                        className="h-6 w-6 p-0 text-qc-text-muted hover:text-qc-charcoal hover:bg-qc-surface-muted"
                                     >
                                         <X className="h-4 w-4" />
                                     </Button>
@@ -357,11 +356,39 @@ function SortableBlockItem({
                     </div>
                 )}
             </div>
+
+            {/* Smart Slot - Insert Zone */}
+            <div className="h-4 -mt-2 -mb-2 z-10 relative flex justify-center opacity-0 hover:opacity-100 transition-opacity group/slot">
+                <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-qc-primary/20 group-hover/slot:bg-qc-primary/50 transition-colors"></div>
+                <Button
+                    asChild
+                    size="icon"
+                    variant="secondary"
+                    className="h-6 w-6 rounded-full shadow-sm bg-white border border-qc-primary text-qc-primary hover:bg-qc-primary hover:text-white relative z-20"
+                    title="Insert block here"
+                >
+                    <Link href={`/courses/${courseId}/blocks/new?parentId=${block.parentBlockId || ''}&position=${block.position + 1}`}>
+                        <Plus size={12} weight="bold" />
+                    </Link>
+                </Button>
+            </div>
         </div>
     );
 }
 
-export function CourseBuilder({ courseId, organizationId, initialBlocks, availableTools }: CourseBuilderProps) {
+interface CourseBuilderProps {
+    courseId: string;
+    organizationId: string;
+    initialBlocks: any[]; // Using any[] for now as we have complex include types
+    availableTools: any[];
+    initialContext?: {
+        subject?: string;
+        topic?: string;
+        readingLevel?: string;
+    };
+}
+
+export function CourseBuilder({ courseId, organizationId, initialBlocks, availableTools, initialContext }: CourseBuilderProps) {
     const [blocks, setBlocks] = useState(initialBlocks);
     const [activeId, setActiveId] = useState<string | null>(null);
     const [isSaving, setIsSaving] = useState(false);
@@ -374,6 +401,10 @@ export function CourseBuilder({ courseId, organizationId, initialBlocks, availab
     const [generatorOpen, setGeneratorOpen] = useState(false);
     const [activeBlockForGeneration, setActiveBlockForGeneration] = useState<string | null>(null);
     const [selectedTool, setSelectedTool] = useState<ResourceKind | null>(null);
+
+    // Compiler State
+    const [compilerOpen, setCompilerOpen] = useState(false);
+    const [isCompiling, setIsCompiling] = useState(false);
 
     const sensors = useSensors(
         useSensor(PointerSensor),
@@ -541,7 +572,41 @@ export function CourseBuilder({ courseId, organizationId, initialBlocks, availab
         }
     };
 
+    const handlePickerGenerate = (kindId: string, kindLabel: string) => {
+        if (kindId === "COMPILER") {
+            setCompilerOpen(true);
+            // Context comes from activeBlockForResource
+        } else {
+            // Find tool in availableTools
+            const tool = availableTools.find(t => t.id === kindId);
+            if (tool) {
+                setSelectedTool(tool);
+                setActiveBlockForGeneration(activeBlockForResource);
+                setGeneratorOpen(true);
+            }
+        }
+    };
 
+    const handleCompilerSubmit = async (values: any) => {
+        setIsCompiling(true);
+        try {
+            const result = await compileCurriculumAction({
+                ...values,
+            });
+
+            if (result.success) {
+                toast.success("Curriculum compilation started! It will appear here shortly.");
+                setCompilerOpen(false);
+            } else {
+                toast.error("Failed to start compilation");
+            }
+        } catch (error) {
+            console.error(error);
+            toast.error("An error occurred");
+        } finally {
+            setIsCompiling(false);
+        }
+    };
 
     const handleGenerateClick = (blockId: string) => {
         setActiveBlockForGeneration(blockId);
@@ -558,7 +623,7 @@ export function CourseBuilder({ courseId, organizationId, initialBlocks, availab
     return (
         <div className="space-y-4">
             <div className="flex justify-between items-center mb-4">
-                <div className="text-sm text-qc-text-muted">
+                <div className="text-sm text-qc-text-muted" aria-live="polite">
                     {blocks.length} items • {isSaving ? "Saving..." : "Saved"}
                 </div>
                 <div className="flex gap-2">
@@ -572,7 +637,7 @@ export function CourseBuilder({ courseId, organizationId, initialBlocks, availab
                         Inkling Assist
                     </Button>
                     <Button asChild className="gap-2">
-                        <Link href={`/ courses / ${courseId} /blocks/new`}>
+                        <Link href={`/courses/${courseId}/blocks/new`}>
                             <Plus size={16} /> Add Block
                         </Link>
                     </Button>
@@ -600,6 +665,7 @@ export function CourseBuilder({ courseId, organizationId, initialBlocks, availab
                                 onAttachResource={handleAttachResourceClick}
                                 onDetachResource={handleDetachResource}
                                 onGenerate={handleGenerateClick}
+                                courseId={courseId}
                             />
                         ))}
                     </div>
@@ -618,9 +684,30 @@ export function CourseBuilder({ courseId, organizationId, initialBlocks, availab
             </DndContext>
 
             <ResourcePicker
-                organizationId={courseId} // Using courseId as orgId proxy for now, or fetch proper orgId
+                organizationId={courseId} // Using courseId as orgId proxy for now, or fetch proper orgId, wait blocks usually have orgId context? Actually CourseBuilder doesn't have orgId in props? Added it to props in recent edits.
                 open={resourcePickerOpen}
+                mode="universal"
                 onOpenChange={setResourcePickerOpen}
+                onGenerate={handlePickerGenerate}
+                onSelectBundle={async (bundleId) => {
+                    if (!confirm("This will create a new Unit with lessons from this bundle. Continue?")) return;
+                    setIsSaving(true);
+                    try {
+                        const { explodeCurriculumBundle } = await import("@/app/actions/explode-bundle");
+                        const result = await explodeCurriculumBundle(bundleId, courseId);
+                        if (result.success) {
+                            toast.success("Curriculum Unit created!");
+                            // Ideally we refresh blocks but we rely on server revalidate?
+                            // We might need to refresh local state if we want instant feedback without reload
+                            window.location.reload(); // Simple brute force for now to fetch new blocks
+                        }
+                    } catch (e) {
+                        console.error(e);
+                        toast.error("Failed to add unit");
+                    } finally {
+                        setIsSaving(false);
+                    }
+                }}
                 onSelectBook={(book) => handleResourceSelected("BOOK", book)}
                 onSelectVideo={(video) => handleResourceSelected("VIDEO", undefined, video)}
                 onSelectArticle={(article) => handleResourceSelected("ARTICLE", undefined, undefined, article)}
@@ -646,7 +733,7 @@ export function CourseBuilder({ courseId, organizationId, initialBlocks, availab
                                         <div className="p-2 bg-qc-primary/10 w-fit rounded-lg text-qc-primary mb-1">
                                             <SparkleIcon size={24} weight="fill" />
                                         </div>
-                                        <h3 className="font-semibold font-display">{tool.label}</h3>
+                                        <h3 className="font-semibold font-display text-balance">{tool.label}</h3>
                                         <p className="text-sm text-qc-text-muted line-clamp-2">{tool.description}</p>
                                     </Card>
                                 ))}
@@ -658,10 +745,10 @@ export function CourseBuilder({ courseId, organizationId, initialBlocks, availab
                                 <Button variant="ghost" size="sm" onClick={() => setSelectedTool(null)} className="mb-2">
                                     ← Back to Tools
                                 </Button>
-                                <h2 className="text-xl font-display font-bold flex items-center gap-2">
+                                <DialogTitle className="text-xl font-display font-bold flex items-center gap-2">
                                     <SparkleIcon className="text-qc-primary" weight="fill" />
                                     {selectedTool.label}
-                                </h2>
+                                </DialogTitle>
                             </div>
 
                             {generationBlock && (
@@ -678,11 +765,25 @@ export function CourseBuilder({ courseId, organizationId, initialBlocks, availab
                                         videoId: generationBlock.videoId || undefined,
                                         articleId: generationBlock.articleId || undefined,
                                         documentId: generationBlock.documentId || undefined,
+                                        // Pass initial context to generators too if they support it
+                                        subject: initialContext?.subject,
+                                        readingLevel: initialContext?.readingLevel,
                                     }}
                                 />
                             )}
                         </>
                     )}
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={compilerOpen} onOpenChange={setCompilerOpen}>
+                <DialogContent className="max-w-3xl">
+                    <DialogTitle className="sr-only">Curriculum Compiler</DialogTitle>
+                    <SpecForm
+                        onSubmit={handleCompilerSubmit}
+                        isLoading={isCompiling}
+                        initialContext={initialContext}
+                    />
                 </DialogContent>
             </Dialog>
         </div>

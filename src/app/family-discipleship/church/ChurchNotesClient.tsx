@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Trash, ArrowLeft, Calendar, User, BookOpen, MusicNotes, HandsPraying, UsersThree, Lightbulb } from "@phosphor-icons/react/dist/ssr";
+import { Plus, Trash, ArrowLeft, Calendar, User, BookOpen, MusicNotes, HandsPraying, UsersThree, Lightbulb, Fire } from "@phosphor-icons/react/dist/ssr";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { addChurchNote, deleteChurchNote } from "../actions";
 import Link from "next/link";
@@ -140,9 +140,9 @@ export function ChurchNotesClient({ initialNotes }: { initialNotes: ChurchNote[]
                                 </div>
 
                                 {/* The One Thing */}
-                                <div className="space-y-4 p-4 bg-amber-50/50 rounded-lg border border-amber-100">
+                                <div className="space-y-4 p-4 bg-qc-warning-bg/50 rounded-lg border border-qc-warning-border">
                                     <div className="flex items-center gap-2">
-                                        <Lightbulb className="h-5 w-5 text-amber-500" />
+                                        <Lightbulb className="h-5 w-5 text-qc-warning" />
                                         <Label htmlFor="oneThing" className="text-base font-semibold text-qc-primary">The One Thing (This Week)</Label>
                                     </div>
                                     <Input
@@ -220,7 +220,7 @@ export function ChurchNotesClient({ initialNotes }: { initialNotes: ChurchNote[]
                             </form>
                         </div>
 
-                        <DialogFooter className="px-6 py-4 border-t bg-gray-50">
+                        <DialogFooter className="px-6 py-4 border-t bg-qc-surface-raised">
                             <Button variant="outline" onClick={() => setIsOpen(false)}>Cancel</Button>
                             <Button type="submit" form="church-note-form" disabled={isPending} className="bg-qc-primary hover:bg-qc-primary/90">
                                 {isPending ? "Saving..." : "Save Note"}
@@ -253,7 +253,7 @@ export function ChurchNotesClient({ initialNotes }: { initialNotes: ChurchNote[]
                                     <Button
                                         variant="ghost"
                                         size="icon"
-                                        className="h-8 w-8 text-muted-foreground hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                                        className="h-8 w-8 text-muted-foreground hover:text-qc-error opacity-0 group-hover:opacity-100 transition-opacity"
                                         onClick={() => deleteChurchNote(note.id)}
                                     >
                                         <Trash className="h-4 w-4" />
@@ -273,8 +273,8 @@ export function ChurchNotesClient({ initialNotes }: { initialNotes: ChurchNote[]
                                 )}
 
                                 {note.oneThing && (
-                                    <div className="p-3 bg-amber-50 rounded text-sm border border-amber-100">
-                                        <span className="font-semibold text-amber-700 block mb-1">🔥 One Thing:</span>
+                                    <div className="p-3 bg-qc-warning-bg rounded text-sm border border-qc-warning-border">
+                                        <span className="font-semibold text-qc-warning-text block mb-1 flex items-center gap-1"><Fire size={16} weight="fill" /> One Thing:</span>
                                         {note.oneThing}
                                     </div>
                                 )}

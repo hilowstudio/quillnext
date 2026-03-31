@@ -143,8 +143,8 @@ export async function generateLearningTool(
           // 3. Yield the final interactive component
           // Note: QuizCard would be a client component
           return (
-            <div className="rounded-qc-lg bg-white p-6 shadow-[0_10px_30px_rgba(10,8,6,0.12)] border border-qc-border-subtle/50">
-              <h3 className="font-display text-2xl font-bold text-qc-charcoal mb-4">
+            <div className="rounded-qc-lg bg-white p-6 shadow-qc-lg border border-qc-border-subtle/50">
+              <h3 className="font-display text-2xl font-bold text-qc-charcoal mb-4 text-balance">
                 {quizData.title}
               </h3>
               <div className="space-y-4">
@@ -218,8 +218,8 @@ export async function generateLearningTool(
           }
 
           return (
-            <div className="rounded-qc-lg bg-white p-6 shadow-[0_10px_30px_rgba(10,8,6,0.12)] border border-qc-border-subtle/50">
-              <h3 className="font-display text-2xl font-bold text-qc-charcoal mb-2">
+            <div className="rounded-qc-lg bg-white p-6 shadow-qc-lg border border-qc-border-subtle/50">
+              <h3 className="font-display text-2xl font-bold text-qc-charcoal mb-2 text-balance">
                 {worksheetData.title}
               </h3>
               <p className="font-body text-qc-text-muted mb-4">{worksheetData.instructions}</p>

@@ -112,7 +112,7 @@ export default function NewActivityPage() {
                 <Button variant="outline" asChild className="mb-4">
                     <Link href={`/courses/${courseId}/blocks/${blockId}`}>← Back to Lesson</Link>
                 </Button>
-                <h1 className="font-display text-3xl font-bold text-qc-charcoal mb-2">
+                <h1 className="font-display text-3xl font-bold text-qc-charcoal mb-2 text-balance">
                     Add Activity
                 </h1>
                 <p className="font-body text-qc-text-muted">

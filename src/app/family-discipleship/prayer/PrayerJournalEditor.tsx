@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { PrayerEntry, PrayerEntryInput } from '@/server/actions/prayer-journal';
@@ -45,6 +45,46 @@ export default function PrayerJournalEditor({
     const [tagInput, setTagInput] = useState('');
     const [category, setCategory] = useState(entry?.category || initialCategory || '');
     const [isPrivate, setIsPrivate] = useState(entry?.isPrivate || false);
+    const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
+    const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    // Auto-save: debounced save on content/metadata changes
+    const triggerAutoSave = useCallback(() => {
+        if (!isEditing || !editor) return;
+        if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+        autoSaveTimerRef.current = setTimeout(() => {
+            setSaveStatus('saving');
+            const data: PrayerEntryInput = {
+                title: title || 'Untitled Entry',
+                content: editor.getHTML(),
+                date: date,
+                tags: tags,
+                isPrivate: isPrivate,
+                category: category || null,
+            };
+            onSave(data);
+            setSaveStatus('saved');
+            setTimeout(() => setSaveStatus('idle'), 2000);
+        }, 1500);
+    }, [isEditing, editor, title, date, tags, isPrivate, category, onSave]);
+
+    // Watch metadata changes for auto-save
+    useEffect(() => {
+        if (isEditing && (entry || isCreating)) {
+            triggerAutoSave();
+        }
+        return () => {
+            if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+        };
+    }, [title, date, tags, isPrivate, category, triggerAutoSave, isEditing, entry, isCreating]);
+
+    // Watch editor content changes for auto-save
+    useEffect(() => {
+        if (!editor || !isEditing) return;
+        const handler = () => triggerAutoSave();
+        editor.on('update', handler);
+        return () => { editor.off('update', handler); };
+    }, [editor, isEditing, triggerAutoSave]);
 
     // TipTap Editor
     const editor = useEditor({
@@ -117,7 +157,7 @@ export default function PrayerJournalEditor({
     }
 
     return (
-        <div className="h-full flex flex-col bg-white rounded-qc-lg shadow-[0_10px_30px_rgba(10,8,6,0.12)] border border-qc-border-subtle/50 overflow-hidden">
+        <div className="h-full flex flex-col bg-white rounded-qc-lg shadow-qc-lg border border-qc-border-subtle/50 overflow-hidden">
             {/* Toolbar / Header */}
             <div className="p-4 border-b border-qc-border-subtle/50 flex flex-col gap-4 bg-qc-parchment/10">
                 {/* Top Row: Title & Actions */}
@@ -131,7 +171,7 @@ export default function PrayerJournalEditor({
                                 className="text-2xl font-display font-bold text-qc-primary border-transparent hover:border-qc-border-subtle focus:border-qc-primary bg-transparent p-0 h-auto placeholder:text-qc-primary/30"
                             />
                         ) : (
-                            <h1 className="text-2xl font-display font-bold text-qc-primary">
+                            <h1 className="text-2xl font-display font-bold text-qc-primary text-balance">
                                 {entry?.title || "Untitled Entry"}
                             </h1>
                         )}
@@ -162,6 +202,11 @@ export default function PrayerJournalEditor({
                                     <FloppyDisk className="w-4 h-4 mr-2" />
                                     Save
                                 </Button>
+                                {saveStatus !== 'idle' && (
+                                    <span aria-live="polite" className="text-xs text-qc-text-muted">
+                                        {saveStatus === 'saving' ? 'Saving...' : 'Saved'}
+                                    </span>
+                                )}
                                 <Button
                                     onClick={onCancel}
                                     variant="ghost"
@@ -247,7 +292,7 @@ export default function PrayerJournalEditor({
                             {tag}
                             {isEditing && (
                                 <X
-                                    className="w-3 h-3 cursor-pointer hover:text-red-500"
+                                    className="w-3 h-3 cursor-pointer hover:text-qc-error"
                                     onClick={() => removeTag(tag)}
                                 />
                             )}

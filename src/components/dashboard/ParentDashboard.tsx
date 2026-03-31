@@ -1,5 +1,5 @@
 import { getStudentAvatarUrl } from "@/lib/utils";
-
+import { MathOperations, NotePencil, Camera } from "@phosphor-icons/react/dist/ssr";
 import Image from "next/image";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -33,16 +33,16 @@ export function ParentDashboard({
     return (
         <div className="container mx-auto max-w-6xl px-4 py-8">
             <div className="mb-8 flex flex-col items-center text-center">
-                <h1 className="font-display text-4xl font-bold text-qc-charcoal mb-2">
+                <h1 className="font-display text-4xl font-bold text-qc-charcoal mb-2 text-balance">
                     {pageTitle}
                 </h1>
-                <p className="font-body text-lg text-qc-text-muted">
+                <p className="font-body text-lg text-qc-text-muted qc-prose">
                     Overview of your educational platform
                 </p>
             </div>
 
             {/* Daily Liturgy & Quick Actions */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+            <section aria-label="Daily overview" className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
                 {/* Active Liturgy Card */}
                 <Card className="lg:col-span-2 border-l-4 border-l-qc-primary shadow-md bg-gradient-to-br from-white to-qc-parchment">
                     <CardHeader className="pb-3">
@@ -53,7 +53,7 @@ export function ParentDashboard({
                         <div className="p-4 bg-qc-parchment rounded-lg border border-qc-border-subtle flex items-start justify-between">
                             <div>
                                 <span className="text-xs font-bold uppercase tracking-wider text-qc-text-muted">Morning Reading</span>
-                                <h3 className="font-display text-lg font-bold text-qc-charcoal mt-1">Psalm 23: The Shepherd</h3>
+                                <h3 className="font-display text-lg font-bold text-qc-charcoal mt-1 text-balance">Psalm 23: The Shepherd</h3>
                                 <p className="text-sm text-qc-text-muted mt-2">"The Lord is my shepherd; I shall not want..."</p>
                             </div>
                             <Button size="sm" asChild>
@@ -71,24 +71,25 @@ export function ParentDashboard({
                     <CardContent className="space-y-2">
                         <Button variant="outline" className="w-full justify-start gap-2 bg-white" asChild>
                             <Link href="/creation-station?sourceType=TOPIC&topicText=Math%20Quiz">
-                                <span className="text-lg">➗</span> Math Quiz
+                                <MathOperations size={20} /> Math Quiz
                             </Link>
                         </Button>
                         <Button variant="outline" className="w-full justify-start gap-2 bg-white" asChild>
                             <Link href="/creation-station?sourceType=TOPIC&topicText=Spelling%20List">
-                                <span className="text-lg">📝</span> Spelling List
+                                <NotePencil size={20} /> Spelling List
                             </Link>
                         </Button>
                         <Button variant="outline" className="w-full justify-start gap-2 bg-white" asChild>
                             <Link href="/living-library/scan">
-                                <span className="text-lg">📷</span> Scan Book
+                                <Camera size={20} /> Scan Book
                             </Link>
                         </Button>
                     </CardContent>
                 </Card>
-            </div>
+            </section>
 
             {/* Student Profiles Selection */}
+            <section aria-label="Student profiles">
             <Card className="mb-12 shadow-md border-qc-border-subtle bg-gradient-to-br from-white to-qc-parchment">
                 <CardHeader>
                     <CardTitle className="font-display text-2xl font-bold text-qc-charcoal">Who is learning today?</CardTitle>
@@ -101,11 +102,11 @@ export function ParentDashboard({
                     <StudentProfileSwitcher students={students} />
 
                     {studentsWithoutAssessment.length > 0 && (
-                        <div className="mt-8 p-3 bg-yellow-50/80 backdrop-blur-sm border border-yellow-200 rounded-qc-md text-center max-w-2xl mx-auto shadow-sm">
-                            <p className="font-body text-sm font-medium text-yellow-900 mb-1">
+                        <div className="mt-8 p-3 bg-qc-warning-bg/80 backdrop-blur-sm border border-qc-warning-border rounded-qc-md text-center max-w-2xl mx-auto shadow-qc-sm">
+                            <p className="font-body text-sm font-medium text-qc-warning-text mb-1">
                                 Pending Assessments
                             </p>
-                            <p className="font-body text-xs text-yellow-700 mb-2">
+                            <p className="font-body text-xs text-qc-warning-text mb-2">
                                 {studentsWithoutAssessment.length} student{studentsWithoutAssessment.length !== 1 ? "s need" : " needs"} personality assessment.
                             </p>
                             <div className="flex flex-wrap justify-center gap-2">
@@ -121,6 +122,7 @@ export function ParentDashboard({
                     )}
                 </CardContent>
             </Card>
+            </section>
 
             {/* Inkling Toolkit Navigation */}
             <Card className="mb-8 border-2 border-qc-primary/10 shadow-sm bg-gradient-to-br from-white to-qc-parchment">
@@ -161,7 +163,7 @@ export function ParentDashboard({
                 </Card>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <section aria-label="Recent activity" className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Recent Resources */}
                 <Card className="bg-gradient-to-br from-white to-qc-parchment">
                     <CardHeader>
@@ -265,7 +267,7 @@ export function ParentDashboard({
                         )}
                     </CardContent>
                 </Card>
-            </div>
+            </section>
         </div>
     );
 }

@@ -16,10 +16,10 @@ export default function NewStudentPage() {
         <Button variant="outline" asChild className="mb-4">
           <Link href="/students">← Back to Students</Link>
         </Button>
-        <h1 className="font-display text-4xl font-bold text-qc-charcoal mb-2">
+        <h1 className="font-display text-4xl font-bold text-qc-charcoal mb-2 text-balance">
           Add New Student
         </h1>
-        <p className="font-body text-qc-text-muted">
+        <p className="font-body text-qc-text-muted qc-prose">
           Add a student to enable personalized content generation
         </p>
       </div>

@@ -23,6 +23,8 @@ interface GeneratorFormProps {
     videoId?: string;
     articleId?: string;
     documentId?: string;
+    subject?: string;
+    readingLevel?: string;
   };
 }
 

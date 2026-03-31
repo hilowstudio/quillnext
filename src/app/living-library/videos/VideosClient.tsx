@@ -146,10 +146,10 @@ export default function VideosClient({ initialVideos, initialSubjects }: VideosC
         <div className="container mx-auto max-w-6xl px-4 py-8">
             <div className="mb-8 flex items-center justify-between">
                 <div>
-                    <h1 className="font-display text-4xl font-bold text-qc-charcoal mb-2">
+                    <h1 className="font-display text-4xl font-bold text-qc-charcoal mb-2 text-balance">
                         Video Resources
                     </h1>
-                    <p className="font-body text-qc-text-muted">
+                    <p className="font-body text-qc-text-muted qc-prose">
                         Add YouTube videos and extract educational content
                     </p>
                 </div>

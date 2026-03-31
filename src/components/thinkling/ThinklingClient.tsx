@@ -41,14 +41,14 @@ export function ThinklingClient({ students }: ThinklingClientProps) {
             {/* Header */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
-                    <h1 className="font-display text-4xl font-bold text-qc-charcoal mb-2 flex items-center gap-3">
+                    <h1 className="font-display text-4xl font-bold text-qc-charcoal mb-2 flex items-center gap-3 text-balance">
                         <Avatar className="h-12 w-12 rounded-none border-0">
                             <AvatarImage src="/assets/branding/Inkling.png" alt="Thinkling" />
                             <AvatarFallback><Lightbulb weight="duotone" className="text-qc-primary" /></AvatarFallback>
                         </Avatar>
                         Thinkling
                     </h1>
-                    <p className="font-body text-qc-text-muted">
+                    <p className="font-body text-qc-text-muted qc-prose">
                         Inkling, supercharged. Interact with your personalized assistant in three distinct modes.
                     </p>
                 </div>
