@@ -4,82 +4,19 @@ import React, { useState } from 'react';
 import { GraduationCap } from '@phosphor-icons/react/dist/ssr';
 import { cn } from "@/lib/utils";
 import InteractiveCatechism from './InteractiveCatechism';
-
-// Import catechism data
-import wscData from '@/data/catechisms/wsc';
-import westminsterLargerData from '@/data/catechisms/wlc';
-import baptistCatechism1695Data from '@/data/catechisms/baptist';
-import heidelbergCatechismData from '@/data/catechisms/heidelberg';
-import puritanCatechismData from '@/data/catechisms/puritan';
-import catechismForYoungChildrenData from '@/data/catechisms/young_children';
-import matthewHenryScriptureCatechismData from '@/data/catechisms/matthew_henry';
-
-interface CatechismConfig {
-    data: any;
-    title: string;
-    description: string;
-    questionCount: number;
-    difficulty: string;
-}
+import { getCatechismQuestions } from './actions';
+import type { CatechismSummary } from './types';
 
 interface CatechismManagerProps {
     studentId?: string;
+    catechisms: CatechismSummary[];
 }
 
-export function CatechismManager({ studentId }: CatechismManagerProps) {
-    const [assignedCatechism, setAssignedCatechism] = useState<CatechismConfig | null>(null);
-
-    const catechismConfig: Record<string, CatechismConfig> = {
-        'wsc': {
-            data: wscData,
-            title: 'Westminster Shorter Catechism',
-            description: 'Classic Reformed catechism with 107 questions',
-            questionCount: wscData.length,
-            difficulty: 'Intermediate'
-        },
-        'wlc': {
-            data: westminsterLargerData,
-            title: 'Westminster Larger Catechism',
-            description: 'Comprehensive Reformed catechism',
-            questionCount: westminsterLargerData.length,
-            difficulty: 'Advanced'
-        },
-        'baptist-1695': {
-            data: baptistCatechism1695Data,
-            title: 'Baptist Catechism (1695)',
-            description: 'Baptist adaptation of Westminster Shorter Catechism',
-            questionCount: baptistCatechism1695Data.length,
-            difficulty: 'Intermediate'
-        },
-        'heidelberg': {
-            data: heidelbergCatechismData,
-            title: 'Heidelberg Catechism',
-            description: 'Warm, pastoral guide to Reformed doctrine',
-            questionCount: heidelbergCatechismData.length,
-            difficulty: 'Intermediate'
-        },
-        'puritan': {
-            data: puritanCatechismData,
-            title: 'Puritan Catechism',
-            description: 'Practical Puritan teaching on Christian doctrine',
-            questionCount: puritanCatechismData.length,
-            difficulty: 'Intermediate'
-        },
-        'young-children': {
-            data: catechismForYoungChildrenData,
-            title: 'Catechism for Young Children',
-            description: 'Simplified catechism designed for children',
-            questionCount: catechismForYoungChildrenData.length,
-            difficulty: 'Beginner'
-        },
-        'matthew-henry': {
-            data: matthewHenryScriptureCatechismData,
-            title: 'Matthew Henry\'s Scripture Catechism',
-            description: 'Unique format with scripture proofs',
-            questionCount: matthewHenryScriptureCatechismData.length,
-            difficulty: 'Advanced'
-        }
-    };
+export function CatechismManager({ studentId, catechisms }: CatechismManagerProps) {
+    const [selected, setSelected] = useState<CatechismSummary | null>(null);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const [questions, setQuestions] = useState<any[] | null>(null);
+    const [loading, setLoading] = useState(false);
 
     // Color pattern using Tailwind classes/custom tokens
     const colorPattern = [
@@ -93,30 +30,34 @@ export function CatechismManager({ studentId }: CatechismManagerProps) {
         return colorPattern[index % colorPattern.length];
     };
 
-    const [assignedCatechismId, setAssignedCatechismId] = useState<string | null>(null);
-
-    const handleCatechismAssignment = (catechismId: string) => {
-        setAssignedCatechism(catechismConfig[catechismId]);
-        setAssignedCatechismId(catechismId);
+    const handleCatechismAssignment = async (catechism: CatechismSummary) => {
+        setSelected(catechism);
+        setQuestions(null);
+        setLoading(true);
+        try {
+            const qs = await getCatechismQuestions(catechism.id);
+            setQuestions(qs);
+        } finally {
+            setLoading(false);
+        }
     };
 
     return (
         <div className="space-y-8">
 
-
             {/* Catechism Selection - Carousel */}
             <div className="relative">
                 <div className="overflow-x-auto scrollbar-hide py-4 scroll-smooth">
                     <div className="flex gap-6 px-1">
-                        {Object.entries(catechismConfig).map(([id, config], index) => (
+                        {catechisms.map((config, index) => (
                             <div
-                                key={id}
+                                key={config.id}
                                 className={cn(
                                     "rounded-xl p-6 text-white shadow-lg cursor-pointer hover:shadow-xl transition-all duration-200 transform hover:scale-[1.02] min-w-[280px] md:min-w-[320px] flex-shrink-0 touch-manipulation min-h-[44px]",
                                     getCardColor(index),
-                                    assignedCatechism?.title === config.title ? 'ring-4 ring-offset-2 ring-qc-primary' : ''
+                                    selected?.id === config.id ? 'ring-4 ring-offset-2 ring-qc-primary' : ''
                                 )}
-                                onClick={() => handleCatechismAssignment(id)}
+                                onClick={() => handleCatechismAssignment(config)}
                             >
                                 <div className="flex items-center mb-4">
                                     <GraduationCap className="text-3xl" />
@@ -134,22 +75,28 @@ export function CatechismManager({ studentId }: CatechismManagerProps) {
             </div>
 
             {/* Interactive Catechism */}
-            {assignedCatechism ? (
+            {selected ? (
                 <div className="mt-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
                     <div className="p-6 bg-white/50 border border-qc-border-subtle rounded-xl mb-6 backdrop-blur-sm">
                         <h3 className="text-2xl font-bold text-qc-primary">
-                            {assignedCatechism.title}
+                            {selected.title}
                         </h3>
                         <p className="text-qc-text-muted mt-2">
                             Select a mode below to start practicing.
                         </p>
                     </div>
-                    <InteractiveCatechism
-                        catechismData={assignedCatechism.data}
-                        title={assignedCatechism.title}
-                        studentId={studentId}
-                        catechismId={assignedCatechismId}
-                    />
+                    {loading || !questions ? (
+                        <div className="mt-8 p-12 text-center bg-white/50 border border-qc-border-subtle rounded-xl text-qc-text-muted">
+                            <p className="text-lg font-medium">Loading questions…</p>
+                        </div>
+                    ) : (
+                        <InteractiveCatechism
+                            catechismData={questions}
+                            title={selected.title}
+                            studentId={studentId}
+                            catechismId={selected.id}
+                        />
+                    )}
                 </div>
             ) : (
                 <div className="mt-8 p-12 text-center bg-white/50 border border-dashed border-qc-border-subtle rounded-xl text-qc-text-muted">

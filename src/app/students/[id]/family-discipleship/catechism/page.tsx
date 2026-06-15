@@ -1,5 +1,6 @@
 import React from 'react';
 import { CatechismManager } from "@/app/family-discipleship/catechism/CatechismManager";
+import { getCatechisms } from "@/app/family-discipleship/catechism/actions";
 
 export default async function StudentCatechismPage({
     params,
@@ -7,6 +8,7 @@ export default async function StudentCatechismPage({
     params: Promise<{ id: string }>;
 }) {
     const { id } = await params;
+    const catechisms = await getCatechisms();
 
     return (
         <div className="container mx-auto p-6">
@@ -14,7 +16,7 @@ export default async function StudentCatechismPage({
                 <h1 className="text-3xl font-bold text-qc-primary font-display text-balance">Student Catechism</h1>
                 <p className="text-qc-text-muted">Tracking progress for this student</p>
             </div>
-            <CatechismManager studentId={id} />
+            <CatechismManager studentId={id} catechisms={catechisms} />
         </div>
     );
 }

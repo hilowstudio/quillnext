@@ -10,6 +10,8 @@ import { z } from "zod";
 
 import { models, AITaskType, getModelForTask } from "@/lib/ai/config";
 import { generateText } from "ai";
+import { db } from "@/server/db";
+import { bookName } from "@/lib/bible-books";
 
 // --- Types ---
 
@@ -41,13 +43,25 @@ interface ESVSearchResponse {
     results: ESVSearchResult[];
 }
 
+export interface CommentarySectionData {
+    sectionIndex: number;
+    title: string | null;
+    verseStart: number;
+    verseEnd: number;
+    html: string;
+}
+
 export interface CommentaryData {
     reference: string;
     book: string;
+    bookNumber: number;
     chapter: number;
     verse: number | null;
-    html: string;
-    fullChapter: boolean;
+    intro: string | null;
+    sections: CommentarySectionData[];
+    targetSectionIndex: number | null;
+    prevRef: string | null;
+    nextRef: string | null;
 }
 
 // --- Configuration ---
@@ -376,136 +390,73 @@ function parseBibleReference(reference: string) {
  * Loads and parses the Matthew Henry Commentary for a given reference.
  */
 export async function getCommentary(reference: string): Promise<CommentaryData | null> {
-    const session = await auth();
-    if (!session?.user) {
-        // Allow unauthenticated access if strictly necessary, but sticking to pattern
-        // throw new StandardError(ERROR_CODES.AUTHORIZATION.UNAUTHORIZED, "Unauthorized", 401);
-        // For read-only content like this, maybe lenient? Strict for now.
-    }
-
     const parsed = parseBibleReference(reference);
     if (!parsed) return null;
 
-    const volume = getMHCVolume(parsed.bookNumber);
-    if (!volume) return null;
+    const SOURCE = "matthew-henry";
+    const chapterRow = await db.commentaryChapter.findUnique({
+        where: { source_book_chapter: { source: SOURCE, book: parsed.bookNumber, chapter: parsed.chapter } },
+        include: { sections: { orderBy: { sectionIndex: "asc" } } },
+    });
+    if (!chapterRow) return null;
 
-    // Filename format: MHC + 2-digit book + 3-digit chapter.HTM
-    const bookStr = String(parsed.bookNumber).padStart(2, '0');
-    const chapterStr = String(parsed.chapter).padStart(3, '0');
-    const filename = `MHC${bookStr}${chapterStr}.HTM`;
-
-    // Path resolution
-    const dataDir = path.join(process.cwd(), 'src', 'server', 'data', 'Matthew-Henry-Commentary-Volumes');
-    const filePath = path.join(dataDir, volume, filename);
-
-    try {
-        const fileContent = await fs.readFile(filePath, 'utf-8');
-        let commentaryHTML = '';
-        const fullChapter = parsed.verse === null;
-
-        if (fullChapter) {
-            // Full chapter: Extract all paragraphs
-            const $ = cheerio.load(fileContent);
-            commentaryHTML = $('body').html() || '';
-            // Basic cleanup: remove navigation links if any
-            // The original loader extracted <P> tags. Let's do similar or better.
-            const paragraphs = $('p').toArray().map(p => $.html(p)).join('');
-            if (paragraphs) commentaryHTML = paragraphs; // Use paragraphs if found
-        } else {
-            // Specific verse: Extract relevant section
-            // Logic ported from matthewHenryLoader.js
-            const $ = cheerio.load(fileContent);
-
-            // Try explicit anchors first
-            // Common formats: "Joh3_16", "John3_16"
-            // We need to guess the book abbr used in anchors for THIS file.
-            // But actually, we can scan for anchors that *look* right.
-
-            // Simplified approach: Find paragraphs containing the verse number/reference
-            // This is "fuzzy" but robust enough for MVP without complex anchor maps
-            const verseNum = parsed.verse!;
-            const paragraphs = $('p').toArray();
-            let relevantParagraphs: string[] = [];
-            let capturing = false;
-
-            // Pattern for verse start like "v. 16" or "16" at start
-            const verseStartRegex = new RegExp(`^\\s*(?:v\\.|verse)?\\s*${verseNum}\\b`, 'i');
-            const nextVerseStartRegex = new RegExp(`^\\s*(?:v\\.|verse)?\\s*${verseNum + 1}\\b`, 'i');
-
-            // Also check for bold/strong content at start
-
-            for (const p of paragraphs) {
-                const text = $(p).text().trim();
-
-                // VERY basic heuristic (improve if needed based on real file structure)
-                // If we see the verse number explicitly mentioned as a start, start capturing
-                // Stop when we see next verse
-
-                // NOTE: The reference implementation logic was quite complex with anchor tags.
-                // Let's try to replicate the anchor finding if possible or fallback to text search.
-
-                // Let's implement the anchor search logic from reference
-                // "Joh3_16"
-                // Construct basic anchor
-                // We don't have the "bookAbbrev" map easily handy without copying it all.
-                // Text search fallback is safer for immediate implementation.
-
-                if (text.includes(`v. ${verseNum}`) || text.includes(`verse ${verseNum}`) || text.startsWith(`${verseNum} `)) {
-                    capturing = true;
-                }
-
-                if (capturing) {
-                    // Check if we moved to next verse
-                    if (text.includes(`v. ${verseNum + 1}`) || text.includes(`verse ${verseNum + 1}`) || text.startsWith(`${verseNum + 1} `)) {
-                        break;
-                    }
-                    relevantParagraphs.push($.html(p));
-                }
-            }
-
-            // If heuristics failed, return full chapter (better than nothing) or nothing?
-            // Let's default to full chapter if specific extraction fails, but mark it.
-            if (relevantParagraphs.length === 0) {
-                // Fallback: try finding anchor by fuzzy matching
-                const anchors = $(`a[name*="${parsed.chapter}_${verseNum}"], a[name*="${parsed.chapter}${verseNum}"]`);
-                if (anchors.length > 0) {
-                    // Found anchor, take subsequent paragraphs
-                    let current = anchors.first().parent(); // Usually inside a P or similar
-                    // This is getting tricky to do precisely without the full legacy logic.
-                    // Valid fallback: return full chapter but client scrolls to it?
-                    // Let's send full chapter for now if granular fails, client can handle.
-                    commentaryHTML = $('body').html() || '';
-                } else {
-                    commentaryHTML = "<div><em>Specific notes for this verse not found. Displaying full chapter introduction or checking context...</em></div>" + ($('body').html() || '');
-                }
-            } else {
-                commentaryHTML = relevantParagraphs.join('');
-            }
-        }
-
-        // Clean up HTML (styles, font tags)
-        // Simple regex replace for common old tags
-        commentaryHTML = commentaryHTML
-            .replace(/<FONT\s+[^>]*>/gi, '<span>')
-            .replace(/<\/FONT>/gi, '</span>')
-            .replace(/<B>/gi, '<strong>').replace(/<\/B>/gi, '</strong>')
-            .replace(/<I>/gi, '<em>').replace(/<\/I>/gi, '</em>')
-            .replace(/BGCOLOR="[^"]*"/gi, '')
-            .replace(/ALIGN="[^"]*"/gi, '');
-
-        return {
-            reference,
-            book: parsed.bookName,
-            chapter: parsed.chapter,
-            verse: parsed.verse,
-            html: commentaryHTML,
-            fullChapter
-        };
-
-    } catch (error) {
-        console.error("MHC Load Error:", error);
-        return null; // Return null to indicate no commentary found (client renders empty state)
+    // Which section covers the looked-up verse? (MH comments on verse groups.)
+    const verse = parsed.verse;
+    let targetSectionIndex: number | null = null;
+    if (verse !== null) {
+        const target = chapterRow.sections.find((s) => verse >= s.verseStart && verse <= s.verseEnd);
+        targetSectionIndex = target ? target.sectionIndex : null;
     }
+
+    // Prev/next chapter for navigation: within the book, falling back across book
+    // boundaries, using only chapters that actually exist.
+    const SELECT = { book: true, chapter: true } as const;
+    let prev =
+        parsed.chapter > 1
+            ? await db.commentaryChapter.findUnique({
+                  where: { source_book_chapter: { source: SOURCE, book: parsed.bookNumber, chapter: parsed.chapter - 1 } },
+                  select: SELECT,
+              })
+            : null;
+    if (!prev && parsed.bookNumber > 1) {
+        prev = await db.commentaryChapter.findFirst({
+            where: { source: SOURCE, book: parsed.bookNumber - 1 },
+            orderBy: { chapter: "desc" },
+            select: SELECT,
+        });
+    }
+    let next = await db.commentaryChapter.findUnique({
+        where: { source_book_chapter: { source: SOURCE, book: parsed.bookNumber, chapter: parsed.chapter + 1 } },
+        select: SELECT,
+    });
+    if (!next) {
+        next = await db.commentaryChapter.findFirst({
+            where: { source: SOURCE, book: parsed.bookNumber + 1 },
+            orderBy: { chapter: "asc" },
+            select: SELECT,
+        });
+    }
+    const refOf = (c: { book: number; chapter: number } | null) =>
+        c ? `${bookName(c.book)} ${c.chapter}` : null;
+
+    return {
+        reference,
+        book: bookName(parsed.bookNumber),
+        bookNumber: parsed.bookNumber,
+        chapter: parsed.chapter,
+        verse,
+        intro: chapterRow.intro,
+        sections: chapterRow.sections.map((s) => ({
+            sectionIndex: s.sectionIndex,
+            title: s.title,
+            verseStart: s.verseStart,
+            verseEnd: s.verseEnd,
+            html: s.html,
+        })),
+        targetSectionIndex,
+        prevRef: refOf(prev),
+        nextRef: refOf(next),
+    };
 }
 
 /**

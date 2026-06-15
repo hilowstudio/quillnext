@@ -1,5 +1,5 @@
 
-const JOSHUA_PROJECT_API_KEY = 'fb4a7f59843f';
+const JOSHUA_PROJECT_API_KEY = process.env.JOSHUA_PROJECT_API_KEY;
 const JOSHUA_PROJECT_BASE_URL = 'https://api.joshuaproject.net';
 
 export interface UnreachedPeopleGroup {

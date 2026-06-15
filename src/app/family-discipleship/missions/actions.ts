@@ -4,6 +4,7 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { fetchUnreachedOfTheDay } from '@/lib/joshua-project';
+import { db } from '@/server/db';
 
 // --- Types ---
 
@@ -50,40 +51,38 @@ export async function getOperationWorldStats(): Promise<OperationWorldStats | nu
 }
 
 /**
- * Gets counties for a specific state.
- * The source file is large (29MB), so we read and stream/filter it to avoid memory spikes.
+ * Gets counties for a specific state from the `counties` table.
+ * (Previously read+parsed the full 29MB counties_list.json on every request;
+ * now a single indexed query. Seeded via prisma/seed-counties.ts.)
  */
 export async function getCountiesForState(stateName: string): Promise<CountyData[]> {
     try {
-        const filePath = path.join(process.cwd(), 'src', 'server', 'data', 'counties_list.json');
-
-        // Since we can't easily stream-parse JSON without a library like 'stream-json' and we want to avoid new deps if possible,
-        // we will try reading it. 29MB is large but manageable for Node.js memory limits (usually 2GB+).
-        // If it causes issues, we can optimize later.
-        const fileContent = await fs.readFile(filePath, 'utf-8');
-        const allCounties: CountyData[] = JSON.parse(fileContent);
-
-        return allCounties.filter(county => county.State === stateName).sort((a, b) => a.County.localeCompare(b.County));
+        const rows = await db.county.findMany({
+            where: { state: stateName },
+            orderBy: { county: 'asc' },
+            select: { data: true },
+        });
+        // `data` holds the full original county record.
+        return rows.map((r) => r.data as unknown as CountyData);
     } catch (error) {
-        console.error('Error reading counties list:', error);
+        console.error('Error querying counties for state:', error);
         return [];
     }
 }
 
 /**
- * Gets the list of unique states from the counties dataset.
- * Caches the result if possible (Next.js request memoization helps here).
+ * Gets the list of unique states from the `counties` table.
  */
 export async function getAllStates(): Promise<string[]> {
     try {
-        const filePath = path.join(process.cwd(), 'src', 'server', 'data', 'counties_list.json');
-        const fileContent = await fs.readFile(filePath, 'utf-8');
-        const allCounties: CountyData[] = JSON.parse(fileContent);
-
-        const states = new Set(allCounties.map(c => c.State));
-        return Array.from(states).sort();
+        const rows = await db.county.findMany({
+            distinct: ['state'],
+            select: { state: true },
+            orderBy: { state: 'asc' },
+        });
+        return rows.map((r) => r.state);
     } catch (error) {
-        console.error('Error reading counties list for states:', error);
+        console.error('Error querying states:', error);
         return [];
     }
 }
