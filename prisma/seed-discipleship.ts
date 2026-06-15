@@ -1,20 +1,22 @@
 import 'dotenv/config';
 import { PrismaClient } from "../src/generated/client";
+import { PrismaPg } from "@prisma/adapter-pg";
+import { Pool } from "pg";
 import fs from 'fs';
 import path from 'path';
 
-// Create a Prisma client for seeding
+// Create a Prisma client for seeding (Prisma 7 requires a driver adapter).
 const createPrismaClient = () => {
-    const directUrl = process.env.DIRECT_DATABASE_URL;
-    if (directUrl) {
-        process.env.DATABASE_URL = directUrl;
-    }
+    const connectionString = process.env.DIRECT_DATABASE_URL || process.env.DATABASE_URL;
 
-    if (!process.env.DATABASE_URL) {
+    if (!connectionString) {
         throw new Error("DATABASE_URL or DIRECT_DATABASE_URL environment variable is required");
     }
 
-    return new PrismaClient();
+    const pool = new Pool({ connectionString, ssl: { rejectUnauthorized: false } });
+    const adapter = new PrismaPg(pool);
+
+    return new PrismaClient({ adapter });
 };
 
 const prisma = createPrismaClient();

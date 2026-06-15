@@ -1,10 +1,13 @@
 import "dotenv/config";
 import { PrismaClient } from "../src/generated/client";
+import { PrismaPg } from "@prisma/adapter-pg";
+import { Pool } from "pg";
 import fs from "fs";
 import path from "path";
-import yaml from "js-yaml";
 
-// Create a direct Prisma client for seeding
+// Create a direct Prisma client for seeding.
+// Prisma 7 requires a driver adapter (the bare `datasources` option no longer
+// connects); mirror src/server/db.ts so the seed uses the same pg adapter.
 const createPrismaClient = () => {
   const databaseUrl = process.env.DIRECT_DATABASE_URL || process.env.DATABASE_URL;
 
@@ -12,13 +15,13 @@ const createPrismaClient = () => {
     throw new Error("DATABASE_URL or DIRECT_DATABASE_URL environment variable is required");
   }
 
-  return new PrismaClient({
-    datasources: {
-      db: {
-        url: databaseUrl,
-      },
-    },
+  const pool = new Pool({
+    connectionString: databaseUrl,
+    ssl: { rejectUnauthorized: false },
   });
+  const adapter = new PrismaPg(pool);
+
+  return new PrismaClient({ adapter });
 };
 
 const prisma = createPrismaClient();
@@ -90,7 +93,10 @@ async function main() {
         }>;
       };
 
-      if (standards.subjects) {
+      const existingObjectiveCount = await prisma.objective.count();
+      if (existingObjectiveCount > 0) {
+        console.log(`  ↪ Spine already present (${existingObjectiveCount} objectives) — skipping spine reload.`);
+      } else if (standards.subjects) {
         for (const subject of standards.subjects) {
           // Map JSON "id" to database "code" (e.g., "ART" -> code)
           const subjectCode = subject.id || subject.code;
@@ -254,30 +260,47 @@ async function main() {
       let updatedCount = 0;
 
       if (sequenced.curriculum_sequence?.grade_levels) {
-        // Iterate through all grade levels
+        // Collect all (code, grade, complexity) tuples first, then apply them in
+        // chunked bulk `UPDATE ... FROM (VALUES ...)` statements. This replaces a
+        // per-objective updateMany loop (~26k transactional round-trips) that was
+        // slow and dropped the pooled Supabase connection mid-run.
+        const updates: Array<{ code: string; grade: number | null; complexity: number | null }> = [];
         for (const gradeLevelData of Object.values(sequenced.curriculum_sequence.grade_levels)) {
           if (gradeLevelData.subjects) {
-            // Iterate through all subjects in this grade level
             for (const subjectData of Object.values(gradeLevelData.subjects)) {
               if (subjectData.objectives) {
-                // Update each objective
                 for (const seqObj of subjectData.objectives) {
                   if (seqObj.objective_id) {
-                    const result = await prisma.objective.updateMany({
-                      where: { code: seqObj.objective_id },
-                      data: {
-                        gradeLevel: seqObj.grade ?? null,
-                        complexity: seqObj.complexity ?? null,
-                      },
+                    updates.push({
+                      code: seqObj.objective_id,
+                      grade: typeof seqObj.grade === "number" ? seqObj.grade : null,
+                      complexity: typeof seqObj.complexity === "number" ? seqObj.complexity : null,
                     });
-                    updatedCount += result.count;
                   }
                 }
               }
             }
           }
         }
-        console.log(`  ✓ Updated ${updatedCount} objectives with sequencing data`);
+
+        const CHUNK = 2000;
+        for (let i = 0; i < updates.length; i += CHUNK) {
+          const chunk = updates.slice(i, i + CHUNK);
+          const valuesSql = chunk
+            .map(
+              (u) =>
+                `('${u.code.replace(/'/g, "''")}', ${u.grade ?? "NULL"}::int, ${u.complexity ?? "NULL"}::int)`
+            )
+            .join(",");
+          const affected = await prisma.$executeRawUnsafe(
+            `UPDATE objectives AS o
+             SET "gradeLevel" = v.grade, complexity = v.complexity
+             FROM (VALUES ${valuesSql}) AS v(code, grade, complexity)
+             WHERE o.code = v.code;`
+          );
+          updatedCount += Number(affected);
+        }
+        console.log(`  ✓ Updated ${updatedCount} objectives with sequencing data (bulk)`);
       } else {
         console.warn("⚠️  Sequenced data structure not recognized. Skipping sequencing.");
       }
@@ -286,116 +309,10 @@ async function main() {
       console.warn("   Tried:", sequencedPaths);
     }
 
-    // 3. Load Content Types (The "Glue" - ResourceKind)
-    console.log("🔗 Loading generator content types...");
-    const yamlPaths = [
-      path.join(process.cwd(), "prisma", "data", "GENERATOR_CONTENT_TYPES.YAML"),
-      path.join(process.cwd(), "GENERATOR_CONTENT_TYPES.YAML"),
-    ];
-    const yamlPath = yamlPaths.find((p) => fs.existsSync(p));
-
-    if (!yamlPath || !fs.existsSync(yamlPath)) {
-      console.warn("⚠️  GENERATOR_CONTENT_TYPES.YAML not found. Skipping ResourceKind seeding.");
-      console.warn("   Tried:", yamlPaths);
-    } else {
-      const yamlRaw = fs.readFileSync(yamlPath, "utf-8");
-      const contentTypes = yaml.load(yamlRaw) as Record<
-        string,
-        {
-          generators?: Array<{
-            id: string;
-            label: string;
-            type?: string;
-            description?: string;
-          }>;
-        }
-      >;
-
-      let resourceKindCount = 0;
-
-      for (const [level1Key, level1Value] of Object.entries(contentTypes)) {
-        // level1Key could be a Subject Name ("Bible & Theology") or Strand Code ("BIB.1")
-        // level1Value is Record<string, string[]> -> { Subcategory: ["Item 1", "Item 2"] }
-
-        // Attempt to resolve to a Strand or Subject
-        let strandId: string | null = null;
-        let subjectId: string | null = null;
-
-        // 1. Try as Strand Code
-        const strand = await prisma.strand.findFirst({ where: { code: level1Key } });
-        if (strand) {
-          strandId = strand.id;
-          subjectId = strand.subjectId; // Optional: denormalize subjectId? Schema has subjectId on ResourceKind.
-        } else {
-          // 2. Try as Subject Name (since Level 1 keys in YAML are often Subject Names)
-          const subject = await prisma.subject.findFirst({ where: { name: level1Key } });
-          if (subject) {
-            subjectId = subject.id;
-          }
-        }
-
-        // If "Universal Tools & Templates", we leave strandId/subjectId as null (Global)
-
-        if (level1Value && typeof level1Value === 'object') {
-          for (const [subCategory, items] of Object.entries(level1Value as Record<string, string[]>)) {
-            if (Array.isArray(items)) {
-              for (const itemLabel of items) {
-                // Generate a stable code/id from the label
-                const code = itemLabel
-                  .toLowerCase()
-                  .replace(/[^a-z0-9]+/g, "-")
-                  .replace(/(^-|-$)/g, "");
-
-                // Determine Content Type based on keywords
-                let contentType: "WORKSHEET" | "TEMPLATE" | "PROMPT" | "GUIDE" | "QUIZ" | "RUBRIC" | "OTHER" = "OTHER";
-                const labelLower = itemLabel.toLowerCase();
-                if (labelLower.includes("worksheet") || labelLower.includes("sheet")) contentType = "WORKSHEET";
-                else if (labelLower.includes("template") || labelLower.includes("plan") || labelLower.includes("outline")) contentType = "TEMPLATE";
-                else if (labelLower.includes("prompt") || labelLower.includes("starter")) contentType = "PROMPT";
-                else if (labelLower.includes("guide") || labelLower.includes("summary") || labelLower.includes("analysis")) contentType = "GUIDE";
-                else if (labelLower.includes("quiz") || labelLower.includes("test")) contentType = "QUIZ";
-                else if (labelLower.includes("rubric")) contentType = "RUBRIC";
-
-                // Determine Vision Requirement
-                const visualKeywords = [
-                  "Visual", "Diagram", "Map", "Chart", "Sketching", "Drawing",
-                  "Art", "Picture", "Image", "Photo", "Video", "Film",
-                  "Observation", "Identification", "Labeling", "Timeline", "Graph"
-                ];
-                const requiresVision = visualKeywords.some(k => itemLabel.includes(k));
-
-                await prisma.resourceKind.upsert({
-                  where: { code },
-                  update: {
-                    label: itemLabel,
-                    description: `Generate a ${itemLabel} for ${subCategory}`,
-                    contentType,
-                    requiresVision,
-                    // Don't overwrite strandId/subjectId on update if it might have been manually set?
-                    // Actually, if we are re-seeding, we enforce the structure.
-                    strandId,
-                    subjectId,
-                  },
-                  create: {
-                    code,
-                    label: itemLabel,
-                    description: `Generate a ${itemLabel} for ${subCategory}`,
-                    contentType,
-                    strandId,
-                    subjectId,
-                    isSpecialized: !!(strandId || subjectId), // Specialized if attached to a domain
-                    requiresVision,
-                  },
-                });
-                resourceKindCount++;
-              }
-            }
-          }
-        }
-      }
-
-      console.log(`  ✓ Created/updated ${resourceKindCount} ResourceKind entries`);
-    }
+    // 3. ResourceKinds are seeded separately by `npm run db:seed:generators`
+    //    (prisma/seed-generator-content-types.ts) — underscore codes + hierarchical
+    //    strand linking + description/requiresVision. Intentionally NOT seeded here
+    //    to avoid re-introducing the old hyphen-coded duplicates.
 
     console.log("✅ Seed completed successfully!");
   } catch (error) {

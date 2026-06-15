@@ -11,18 +11,15 @@ import { Pool } from "pg";
 const BATCH_SIZE = 10; // Number of concurrent upserts
 const TIMEOUT_MS = 60000; // 60s timeout for script
 
-// Ensure DATABASE_URL is set
-// NOTE: We use DATABASE_URL (Transaction Pooler) because Direct connection (5432) is timing out.
-// Seeding data (DML) works fine over the pooler.
-if (!process.env.DATABASE_URL) {
+const connectionString = process.env.DIRECT_DATABASE_URL || process.env.DATABASE_URL;
+if (!connectionString) {
   console.error("❌ Error: DATABASE_URL or DIRECT_DATABASE_URL must be set.");
   process.exit(1);
 }
 
 // Instantiate Client with Adapter
-const url = new URL(process.env.DATABASE_URL);
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
+  connectionString,
   ssl: { rejectUnauthorized: false },
   connectionTimeoutMillis: 20000,
   idleTimeoutMillis: 20000,
@@ -39,6 +36,12 @@ async function main() {
   const startTime = Date.now();
 
   try {
+    // 0. Clear existing ResourceKinds, then rebuild from the YAML. Idempotent
+    //    re-seed (safe while no Resource/BookGeneratedMaterial rows reference them;
+    //    this is a provisioning seeder, not for a DB with generated content).
+    const removed = await prisma.resourceKind.deleteMany({});
+    console.log(`🧹 Cleared ${removed.count} existing ResourceKinds.`);
+
     // 1. Load YAML
     const yamlPaths = [
       path.join(process.cwd(), "prisma", "data", "GENERATOR_CONTENT_TYPES.YAML"),
@@ -153,6 +156,8 @@ async function main() {
 
           const code = slugify(genName);
           const contentType = inferContentType(genName);
+          const requiresVision = needsVision(genName);
+          const description = `Generate a ${genName} for ${strandKey}`;
 
           // Queue the operation
           operations.push(() =>
@@ -160,7 +165,9 @@ async function main() {
               where: { code },
               update: {
                 label: genName,
+                description,
                 contentType,
+                requiresVision,
                 strandId,
                 subjectId,
                 isSpecialized: !!(strandId || subjectId),
@@ -168,7 +175,9 @@ async function main() {
               create: {
                 code,
                 label: genName,
+                description,
                 contentType,
+                requiresVision,
                 strandId,
                 subjectId,
                 isSpecialized: !!(strandId || subjectId),
@@ -224,6 +233,15 @@ function inferContentType(name: string): "WORKSHEET" | "TEMPLATE" | "PROMPT" | "
   if (lower.includes("quiz") || lower.includes("test") || lower.includes("assessment")) return "QUIZ";
   if (lower.includes("rubric")) return "RUBRIC";
   return "OTHER";
+}
+
+function needsVision(name: string): boolean {
+  const visualKeywords = [
+    "Visual", "Diagram", "Map", "Chart", "Sketch", "Drawing", "Art", "Picture",
+    "Image", "Photo", "Video", "Film", "Observation", "Identification", "Labeling",
+    "Timeline", "Graph",
+  ];
+  return visualKeywords.some((k) => name.includes(k));
 }
 
 main();
