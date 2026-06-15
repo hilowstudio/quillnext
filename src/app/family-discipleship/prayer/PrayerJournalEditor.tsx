@@ -48,6 +48,38 @@ export default function PrayerJournalEditor({
     const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
     const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+    // TipTap Editor
+    const editor = useEditor({
+        extensions: [StarterKit],
+        content: entry?.content || '<p></p>',
+        editable: isEditing,
+        editorProps: {
+            attributes: {
+                class: 'prose prose-sm sm:prose lg:prose-lg xl:prose-xl focus:outline-none min-h-[300px] w-full',
+            },
+        },
+        immediatelyRender: false,
+    });
+
+    // Update editor content when entry changes or mode changes
+    useEffect(() => {
+        if (editor && entry) {
+            // Only update content if it's different to prevent cursor jumps, 
+            // though key prop on parent usually handles full remounts for simple cases
+            if (editor.getHTML() !== entry.content) {
+                editor.commands.setContent(entry.content);
+            }
+        } else if (editor && isCreating) {
+            // editor.commands.setContent('<p></p>');
+        }
+    }, [entry, editor, isCreating]);
+
+    useEffect(() => {
+        if (editor) {
+            editor.setEditable(isEditing);
+        }
+    }, [isEditing, editor]);
+
     // Auto-save: debounced save on content/metadata changes
     const triggerAutoSave = useCallback(() => {
         if (!isEditing || !editor) return;
@@ -85,38 +117,6 @@ export default function PrayerJournalEditor({
         editor.on('update', handler);
         return () => { editor.off('update', handler); };
     }, [editor, isEditing, triggerAutoSave]);
-
-    // TipTap Editor
-    const editor = useEditor({
-        extensions: [StarterKit],
-        content: entry?.content || '<p></p>',
-        editable: isEditing,
-        editorProps: {
-            attributes: {
-                class: 'prose prose-sm sm:prose lg:prose-lg xl:prose-xl focus:outline-none min-h-[300px] w-full',
-            },
-        },
-        immediatelyRender: false,
-    });
-
-    // Update editor content when entry changes or mode changes
-    useEffect(() => {
-        if (editor && entry) {
-            // Only update content if it's different to prevent cursor jumps, 
-            // though key prop on parent usually handles full remounts for simple cases
-            if (editor.getHTML() !== entry.content) {
-                editor.commands.setContent(entry.content);
-            }
-        } else if (editor && isCreating) {
-            // editor.commands.setContent('<p></p>');
-        }
-    }, [entry, editor, isCreating]);
-
-    useEffect(() => {
-        if (editor) {
-            editor.setEditable(isEditing);
-        }
-    }, [isEditing, editor]);
 
     // Handlers
     const handleSaveClick = () => {

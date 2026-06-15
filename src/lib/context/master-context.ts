@@ -362,7 +362,7 @@ export async function getStudentContext(
   organizationId: string,
 ): Promise<StudentContext | null> {
   // Precise select with proper typing
-  const studentSelect = Prisma.validator<Prisma.StudentSelect>()({
+  const studentSelect = {
     id: true,
     firstName: true,
     lastName: true,
@@ -435,7 +435,7 @@ export async function getStudentContext(
       take: 10,
       orderBy: { createdAt: "desc" },
     },
-  });
+  } satisfies Prisma.StudentSelect;
 
   const student = await db.student.findUnique({
     where: { id: studentId },
@@ -449,7 +449,7 @@ export async function getStudentContext(
   // Get current objectives from enrolled courses
   const courseIds = student.courseEnrollments.map((ce) => ce.courseId);
 
-  const objectiveSelect = Prisma.validator<Prisma.ObjectiveSelect>()({
+  const objectiveSelect = {
     id: true,
     code: true,
     text: true,
@@ -471,7 +471,7 @@ export async function getStudentContext(
         },
       },
     },
-  });
+  } satisfies Prisma.ObjectiveSelect;
 
   const currentObjectives = await db.objective.findMany({
     where: {
@@ -563,7 +563,7 @@ export async function getStudentContext(
 export async function getAcademicContext(
   objectiveId: string,
 ): Promise<AcademicContext | null> {
-  const objectiveSelect = Prisma.validator<Prisma.ObjectiveSelect>()({
+  const objectiveSelect = {
     id: true,
     code: true,
     text: true,
@@ -598,7 +598,7 @@ export async function getAcademicContext(
         },
       },
     },
-  });
+  } satisfies Prisma.ObjectiveSelect;
 
   const objective = await db.objective.findUnique({
     where: { id: objectiveId },
@@ -845,7 +845,7 @@ export async function getLibraryContext(
 export async function getScheduleContext(
   organizationId: string,
 ): Promise<ScheduleContext | null> {
-  const classroomSelect = Prisma.validator<Prisma.ClassroomSelect>()({
+  const classroomSelect = {
     id: true,
     schoolYearStartDate: true,
     schoolYearEndDate: true,
@@ -858,7 +858,7 @@ export async function getScheduleContext(
         name: true,
       },
     },
-  });
+  } satisfies Prisma.ClassroomSelect;
 
   const classroom = await db.classroom.findFirst({
     where: { organizationId },

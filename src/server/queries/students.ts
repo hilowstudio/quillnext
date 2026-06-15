@@ -7,7 +7,7 @@ import { getMasterContext } from "@/lib/context/master-context";
  * Precise select configuration for student queries
  * Only fetches fields that are actually displayed in the UI
  */
-const studentSelect = Prisma.validator<Prisma.StudentSelect>()({
+const studentSelect = {
     id: true,
     firstName: true,
     lastName: true,
@@ -97,13 +97,13 @@ const studentSelect = Prisma.validator<Prisma.StudentSelect>()({
         take: 5,
         orderBy: { createdAt: "desc" },
     },
-});
+} satisfies Prisma.StudentSelect;
 
 export type StudentWithRelations = Prisma.StudentGetPayload<{
     select: typeof studentSelect;
 }>;
 
-const objectiveSelect = Prisma.validator<Prisma.ObjectiveSelect>()({
+const objectiveSelect = {
     id: true,
     code: true,
     text: true,
@@ -138,13 +138,13 @@ const objectiveSelect = Prisma.validator<Prisma.ObjectiveSelect>()({
             },
         },
     },
-});
+} satisfies Prisma.ObjectiveSelect;
 
 export type ObjectiveWithRelations = Prisma.ObjectiveGetPayload<{
     select: typeof objectiveSelect;
 }>;
 
-const bookSelect = Prisma.validator<Prisma.BookSelect>()({
+const bookSelect = {
     id: true,
     title: true,
     authors: true,
@@ -163,7 +163,7 @@ const bookSelect = Prisma.validator<Prisma.BookSelect>()({
             code: true,
         },
     },
-});
+} satisfies Prisma.BookSelect;
 
 export type BookWithRelations = Prisma.BookGetPayload<{
     select: typeof bookSelect;

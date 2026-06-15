@@ -104,5 +104,42 @@ export async function POST(request: NextRequest) {
     }
   }
 
+  // Ingest to Hi-Low Studio content engine (if configured)
+  const hilowUrl = process.env.HILOW_INGEST_URL;
+  const hilowKey = process.env.HILOW_INGEST_KEY;
+  if (hilowUrl && hilowKey) {
+    try {
+      const authors = (data.authors || []) as string[];
+      const summary = (data.description || "") as string;
+      const res = await fetch(hilowUrl, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${hilowKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          source: "book",
+          raw_insight: `Book: "${data.title}"${authors.length ? ` by ${authors.join(", ")}` : ""}. ${summary.slice(0, 500)}`,
+          source_metadata: {
+            source_system: "quill_and_compass",
+            external_id: `book:${book.id}`,
+            title: data.title,
+            authors,
+            summary,
+            page_count: data.pageCount,
+            subjects: subject?.name ? [subject.name] : [],
+          },
+        }),
+      });
+      if (res.ok) {
+        console.log(`✅ Book ingested to Hi-Low (${res.status === 201 ? "created" : "exists"})`);
+      } else {
+        console.error("Hi-Low ingest failed:", res.status, await res.text());
+      }
+    } catch (error) {
+      console.error("Error ingesting to Hi-Low:", error);
+    }
+  }
+
   return NextResponse.json({ book });
 }

@@ -61,10 +61,7 @@ export async function exportUserData() {
       where: { organizationId: orgId ?? undefined },
       include: {
         learnerProfile: true,
-        courseProgress: {
-          include: { activityProgress: true },
-        },
-        assessmentAttempts: true,
+        courseProgress: true,
         courseEnrollments: {
           select: { courseId: true },
         },
@@ -77,11 +74,7 @@ export async function exportUserData() {
       include: {
         blocks: {
           include: {
-            activities: {
-              include: {
-                assessments: true,
-              },
-            },
+            activities: true,
           },
         },
       },
@@ -122,7 +115,6 @@ export async function exportUserData() {
     orgId
       ? db.transcript.findMany({
           where: { organizationId: orgId },
-          include: { entries: true },
         })
       : Promise.resolve([]),
 
