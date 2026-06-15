@@ -7,7 +7,7 @@ if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY && process.env.GEMINI_API_KEY) {
 
 // Model instances
 export const models = {
-  pro3: google("gemini-3-pro-preview"),
+  pro3: google("gemini-2.5-pro"), // was gemini-3-pro-preview (retired by Google ~2026-06; broke all generateObject paths)
   pro: google("gemini-2.5-pro"),
   flash: google("gemini-2.5-flash"),
   flashLite: google("gemini-2.5-flash-lite"),
