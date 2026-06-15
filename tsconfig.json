@@ -37,7 +37,8 @@
   ],
   "exclude": [
     "node_modules",
-    "prisma/seed.ts",
-    "family-discipleship-export"
+    "prisma/seed*.ts",
+    "family-discipleship-export",
+    "debug-connect.ts"
   ]
 }

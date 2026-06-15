@@ -9,6 +9,95 @@ datasource db {
   provider = "postgresql"
 }
 
+// US county reference data (community needs by county) for the "Neighbor Love"
+// discipleship feature. Backed by prisma/seed-counties.ts (source:
+// src/server/data/counties_list.json). `data` holds the full county record
+// (demographics, economy, issues/concerns, etc.); structured columns exist for
+// lookup/indexing so the feature no longer reads a 29MB file per request.
+model County {
+  id              String   @id @default(uuid())
+  state           String
+  county          String
+  fips            String?
+  populationTotal Int?     @map("population_total")
+  data            Json
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@unique([state, county])
+  @@index([state])
+  @@index([fips])
+  @@map("counties")
+}
+
+// Catechism content for the Family Discipleship catechism feature. Normalized
+// from the bundled TS datasets (src/data/catechisms/*) via prisma/seed-catechisms.ts.
+// `code` is the stable slug (e.g. "wsc", "matthew-henry") used as the catechismId
+// in StudentCatechismProgress, so those keys stay compatible.
+model Catechism {
+  id            String              @id @default(uuid())
+  code          String              @unique
+  title         String
+  description   String?
+  difficulty    String?
+  questionCount Int                 @default(0) @map("question_count")
+  sortOrder     Int                 @default(0) @map("sort_order")
+  questions     CatechismQuestion[]
+  createdAt     DateTime            @default(now()) @map("created_at")
+  updatedAt     DateTime            @updatedAt @map("updated_at")
+
+  @@map("catechisms")
+}
+
+// One row per top-level catechism question. `data` holds the full original
+// question object (question, answer, proofTexts, nested subQuestions) so the
+// client renders/flattens it exactly as it did from the bundled data.
+model CatechismQuestion {
+  id          String    @id @default(uuid())
+  catechismId String    @map("catechism_id")
+  catechism   Catechism @relation(fields: [catechismId], references: [id], onDelete: Cascade)
+  number      String?
+  sortOrder   Int       @map("sort_order")
+  data        Json
+
+  @@unique([catechismId, sortOrder])
+  @@index([catechismId])
+  @@map("catechism_questions")
+}
+
+// Bible commentary (Matthew Henry) normalized from the .HTM volumes in
+// src/server/data/Matthew-Henry-Commentary-Volumes via prisma/seed-commentary.ts.
+// Stored as verse-range sections so the bible-study UI can land on the section
+// covering a looked-up verse instead of dumping the whole chapter.
+model CommentaryChapter {
+  id        String              @id @default(uuid())
+  source    String              @default("matthew-henry")
+  book      Int
+  chapter   Int
+  title     String?
+  intro     String? // chapter overview HTML (MH's outline)
+  sections  CommentarySection[]
+  createdAt DateTime            @default(now()) @map("created_at")
+
+  @@unique([source, book, chapter])
+  @@index([source, book])
+  @@map("commentary_chapters")
+}
+
+model CommentarySection {
+  id           String            @id @default(uuid())
+  chapterId    String            @map("chapter_id")
+  chapter      CommentaryChapter @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  sectionIndex Int               @map("section_index")
+  verseStart   Int               @map("verse_start")
+  verseEnd     Int               @map("verse_end")
+  title        String?
+  html         String
+
+  @@unique([chapterId, sectionIndex])
+  @@map("commentary_sections")
+}
+
 
 model Organization {
   id             String                @id @default(uuid())
@@ -700,6 +789,7 @@ model CurriculumBundle {
   feedback        String?        // The defect report/feedback that triggered this build
   
   status          String   // "COMPILING", "COMPLETED", "FAILED"
+  failureReason   String?        @map("failure_reason") // populated on FAILED (truncated worker error)
   resources Resource[]
   createdAt DateTime       @default(now()) @map("created_at")
 

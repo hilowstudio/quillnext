@@ -11,11 +11,7 @@ const nextConfig = {
       bodySizeLimit: '2mb',
     },
   },
-  serverExternalPackages: [
-    path.join(__dirname, 'src', 'generated', 'client'),
-  ],
-  // Transpile Prisma Client to handle TypeScript files in node_modules
-  transpilePackages: [],
+  serverExternalPackages: [],
   images: {
     remotePatterns: [
       {

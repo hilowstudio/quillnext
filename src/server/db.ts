@@ -1,13 +1,14 @@
 import { PrismaClient } from "@/generated/client";
 import { PrismaPg } from "@prisma/adapter-pg";
-import { Pool } from "pg";
 
 const createPrismaClient = () => {
-  const pool = new Pool({
+  // Pass a PoolConfig (not a pre-built pg.Pool) so the adapter creates its own
+  // pool — avoids a dual @types/pg version conflict between the root types and
+  // the copy nested under @prisma/adapter-pg.
+  const adapter = new PrismaPg({
     connectionString: process.env.DATABASE_URL,
     ssl: { rejectUnauthorized: false },
   });
-  const adapter = new PrismaPg(pool);
 
   const client = new PrismaClient({
     adapter,
