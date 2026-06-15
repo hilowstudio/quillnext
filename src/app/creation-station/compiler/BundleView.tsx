@@ -5,10 +5,12 @@ import { Badge } from "@/components/ui/badge";
 import { CircleNotch, CheckCircle, WarningCircle, FileText, FilePdf, Presentation } from "@phosphor-icons/react";
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
+import { CURRICULUM_KIND_CODES } from "@/lib/constants/curriculum-kinds";
 
 interface Bundle {
     id: string;
     status: string;
+    failureReason?: string | null;
     createdAt: Date;
     spec: {
         title: string;
@@ -73,6 +75,11 @@ export function BundleView({ bundles }: BundleViewProps) {
                             </div>
                         </CardHeader>
                         <CardContent>
+                            {bundle.status === "FAILED" && bundle.failureReason && (
+                                <div className="mb-3 text-sm text-red-800 bg-red-50 border border-red-200 rounded-md p-3">
+                                    <span className="font-semibold">Compile failed:</span> {bundle.failureReason}
+                                </div>
+                            )}
                             <div className="flex flex-col gap-2">
                                 <span className="text-sm font-medium text-muted-foreground uppercase tracking-wider text-xs">Artifacts</span>
                                 <div className="flex flex-wrap gap-2">
@@ -171,10 +178,10 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 function ArtifactIcon({ code }: { code: string }) {
-    if (code === "TEACHER_GUIDE") return <FileText className="text-blue-500" />;
-    if (code === "STUDENT_PACKET") return <FilePdf className="text-red-500" />;
-    if (code === "SLIDES") return <Presentation className="text-orange-500" />;
-    if (code === "READING_ANTHOLOGY") return <FileText className="text-purple-500" />;
-    if (code === "ORGANIZERS") return <FileText className="text-teal-500" />;
+    if (code === CURRICULUM_KIND_CODES.TEACHER_GUIDE) return <FileText className="text-blue-500" />;
+    if (code === CURRICULUM_KIND_CODES.STUDENT_PACKET) return <FilePdf className="text-red-500" />;
+    if (code === CURRICULUM_KIND_CODES.SLIDES) return <Presentation className="text-orange-500" />;
+    if (code === CURRICULUM_KIND_CODES.READING_ANTHOLOGY) return <FileText className="text-purple-500" />;
+    if (code === CURRICULUM_KIND_CODES.GRAPHIC_ORGANIZERS) return <FileText className="text-teal-500" />;
     return <FileText className="text-qc-text-muted" />;
 }

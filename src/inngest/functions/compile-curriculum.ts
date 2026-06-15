@@ -1,13 +1,83 @@
 import { inngest } from "@/inngest/client";
 import { db } from "@/server/db";
-import { generateResource } from "@/app/actions/generate-resource";
+import { generateResourceCore } from "@/app/actions/generate-resource-core";
 import { NonRetriableError } from "inngest";
+import { generateObject } from "ai";
+import { z } from "zod";
+import { models } from "@/lib/ai/config";
+import { createHash } from "crypto";
+
+// Structured verdict the verification gate asks the model to return after reading
+// the ACTUAL generated artifacts (not a free-text guess about content it never saw).
+const VerificationVerdictSchema = z.object({
+    releaseRecommended: z.boolean().describe("False ONLY for a severe, clearly release-blocking problem."),
+    readingLevelOk: z.boolean(),
+    durationCoverageOk: z.boolean().describe("Does the Teacher Guide plausibly cover the required number of days?"),
+    grayscaleSafe: z.boolean().describe("Do the materials avoid relying on color alone to convey meaning?"),
+    summary: z.string().describe("One or two sentence overall QA summary."),
+    defects: z.array(
+        z.object({
+            artifact: z.string(),
+            severity: z.enum(["critical", "major", "minor"]),
+            issue: z.string(),
+            recommendation: z.string(),
+        }),
+    ),
+});
+
+function sha256(input: string): string {
+    return createHash("sha256").update(input, "utf8").digest("hex");
+}
+
+// Resource content is stored as { markdown } for text artifacts, or a structured
+// object for JSON artifacts. Return the meaningful text for hashing/review.
+function extractContentText(storageType: string, content: unknown): string {
+    if (content == null) return "";
+    if (storageType === "MARKDOWN" && typeof content === "object" && content !== null && "markdown" in content) {
+        const md = (content as { markdown?: unknown }).markdown;
+        if (typeof md === "string") return md;
+    }
+    return typeof content === "string" ? content : JSON.stringify(content);
+}
 
 export const compileCurriculum = inngest.createFunction(
-    { id: "compile-curriculum" },
+    {
+        id: "compile-curriculum",
+        // Inngest runs this after retries are exhausted. Mark the bundle FAILED so it
+        // doesn't hang on COMPILING, and record why. (`event` here is the
+        // inngest/function.failed event; the original trigger is at event.data.event.)
+        onFailure: async ({ event, error }) => {
+            const bundleId = ((event as any)?.data?.event?.data as { bundleId?: string } | undefined)?.bundleId;
+            if (!bundleId) return;
+            const failureReason = (error instanceof Error ? error.message : String(error ?? "Unknown error")).slice(0, 1000);
+            await db.curriculumBundle
+                .update({ where: { id: bundleId }, data: { status: "FAILED", failureReason } })
+                .catch((e) => console.error("[compile-curriculum onFailure] failed to mark bundle FAILED", e));
+        },
+    },
     { event: "curriculum/compile" },
     async ({ event, step, logger }) => {
         const { bundleId, specId, organizationId, userId } = event.data;
+
+        // Inngest workers have no request session, so call the session-less core
+        // directly with the org/user carried on the event (verified when enqueued).
+        // Local adapter keeps the positional call sites below unchanged.
+        const generateResource = (
+            sourceId: string,
+            sourceType: "TOPIC",
+            resourceKindId: string,
+            instructions: string,
+            additionalData: { topicText?: string },
+        ) =>
+            generateResourceCore({
+                organizationId,
+                userId,
+                sourceId,
+                sourceType,
+                resourceKindId,
+                instructions,
+                additionalData,
+            });
 
         // 1. Fetch Spec & Bundle
         const { spec, bundle } = await step.run("fetch-context", async () => {
@@ -174,70 +244,136 @@ export const compileCurriculum = inngest.createFunction(
         });
 
         // 7. Verification Gate (Studio 26 Validation)
-        await step.run("run-verification-gate", async () => {
-            // This simulates the "Preflight Check"
-            // In a full implementation, we would read the TG and SP content and use an LLM to compare them.
-            // For this MVP, we will generate a "Manifest" resource that acts as the proof.
+        // A real preflight check: hash every artifact for integrity, read the ACTUAL
+        // generated content, have the model judge it against the spec, persist a
+        // computed Release Manifest, and return a gate decision finalize must honor.
+        const verification = await step.run("run-verification-gate", async () => {
+            const manifestKind = await db.resourceKind.findFirst({ where: { code: "release_manifest" } });
 
-            const kind = await db.resourceKind.findFirst({ where: { code: "article" } }); // Using ARTICLE for the report/manifest
-            if (!kind) return;
+            // Pull every generated artifact (excluding any prior manifest) with its real content.
+            const artifacts = await db.resource.findMany({
+                where: {
+                    curriculumBundleId: bundleId,
+                    resourceKind: { code: { not: "release_manifest" } },
+                },
+                select: {
+                    id: true,
+                    storageType: true,
+                    content: true,
+                    resourceKind: { select: { code: true, label: true } },
+                },
+            });
 
-            const manifestData = {
+            // Real integrity: SHA-256 over each artifact's actual content + its byte size.
+            const artifactReport = artifacts.map((a) => {
+                const text = extractContentText(a.storageType, a.content);
+                return {
+                    type: a.resourceKind.label,
+                    code: a.resourceKind.code,
+                    resourceId: a.id,
+                    storageType: a.storageType,
+                    bytes: Buffer.byteLength(text, "utf8"),
+                    sha256: text ? sha256(text) : null,
+                };
+            });
+
+            const byCode = (code: string) => artifacts.find((a) => a.resourceKind.code === code);
+            const tg = byCode("teacher_guide");
+            const sp = byCode("student_packet");
+            const tgText = tg ? extractContentText(tg.storageType, tg.content) : "";
+            const spText = sp ? extractContentText(sp.storageType, sp.content) : "";
+
+            // Structural gate: the core artifacts must exist AND be non-trivial.
+            const MIN_CHARS = 200;
+            const structural = {
+                teacherGuidePresent: tgText.length >= MIN_CHARS,
+                studentPacketPresent: spText.length >= MIN_CHARS,
+            };
+
+            // Qualitative gate: judge the REAL content against the spec. Fault-tolerant —
+            // if the model call fails, qualitative QA is marked unavailable and does NOT block.
+            let qa: Record<string, unknown>;
+            let qaBlocking = false;
+            try {
+                const { object } = await generateObject({
+                    model: models.pro3,
+                    schema: VerificationVerdictSchema,
+                    system:
+                        "You are a meticulous curriculum QA reviewer. Judge ONLY the provided artifact content against the spec. " +
+                        "Set releaseRecommended=false ONLY for a severe, clearly release-blocking problem (off-topic content, " +
+                        "wildly wrong reading level, or a violated hard constraint). Minor or stylistic issues must NOT block release.",
+                    prompt:
+                        `SPEC\n` +
+                        `Subject: ${spec.subject}\nTopic: ${spec.topic}\nReading level: ${spec.readingLevel}\n` +
+                        `Duration (days): ${spec.durationDays}\nConstraints: ${JSON.stringify(spec.constraints)}\n\n` +
+                        `ARTIFACTS PRESENT: ${artifacts.map((a) => a.resourceKind.label).join(", ") || "none"}\n\n` +
+                        `--- TEACHER GUIDE (truncated) ---\n${tgText.slice(0, 8000) || "[MISSING]"}\n\n` +
+                        `--- STUDENT PACKET (truncated) ---\n${spText.slice(0, 6000) || "[MISSING]"}\n\n` +
+                        `Evaluate: reading-level fit, whether the Teacher Guide plausibly covers ${spec.durationDays} day(s), ` +
+                        `grayscale safety (no reliance on color alone), adherence to the constraints, and overall release readiness.`,
+                });
+                qa = object;
+                qaBlocking = object.releaseRecommended === false;
+            } catch (err) {
+                qa = { unavailable: true, error: err instanceof Error ? err.message : String(err) };
+            }
+
+            const blockingReasons: string[] = [];
+            if (!structural.teacherGuidePresent) blockingReasons.push("Teacher Guide missing or empty");
+            if (!structural.studentPacketPresent) blockingReasons.push("Student Packet missing or empty");
+            if (qaBlocking) blockingReasons.push(typeof qa.summary === "string" ? qa.summary : "Failed qualitative QA review");
+
+            const gatePassed = blockingReasons.length === 0;
+
+            const manifest = {
+                schemaVersion: 1,
                 buildId: bundleId,
-                timestamp: new Date().toISOString(),
+                generatedAt: new Date().toISOString(),
                 spec: {
                     subject: spec.subject,
                     topic: spec.topic,
-                    level: spec.readingLevel,
-                    constraints: spec.constraints
+                    readingLevel: spec.readingLevel,
+                    durationDays: spec.durationDays,
+                    constraints: spec.constraints,
                 },
-                artifacts: [
-                    { type: "Teacher Guide", id: tgResource.id, integrity: "SHA256-PENDING" },
-                    { type: "Student Packet", id: spResource?.id, integrity: "SHA256-PENDING" },
-                    { type: "Reading Anthology", id: raResource?.id, integrity: "SHA256-PENDING" },
-                    { type: "Organizers", id: coResource?.id, integrity: "SHA256-PENDING" }
-                ],
-                defects: [] // Placeholder for defect log
+                artifacts: artifactReport,
+                checks: { ...structural, structuralPassed: structural.teacherGuidePresent && structural.studentPacketPresent },
+                qa,
+                gate: { result: gatePassed ? "PASS" : "FAIL", blockingReasons },
             };
 
-            const verificationPrompt = `
-                Perform a QA check on the generated ${spec.subject} curriculum.
-                1. Verify that the Student Packet adheres to the constraint: ${spec.constraints ? JSON.stringify(spec.constraints) : 'None'}.
-                2. Confirm that the Teacher Guide covers ${spec.durationDays} days.
-                3. GRAYSCALE COMPATIBILITY CHECK: Analyze the Slides and Organizers. Do they rely on color for meaning? If so, flag as a defect.
-                4. Return the following JSON manifest with your QA notes added to the 'defects' array if any issues found:
-                ${JSON.stringify(manifestData, null, 2)}
-             `;
-
-            const result = await generateResource(
-                specId,
-                "TOPIC",
-                kind.id,
-                verificationPrompt,
-                {
-                    topicText: `RELEASE MANIFEST: ${spec.subject} - ${spec.topic}`
-                }
-            );
-
-            if (result.success && result.resourceId) {
-                await db.resource.update({
-                    where: { id: result.resourceId },
+            // Persist the computed manifest as the release_manifest resource.
+            if (manifestKind) {
+                await db.resource.create({
                     data: {
+                        organizationId,
+                        createdByUserId: userId,
+                        resourceKindId: manifestKind.id,
+                        title: "Release Manifest & QA Report",
+                        description: `Verification gate: ${gatePassed ? "PASS" : "FAIL"}`,
+                        storageType: "JSON",
+                        content: manifest as object,
                         curriculumBundleId: bundleId,
-                        title: "Release Manifest & QA Report"
-                    }
+                    },
                 });
             }
+
+            const summary = gatePassed
+                ? (typeof qa.summary === "string" ? qa.summary : "All checks passed.")
+                : blockingReasons.join("; ");
+            return { gatePassed, summary };
         });
 
-        // 6. Finalize Bundle
+        // 8. Finalize Bundle — honor the gate decision.
         await step.run("finalize-bundle", async () => {
             await db.curriculumBundle.update({
                 where: { id: bundleId },
-                data: { status: "COMPLETED" }
+                data: verification.gatePassed
+                    ? { status: "COMPLETED", failureReason: null }
+                    : { status: "FAILED", failureReason: `Verification gate failed: ${verification.summary}`.slice(0, 1000) },
             });
         });
 
-        return { success: true, bundleId };
+        return { success: true, bundleId, verified: verification.gatePassed };
     }
 );

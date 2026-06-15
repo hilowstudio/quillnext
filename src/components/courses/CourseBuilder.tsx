@@ -41,11 +41,7 @@ import { ResourceKind, Book, VideoResource as Video, Article, DocumentResource }
 import { SpecForm } from "@/app/creation-station/compiler/SpecForm";
 import { compileCurriculumAction } from "@/app/actions/compile-curriculum-action";
 
-// Stub for toast since no library is installed
-const toast = {
-    error: (msg: string) => console.error(msg),
-    success: (msg: string) => console.log(msg),
-};
+import { toast } from "sonner";
 
 interface Block {
     id: string;
@@ -703,7 +699,7 @@ export function CourseBuilder({ courseId, organizationId, initialBlocks, availab
                         }
                     } catch (e) {
                         console.error(e);
-                        toast.error("Failed to add unit");
+                        toast.error(e instanceof Error ? e.message : "Failed to add unit");
                     } finally {
                         setIsSaving(false);
                     }

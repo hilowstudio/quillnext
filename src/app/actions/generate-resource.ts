@@ -2,258 +2,41 @@
 
 import { auth } from "@/auth";
 import { getCurrentUserOrg } from "@/lib/auth-helpers";
-import { db } from "@/server/db";
-import { getPlaylistDetails } from "@/app/actions/youtube-actions";
-import { models } from "@/lib/ai/config";
-import { generateText, tool } from "ai";
 import { revalidatePath } from "next/cache";
-import { PHILOSOPHY_PROMPTS } from "@/lib/constants/educational-philosophies";
-import { EducationalPhilosophy } from "@/generated/client";
-import { PromptBuilder } from "@/lib/ai/prompt-builder";
-import { z } from "zod";
-import { generateNanoBananaImage } from "@/lib/services/image-generation";
-import { generateObject } from "ai";
-import { QuizSchema, WorksheetSchema } from "@/lib/ai/schemas";
+import { generateResourceCore, type GenerateResourceCoreParams } from "./generate-resource-core";
 
-// Helper to determine ingestion tier (deprecated, using DB flag)
-
+/**
+ * Browser-facing entry point (Server Action): authenticates the caller, resolves
+ * their organization, then delegates to the session-less `generateResourceCore`.
+ * Background jobs (the Inngest curriculum compiler) call `generateResourceCore`
+ * directly with an org/user that was already verified when the job was enqueued.
+ *
+ * Signature is unchanged from the original positional form so existing callers
+ * (Creation Station, etc.) work without modification.
+ */
 export async function generateResource(
     sourceId: string,
-    sourceType: "BOOK" | "VIDEO" | "COURSE" | "TOPIC" | "URL" | "FILE" | "YOUTUBE_PLAYLIST",
+    sourceType: GenerateResourceCoreParams["sourceType"],
     resourceKindId: string,
     instructions?: string,
-    additionalData?: {
-        topicText?: string;
-        url?: string;
-        fileContent?: string;
-        fileName?: string;
-        studentId?: string;
-    }
+    additionalData?: GenerateResourceCoreParams["additionalData"],
 ) {
     const session = await auth();
-    if (!session?.user) throw new Error("Unauthorized");
+    if (!session?.user?.id) throw new Error("Unauthorized");
 
-    const { organizationId } = await getCurrentUserOrg();
+    const { organizationId } = await getCurrentUserOrg(session);
     if (!organizationId) throw new Error("No organization found");
 
-    // 1. Fetch Resource Kind (Template/Prompt)
-    const kind = await db.resourceKind.findUnique({
-        where: { id: resourceKindId },
-        select: {
-            id: true,
-            label: true,
-            description: true,
-            contentType: true,
-            requiresVision: true,
-        }
-    });
-    if (!kind) throw new Error("Resource Kind not found");
-
-    // 1b. Fetch User's Classroom Context for Persona (Philosophy & Faith)
-    // We try to find a classroom created by this user to determine their style.
-    const classroom = await db.classroom.findFirst({
-        where: { createdByUserId: session.user.id },
-    });
-
-    // 1c. Fetch Student Context if provided
-    let student = null;
-    if (additionalData?.studentId) {
-        student = await db.student.findUnique({
-            where: { id: additionalData.studentId },
-        });
-    }
-
-
-    const ingestionTier = kind.requiresVision ? "DEEP_VISION" : "TEXT_ONLY";
-
-    // 2. Fetch Source Content & Configure Model
-    let context = "";
-    let sourceTitle = "";
-    let bookId: string | undefined;
-    let videoId: string | undefined;
-    let genContext: any = undefined;
-    let modelToUse = models.flash;
-    let tools: any = {};
-
-    if (sourceType === "BOOK") {
-        // ... (existing book logic) ...
-        const book = await db.book.findUnique({
-            where: { id: sourceId },
-            select: { title: true, summary: true, tableOfContents: true, organizationId: true },
-        });
-        if (!book || book.organizationId !== organizationId) throw new Error("Book not found");
-
-        context = `Book Title: ${book.title}\nSummary: ${book.summary || "N/A"}`;
-        if (book.tableOfContents) {
-            context += `\nTable of Contents: ${JSON.stringify(book.tableOfContents)}`;
-        }
-        sourceTitle = book.title || "Untitled Book";
-        bookId = sourceId;
-    } else if (sourceType === "VIDEO") {
-        // ... (existing video logic) ...
-        const video = await db.videoResource.findUnique({
-            where: { id: sourceId },
-            select: { title: true, extractedSummary: true, extractedKeyPoints: true, organizationId: true },
-        });
-        if (!video || video.organizationId !== organizationId) throw new Error("Video not found");
-
-        context = `Video Title: ${video.title}\nSummary: ${video.extractedSummary || "N/A"}`;
-        if (video.extractedKeyPoints) {
-            context += `\nKey Points: ${JSON.stringify(video.extractedKeyPoints)}`;
-        }
-        sourceTitle = video.title || "Untitled Video";
-        videoId = sourceId;
-    } else if (sourceType === "COURSE") {
-        // ... (existing course logic) ...
-        const course = await db.course.findUnique({
-            where: { id: sourceId },
-            select: {
-                title: true,
-                description: true,
-                organizationId: true,
-            },
-        });
-        if (!course || course.organizationId !== organizationId) throw new Error("Course not found");
-
-        const blocks = await db.courseBlock.findMany({
-            where: { courseId: sourceId },
-            orderBy: { position: "asc" },
-            select: { title: true, description: true, kind: true }
-        });
-
-        context = `Course Title: ${course.title}\nDescription: ${course.description || "N/A"}`;
-        if (blocks.length > 0) {
-            context += `\nCourse Structure:\n${blocks.map(b => `- [${b.kind}] ${b.title}: ${b.description || ""}`).join("\n")}`;
-        }
-        sourceTitle = course.title;
-        genContext = { source: "COURSE", courseId: sourceId };
-    } else if (sourceType === "TOPIC") {
-        // ... (existing topic logic) ...
-        context = `Topic/Objective: ${additionalData?.topicText || sourceId}`;
-        sourceTitle = (additionalData?.topicText || sourceId).substring(0, 50);
-        genContext = { source: "TOPIC", topic: additionalData?.topicText || sourceId };
-    } else if (sourceType === "URL") {
-        // ... (existing url logic) ...
-        const url = additionalData?.url || sourceId;
-        context = `Web Article URL: ${url}\n(Note: AI will attempt to access knowledge about this URL or generate based on the topic inferred from the URL)`;
-        sourceTitle = `Article: ${url}`;
-        genContext = { source: "URL", url: url };
-    } else if (sourceType === "FILE") {
-        // ... (existing file logic) ...
-        context = `File Content (${additionalData?.fileName}):\n${additionalData?.fileContent || "No content extracted."}`;
-        sourceTitle = `File: ${additionalData?.fileName || "Uploaded File"}`;
-        genContext = { source: "FILE", fileName: additionalData?.fileName };
-    } else if (sourceType === "YOUTUBE_PLAYLIST") {
-        // YOUTUBE PLAYLIST LOGIC
-        const playlistUrl = additionalData?.url || sourceId;
-
-        if (ingestionTier === "DEEP_VISION") {
-            // Tier 1: Deep Vision with Google Grounding
-            // We pass the URL directly and ask the model to use its search/grounding capabilities
-            modelToUse = models.pro; // Use Pro model for better reasoning/grounding
-
-            // In a real production app with AI SDK 3.0+, we would enable google_search_retrieval tool here.
-            // For this implementation, we will instruct the model strongly.
-            context = `YouTube Playlist URL: ${playlistUrl}\nINSTRUCTION: Please Watch/Search the videos in this playlist using your grounding capabilities. Inspect visual details as requested by the task.`;
-            // Note: If using Vertex AI SDK, we would pass tools: [{ googleSearchRetrieval: {} }]
-            // Assuming the configured 'models.pro' might have this default or we rely on the prompt for now.
-
-        } else {
-            // Tier 2: Text/Metadata Only (Cheaper/Faster)
-            const playlistData = await getPlaylistDetails(playlistUrl);
-            if (!playlistData.success || !playlistData.data) throw new Error("Could not fetch playlist metadata.");
-
-            const p = playlistData.data;
-            context = `YouTube Playlist: ${p.title} by ${p.author}\nDescription: ${p.description}\n\nVideos (Top ${p.videos.length}):\n`;
-            context += p.videos.map(v => `- [${v.title}]: ${v.description.substring(0, 200)}...`).join("\n");
-        }
-
-        sourceTitle = `Playlist: ${playlistUrl}`;
-        genContext = { source: "YOUTUBE_PLAYLIST", url: playlistUrl, ingestionTier };
-    }
-
-    // 3. Generate Content
-    // 3. Generate Content using PromptBuilder (Inkling 2.0)
-    const builder = new PromptBuilder()
-        .setIdentity() // Uses default INKLING_BASE_PERSONALITY
-        .setStudentContext(student)
-        .setFamilyContext(classroom)
-        .setTask(
-            `Create a "${kind.label}" (${kind.contentType})`,
-            kind.description || "No specific context provided."
-        )
-        .setSourceContent(context)
-        .setUserInstructions(instructions || "");
-
-    const prompt = builder.build();
-
-    let textContent = "";
-    let jsonContent = null;
-    let storageType: "MARKDOWN" | "JSON" = "MARKDOWN";
-
-    if (kind.contentType === "QUIZ") {
-        // Structured Output for Quizzes
-        const { object } = await generateObject({
-            model: models.pro3, // Use Pro model for structured generation
-            schema: QuizSchema,
-            system: builder.getIdentity(),
-            prompt: prompt,
-        });
-        jsonContent = object;
-        storageType = "JSON";
-    } else if (kind.contentType === "WORKSHEET") {
-        // Structured Output for Worksheets
-        const { object } = await generateObject({
-            model: models.pro3,
-            schema: WorksheetSchema,
-            system: builder.getIdentity(),
-            prompt: prompt,
-        });
-        jsonContent = object;
-        storageType = "JSON";
-    } else {
-        // Standard Text Generation (Markdown)
-        const { text } = await generateText({
-            model: modelToUse,
-            prompt: prompt,
-            system: builder.getIdentity(),
-            tools: {
-                generate_image: tool({
-                    description: "Generates an image (Nano Banana) based on a prompt. Use this to create visual aids like diagrams, charts, or illustrations.",
-                    parameters: z.object({
-                        prompt: z.string().describe("The detailed description of the image to generate."),
-                        aspectRatio: z.enum(["1:1", "16:9", "4:3"]).optional().default("1:1"),
-                    }),
-                    execute: async (args: any) => {
-                        const { prompt, aspectRatio } = args;
-                        const base64 = await generateNanoBananaImage(prompt, aspectRatio as "1:1" | "16:9" | "4:3");
-                        if (!base64) return "Failed to generate image.";
-                        return `![Generated Image](data:image/png;base64,${base64})`;
-                    },
-                } as any),
-            },
-            // maxSteps: 3, // Removed temporarily due to type definition mismatch
-        });
-        textContent = text;
-        storageType = "MARKDOWN";
-    }
-
-    // 4. Save to DB
-    const resource = await db.resource.create({
-        data: {
-            organizationId,
-            createdByUserId: session.user.id!,
-            resourceKindId,
-            title: `${kind.label}: ${sourceTitle.substring(0, 100)}`, // Truncate title
-            description: `AI Generated from ${sourceType.toLowerCase()}: ${sourceTitle.substring(0, 100)}`,
-            storageType: storageType,
-            content: storageType === "JSON" ? (jsonContent as any) : { markdown: textContent },
-            generatedFromBookId: bookId,
-            generatedFromVideoId: videoId,
-            generationContext: genContext,
-        },
+    const result = await generateResourceCore({
+        organizationId,
+        userId: session.user.id,
+        sourceId,
+        sourceType,
+        resourceKindId,
+        instructions,
+        additionalData,
     });
 
     revalidatePath("/living-library");
-    return { success: true, resourceId: resource.id };
+    return result;
 }
