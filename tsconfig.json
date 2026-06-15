@@ -39,6 +39,7 @@
     "node_modules",
     "prisma/seed*.ts",
     "family-discipleship-export",
-    "debug-connect.ts"
+    "debug-connect.ts",
+    "verify-seed.ts"
   ]
 }
