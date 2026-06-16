@@ -18,10 +18,14 @@
 -- Tenant-context accessors. NULL-safe -> a missing GUC fails CLOSED (sees nothing
 -- org-scoped). Returns TEXT because Prisma String ids are stored as text, not uuid.
 CREATE SCHEMA IF NOT EXISTS app;
-CREATE OR REPLACE FUNCTION app.current_org() RETURNS text LANGUAGE sql STABLE AS $fn$
+-- SET search_path = '' pins resolution (built-ins resolve from pg_catalog) — hardens these
+-- policy-used functions against search_path manipulation (Supabase advisor 0011).
+CREATE OR REPLACE FUNCTION app.current_org() RETURNS text LANGUAGE sql STABLE
+  SET search_path = '' AS $fn$
   SELECT NULLIF(current_setting('app.current_org', true), '')
 $fn$;
-CREATE OR REPLACE FUNCTION app.current_user_id() RETURNS text LANGUAGE sql STABLE AS $fn$
+CREATE OR REPLACE FUNCTION app.current_user_id() RETURNS text LANGUAGE sql STABLE
+  SET search_path = '' AS $fn$
   SELECT NULLIF(current_setting('app.current_user', true), '')
 $fn$;
 
