@@ -92,15 +92,21 @@ export async function POST(request: NextRequest) {
     },
   });
 
-  // Generate embedding for semantic search
+  // Generate embedding for semantic search. Best-effort: a failure must not fail
+  // book creation, but it's logged loudly + traceably (with the book id) because a
+  // NULL-embedding book is silently invisible to semantic search until re-embedded.
+  let embedded = false;
   if (data.description || data.title) {
     try {
       const { generateBookEmbedding } = await import("@/lib/utils/vector");
       const embeddingText = `${data.title} ${data.description || ""} ${(data.authors || []).join(" ")}`;
       await generateBookEmbedding(book.id, embeddingText);
+      embedded = true;
     } catch (error) {
-      console.error("Failed to generate embedding:", error);
-      // Don't fail the request if embedding fails
+      console.error(
+        `[book-embedding] FAILED for book ${book.id} ("${data.title}") — it will be missing from semantic search until re-embedded:`,
+        error,
+      );
     }
   }
 
@@ -141,5 +147,5 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  return NextResponse.json({ book });
+  return NextResponse.json({ book, embedded });
 }

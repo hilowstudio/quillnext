@@ -6,12 +6,12 @@ on:
   pull_request:
 
 # Catches the class of breakage that slipped to Vercel (prisma config / generate
-# failures and type errors) BEFORE merge. No DB or secrets required: prisma.config
-# falls back to an undefined datasource URL when env is unset, and `prisma generate`
-# does not connect.
+# failures, type errors) and lint regressions BEFORE merge. No DB or secrets required:
+# prisma.config falls back to an undefined datasource URL when env is unset, and
+# `prisma generate` does not connect.
 jobs:
-  typecheck:
-    name: Typecheck
+  check:
+    name: Lint & Typecheck
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -23,3 +23,4 @@ jobs:
       - run: npx prisma generate
       - run: npm run postgenerate
       - run: npx tsc --noEmit
+      - run: npm run lint
