@@ -2,7 +2,7 @@
 
 import { auth } from "@/auth";
 import { getCurrentUserOrg } from "@/lib/auth-helpers";
-import { db } from "@/server/db";
+import { db, withTenant } from "@/server/db";
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { deleteBlockSchema, updateBlockSchema, deleteCourseSchema } from "@/lib/schemas/actions";
@@ -61,17 +61,18 @@ export async function reorderBlocks(
     }
 
     // Each write is additionally scoped by courseId, so a foreign block id matches zero rows.
-    await db.$transaction(
-        safeUpdates.map((update) =>
-            db.courseBlock.updateMany({
+    // withTenant runs these in one transaction with the RLS tenant GUCs set (see server/db.ts).
+    await withTenant(async (tx) => {
+        for (const update of safeUpdates) {
+            await tx.courseBlock.updateMany({
                 where: { id: update.id, courseId },
                 data: {
                     position: update.position,
                     parentBlockId: update.parentBlockId,
                 },
-            })
-        )
-    );
+            });
+        }
+    });
 
     revalidatePath(`/courses/${courseId}/builder`);
     return { success: true };

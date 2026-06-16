@@ -4,12 +4,15 @@ import { decideSafetyResolution } from "@/lib/safety/policy";
 import { db } from "@/server/db";
 import { sendSafetyAlert } from "@/lib/notifications/safety-alert";
 import { SafetyResolution } from "@/lib/safety/types";
+import { setRlsContext } from "@/server/rls-context";
 
 export const scanMessage = inngest.createFunction(
     { id: "scan-chat-message" },
     { event: "chat/message.sent" },
     async ({ event }) => {
-        const { message, studentId } = event.data;
+        const { message, studentId, organizationId } = event.data;
+        // Background worker has no request — establish RLS tenant context from the event.
+        setRlsContext({ organizationId, userId: null });
 
         if (!message || typeof message !== 'string' || message.trim().length === 0) {
             return { skipped: true };

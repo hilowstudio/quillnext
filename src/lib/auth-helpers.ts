@@ -1,5 +1,6 @@
 import { auth } from "@/auth";
 import { db } from "@/server/db";
+import { setRlsContext } from "@/server/rls-context";
 
 /**
  * Get current user's organization ID
@@ -22,6 +23,10 @@ export async function getCurrentUserOrg(existingSession?: any) {
   if (!user) {
     throw new Error("User not found");
   }
+
+  // Establish the RLS tenant context for the rest of this request, so every subsequent query
+  // is automatically scoped to this org/user when RLS is enabled (see src/server/db.ts).
+  setRlsContext({ organizationId: user.organizationId, userId: user.id });
 
   return {
     userId: user.id,

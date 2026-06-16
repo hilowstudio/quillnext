@@ -2,6 +2,7 @@ import { revalidateTag } from "next/cache";
 import { inngest } from "@/inngest/client";
 import { getStorageBucket } from "@/lib/firebase-admin";
 import { db } from "@/server/db";
+import { setRlsContext } from "@/server/rls-context";
 // @ts-ignore
 import PDFParser from "pdf2json";
 
@@ -32,7 +33,9 @@ export const processDocument = inngest.createFunction(
     { id: "process-document" },
     { event: "resource/process.document" },
     async ({ event, step }) => {
-        const { resourceId, fileUrl, fileType } = event.data;
+        const { resourceId, fileUrl, fileType, organizationId } = event.data;
+        // Background worker has no request — establish RLS tenant context from the event.
+        setRlsContext({ organizationId, userId: null });
 
         // 1. Download file from Firebase Storage
         const base64File = await step.run("download-file", async (): Promise<string> => {

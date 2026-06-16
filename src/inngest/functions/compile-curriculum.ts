@@ -5,6 +5,7 @@ import { NonRetriableError } from "inngest";
 import { generateObject } from "ai";
 import { z } from "zod";
 import { models } from "@/lib/ai/config";
+import { setRlsContext } from "@/server/rls-context";
 import { createHash } from "crypto";
 
 // Structured verdict the verification gate asks the model to return after reading
@@ -47,8 +48,10 @@ export const compileCurriculum = inngest.createFunction(
         // doesn't hang on COMPILING, and record why. (`event` here is the
         // inngest/function.failed event; the original trigger is at event.data.event.)
         onFailure: async ({ event, error }) => {
-            const bundleId = ((event as any)?.data?.event?.data as { bundleId?: string } | undefined)?.bundleId;
+            const orig = (event as any)?.data?.event?.data as { bundleId?: string; organizationId?: string; userId?: string } | undefined;
+            const bundleId = orig?.bundleId;
             if (!bundleId) return;
+            if (orig?.organizationId) setRlsContext({ organizationId: orig.organizationId, userId: orig.userId ?? null });
             const failureReason = (error instanceof Error ? error.message : String(error ?? "Unknown error")).slice(0, 1000);
             await db.curriculumBundle
                 .update({ where: { id: bundleId }, data: { status: "FAILED", failureReason } })
@@ -58,6 +61,8 @@ export const compileCurriculum = inngest.createFunction(
     { event: "curriculum/compile" },
     async ({ event, step, logger }) => {
         const { bundleId, specId, organizationId, userId } = event.data;
+        // Background workers have no request — establish the RLS tenant context from the event.
+        setRlsContext({ organizationId, userId });
 
         // Inngest workers have no request session, so call the session-less core
         // directly with the org/user carried on the event (verified when enqueued).

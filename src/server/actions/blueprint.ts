@@ -1,6 +1,7 @@
 "use server";
 
-import { db } from "@/server/db";
+import { db, withTenant } from "@/server/db";
+import { setRlsContext } from "@/server/rls-context";
 import {
   classroomStepSchema,
   scheduleStepSchema,
@@ -39,7 +40,7 @@ export async function saveClassroomStep(
   const pinHash = await bcrypt.hash(validated.instructorPin, 10);
 
   // Use transaction to ensure consistency
-  const result = await db.$transaction(async (tx: Parameters<Parameters<typeof db.$transaction>[0]>[0]) => {
+  const result = await withTenant(async (tx) => {
     let activeOrgId = organizationId;
 
     // If no organization exists, create one
@@ -61,6 +62,13 @@ export async function saveClassroomStep(
         data: { organizationId: activeOrgId },
       });
     }
+
+    // RLS: re-stamp the tenant GUC to the (possibly just-created) org so the classroom +
+    // instructor inserts below satisfy their WITH CHECK. The organization INSERT above runs
+    // under the request's null context, which the relaxed organizations INSERT policy permits
+    // during first-run onboarding.
+    await tx.$executeRaw`SELECT set_config('app.current_org', ${activeOrgId}, true)`;
+    setRlsContext({ organizationId: activeOrgId, userId });
 
     // Find existing classroom or create new one
     let classroom = await tx.classroom.findFirst({

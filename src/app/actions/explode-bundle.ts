@@ -2,7 +2,7 @@
 
 import { auth } from "@/auth";
 import { getCurrentUserOrg } from "@/lib/auth-helpers";
-import { db } from "@/server/db";
+import { db, withTenant } from "@/server/db";
 import { revalidatePath } from "next/cache";
 import { CURRICULUM_KIND_CODES } from "@/lib/constants/curriculum-kinds";
 import { clampDurationDays } from "@/lib/validation/curriculum-spec";
@@ -119,8 +119,8 @@ export async function explodeCurriculumBundle(bundleId: string, courseId: string
     const dailyModulePos = hasMaterials ? firstMaterialPos + attachable.length : base + 1;
     const firstDayPos = dailyModulePos + 1;
 
-    // 4. Materialize the whole structure atomically.
-    const unitId = await db.$transaction(async (tx) => {
+    // 4. Materialize the whole structure atomically (withTenant sets the RLS tenant GUCs).
+    const unitId = await withTenant(async (tx) => {
         const unit = await tx.courseBlock.create({
             data: {
                 courseId,

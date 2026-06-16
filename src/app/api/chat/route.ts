@@ -76,7 +76,10 @@ export async function POST(req: Request) {
                 name: "chat/message.sent",
                 data: {
                     studentId,
-                    message: lastMessage.content
+                    message: lastMessage.content,
+                    // org carried so the background safety scan has RLS tenant context
+                    // (non-null: the student-in-org guard above guarantees it)
+                    organizationId: organizationId!,
                 }
             });
         }

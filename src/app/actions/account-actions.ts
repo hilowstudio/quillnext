@@ -1,7 +1,8 @@
 "use server";
 
-import { db } from "@/server/db";
+import { db, withTenant } from "@/server/db";
 import { auth } from "@/auth";
+import { setRlsContext } from "@/server/rls-context";
 import { revalidatePath } from "next/cache";
 
 export async function deactivateAccount() {
@@ -49,6 +50,10 @@ export async function deleteAccount() {
 
   const orgId = user?.organizationId;
 
+  // RLS: deleteAccount uses auth() directly (not getCurrentUserOrg), so set the tenant context
+  // explicitly for the deletion transaction below.
+  setRlsContext({ organizationId: orgId ?? null, userId });
+
   // ROLE GATE: deleting an account cascades to the ENTIRE Organization
   // (User.organization is onDelete: Cascade — every user/student/course/transcript/library
   // item in the family is destroyed). In a multi-member org, only the OWNER may do this;
@@ -65,7 +70,7 @@ export async function deleteAccount() {
   }
 
   // ATOMIC: one transaction so a mid-way failure can never leave a half-deleted tenant.
-  await db.$transaction(
+  await withTenant(
     async (tx) => {
       // Nullify grader references (optional FK — don't cascade, just clear)
       await tx.assessmentAttempt.updateMany({

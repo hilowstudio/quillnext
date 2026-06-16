@@ -204,6 +204,7 @@ export async function addDocuments(formData: FormData, organizationId: string, u
                         resourceId: doc.id,
                         fileUrl: storagePath, // Passing the storage path
                         fileType: file.type,
+                        organizationId, // RLS tenant context for the background worker
                     }
                 });
 
