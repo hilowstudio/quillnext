@@ -19,13 +19,16 @@ const authInstance = NextAuth({
   debug: false,
   ...authConfig,
   cookies: {
-    // Explicitly configure PKCE cookie for production
+    // The PKCE verifier cookie must NOT be Secure / "__Secure-"-prefixed on local
+    // dev (http://localhost) — browsers drop such cookies over http, so the OAuth
+    // callback fails with "pkceCodeVerifier value could not be parsed". Use the
+    // hardened form only in production (HTTPS); prod behavior is unchanged.
     pkceCodeVerifier: {
-      name: "__Secure-next-auth.pkce.code_verifier",
+      name: `${process.env.NODE_ENV === "production" ? "__Secure-" : ""}next-auth.pkce.code_verifier`,
       options: {
         httpOnly: true,
         sameSite: "lax",
-        secure: true, // Required for HTTPS in production
+        secure: process.env.NODE_ENV === "production",
         domain: process.env.NODE_ENV === "production" ? ".quillandcompass.app" : undefined,
         path: "/",
       },
