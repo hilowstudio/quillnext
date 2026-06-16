@@ -7,7 +7,7 @@ export async function getPlaylistDetails(rawData: unknown): Promise<{ success: b
     // Validate input
     const data = fetchPlaylistSchema.parse(rawData);
 
-    const apiKey = process.env.GOOGLE_BOOKS_API_KEY; // Using the key user mentioned is configured (usually same project)
+    const apiKey = process.env.GOOGLE_BOOKS_API_KEY ?? process.env.NEXT_PUBLIC_GOOGLE_BOOKS_API_KEY; // Using the key user mentioned is configured (usually same project)
     // IMPORTANT: Ideally we should use a specific YOUTUBE_API_KEY, but often they are the same GCP project key.
     // I will check if there is a specific YOUTUBE key, if not fallback to generic or existing.
     // For now assuming the standard key works for both if enabled.

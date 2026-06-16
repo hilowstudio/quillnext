@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -274,6 +274,68 @@ export default function BibleMemoryDashboard({ initialUserVerses, libraryVerses,
                 <p className="text-center font-bold text-qc-error mt-2 bg-white/80 backdrop-blur px-2 rounded-full text-xs shadow-sm">Drop to Delete</p>
             </div>
 
+            {/* Dialogs (mounted unconditionally so both empty-state CTAs and toolbar buttons can open them) */}
+            <Dialog open={isAddFolderOpen} onOpenChange={setIsAddFolderOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>New Folder</DialogTitle>
+                    </DialogHeader>
+                    <div className="gap-4 py-4">
+                        <Input placeholder="Folder Name" value={newFolderName} onChange={(e) => setNewFolderName(e.target.value)} />
+                        <Button className="mt-4 w-full" onClick={handleCreateFolder}>Create Folder</Button>
+                    </div>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={isAddVerseOpen} onOpenChange={setIsAddVerseOpen}>
+                <DialogContent className="max-w-xl">
+                    <DialogHeader>
+                        <DialogTitle>Add a Verse</DialogTitle>
+                        <DialogDescription>Choose from our library or add your own.</DialogDescription>
+                    </DialogHeader>
+
+                    <Tabs defaultValue="library">
+                        <TabsList className="grid w-full grid-cols-2">
+                            <TabsTrigger value="library">Library</TabsTrigger>
+                            <TabsTrigger value="custom">Custom</TabsTrigger>
+                        </TabsList>
+
+                        <TabsContent value="library" className="space-y-4 max-h-[400px] overflow-y-auto pt-4">
+                            <Input
+                                placeholder="Search verses..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                            />
+                            <div className="grid grid-cols-1 gap-2">
+                                {libraryVerses
+                                    .filter(v => v.reference.toLowerCase().includes(searchQuery.toLowerCase()))
+                                    .map(v => (
+                                        <div key={v.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-qc-surface-hover">
+                                            <span className="font-medium">{v.reference}</span>
+                                            <Button size="sm" variant="outline" onClick={() => handleAddLibraryVerse(v)}>Add</Button>
+                                        </div>
+                                    ))}
+                            </div>
+                        </TabsContent>
+
+                        <TabsContent value="custom" className="space-y-4 pt-4">
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium">Verse Reference</label>
+                                <Input
+                                    placeholder="e.g. John 3:16"
+                                    value={customRef}
+                                    onChange={(e) => setCustomRef(e.target.value)}
+                                />
+                                <p className="text-xs text-muted-foreground">We'll automatically fetch the text for you.</p>
+                            </div>
+                            <Button className="w-full" onClick={handleAddCustomVerse} disabled={!customRef}>
+                                Add Verse
+                            </Button>
+                        </TabsContent>
+                    </Tabs>
+                </DialogContent>
+            </Dialog>
+
             {/* Header Area */}
             <div className="flex flex-col md:flex-row items-center justify-between gap-4">
                 <div className="flex items-center gap-4 w-full">
@@ -325,76 +387,13 @@ export default function BibleMemoryDashboard({ initialUserVerses, libraryVerses,
                         <div className="space-y-6">
                             {/* Actions Toolbar */}
                             <div className="flex justify-end gap-2">
-                                <Dialog open={isAddFolderOpen} onOpenChange={setIsAddFolderOpen}>
-                                    <DialogTrigger asChild>
-                                        <Button variant="outline" className="gap-2 bg-white">
-                                            <FolderPlus className="h-4 w-4" /> New Folder
-                                        </Button>
-                                    </DialogTrigger>
-                                    <DialogContent>
-                                        <DialogHeader>
-                                            <DialogTitle>New Folder</DialogTitle>
-                                        </DialogHeader>
-                                        <div className="gap-4 py-4">
-                                            <Input placeholder="Folder Name" value={newFolderName} onChange={(e) => setNewFolderName(e.target.value)} />
-                                            <Button className="mt-4 w-full" onClick={handleCreateFolder}>Create Folder</Button>
-                                        </div>
-                                    </DialogContent>
-                                </Dialog>
+                                <Button variant="outline" className="gap-2 bg-white" onClick={() => setIsAddFolderOpen(true)}>
+                                    <FolderPlus className="h-4 w-4" /> New Folder
+                                </Button>
 
-                                <Dialog open={isAddVerseOpen} onOpenChange={setIsAddVerseOpen}>
-                                    <DialogTrigger asChild>
-                                        <Button className="gap-2 shadow-sm">
-                                            <Plus className="h-4 w-4" /> Add Verse
-                                        </Button>
-                                    </DialogTrigger>
-                                    <DialogContent className="max-w-xl">
-                                        <DialogHeader>
-                                            <DialogTitle>Add a Verse</DialogTitle>
-                                            <DialogDescription>Choose from our library or add your own.</DialogDescription>
-                                        </DialogHeader>
-
-                                        <Tabs defaultValue="library">
-                                            <TabsList className="grid w-full grid-cols-2">
-                                                <TabsTrigger value="library">Library</TabsTrigger>
-                                                <TabsTrigger value="custom">Custom</TabsTrigger>
-                                            </TabsList>
-
-                                            <TabsContent value="library" className="space-y-4 max-h-[400px] overflow-y-auto pt-4">
-                                                <Input
-                                                    placeholder="Search verses..."
-                                                    value={searchQuery}
-                                                    onChange={(e) => setSearchQuery(e.target.value)}
-                                                />
-                                                <div className="grid grid-cols-1 gap-2">
-                                                    {libraryVerses
-                                                        .filter(v => v.reference.toLowerCase().includes(searchQuery.toLowerCase()))
-                                                        .map(v => (
-                                                            <div key={v.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-qc-surface-hover">
-                                                                <span className="font-medium">{v.reference}</span>
-                                                                <Button size="sm" variant="outline" onClick={() => handleAddLibraryVerse(v)}>Add</Button>
-                                                            </div>
-                                                        ))}
-                                                </div>
-                                            </TabsContent>
-
-                                            <TabsContent value="custom" className="space-y-4 pt-4">
-                                                <div className="space-y-2">
-                                                    <label className="text-sm font-medium">Verse Reference</label>
-                                                    <Input
-                                                        placeholder="e.g. John 3:16"
-                                                        value={customRef}
-                                                        onChange={(e) => setCustomRef(e.target.value)}
-                                                    />
-                                                    <p className="text-xs text-muted-foreground">We'll automatically fetch the text for you.</p>
-                                                </div>
-                                                <Button className="w-full" onClick={handleAddCustomVerse} disabled={!customRef}>
-                                                    Add Verse
-                                                </Button>
-                                            </TabsContent>
-                                        </Tabs>
-                                    </DialogContent>
-                                </Dialog>
+                                <Button className="gap-2 shadow-sm" onClick={() => setIsAddVerseOpen(true)}>
+                                    <Plus className="h-4 w-4" /> Add Verse
+                                </Button>
                             </div>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">

@@ -122,32 +122,105 @@ export async function getLibraryResources(organizationId: string) {
 }
 
 export async function addArticle(url: string, organizationId: string, userId: string): Promise<{ success: boolean; error?: string; article?: any }> {
+    // (1) Validate the URL before doing any network work. Only http/https are scrapeable.
+    let parsedUrl: URL;
     try {
-        // Simple scraping logic
-        const response = await fetch(url);
+        parsedUrl = new URL(url);
+    } catch {
+        return { success: false, error: "That doesn't look like a valid URL. Please include the full address, e.g. https://example.com/article." };
+    }
+    if (parsedUrl.protocol !== "http:" && parsedUrl.protocol !== "https:") {
+        return { success: false, error: "Only http and https web links can be imported." };
+    }
+
+    try {
+        // (2) Fetch with a real browser User-Agent + Accept header so bot-protected
+        // sites are less likely to block us, follow redirects, and bound the request
+        // with a 15s timeout so a hung server can't stall the action indefinitely.
+        const response = await fetch(parsedUrl.toString(), {
+            redirect: "follow",
+            signal: AbortSignal.timeout(15000),
+            headers: {
+                "User-Agent":
+                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+                "Accept":
+                    "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+                "Accept-Language": "en-US,en;q=0.9",
+            },
+        });
+
+        // (3) Map non-OK statuses to a human-readable reason instead of an opaque "Failed to fetch URL".
         if (!response.ok) {
-            return { success: false, error: "Failed to fetch URL" };
+            let reason: string;
+            switch (response.status) {
+                case 401:
+                case 403:
+                    reason = "the site blocked our request (it may require signing in or is bot-protected)";
+                    break;
+                case 451:
+                    reason = "the content is unavailable for legal reasons";
+                    break;
+                case 402:
+                    reason = "the article is behind a paywall";
+                    break;
+                case 404:
+                case 410:
+                    reason = "the page could not be found (it may have been moved or removed)";
+                    break;
+                case 429:
+                    reason = "the site is rate-limiting requests, please try again in a little while";
+                    break;
+                case 500:
+                case 502:
+                case 503:
+                case 504:
+                    reason = "the site is temporarily unavailable, please try again later";
+                    break;
+                default:
+                    reason = `the site returned an error (HTTP ${response.status})`;
+            }
+            return { success: false, error: `Couldn't import this article because ${reason}.` };
         }
+
+        // (4) Only HTML pages can be scraped for article text.
+        const contentType = response.headers.get("content-type") || "";
+        if (!contentType.includes("text/html") && !contentType.includes("application/xhtml")) {
+            return {
+                success: false,
+                error: "That link doesn't point to a readable web page (it looks like a file or other content, not an article).",
+            };
+        }
+
         const html = await response.text();
         const $ = cheerio.load(html);
 
-        const title = $('head > title').text() || $('h1').first().text() || "Untitled Article";
+        const title = $('head > title').text().trim() || $('h1').first().text().trim() || "Untitled Article";
         const description = $('meta[name="description"]').attr('content') || "";
         const imageUrl = $('meta[property="og:image"]').attr('content') || "";
 
         // Basic content extraction - getting text from paragraphs
         const content = $('video, script, style, nav, footer, header').remove().end().find('p').map((i: number, el: any) => $(el).text()).get().join('\n\n');
 
+        // (5) Guard against silently "accepting" empty / paywalled / JS-rendered pages.
+        // If we couldn't pull a meaningful amount of readable text, don't store it as EXTRACTED.
+        const cleanedContent = content.trim();
+        if (cleanedContent.length < 200) {
+            return {
+                success: false,
+                error: "We couldn't find readable article text on that page. It may be behind a paywall, require signing in, or render its content with JavaScript.",
+            };
+        }
+
         const article = await withTenant(
             (tx) => tx.article.create({
                 data: {
                     organizationId,
                     addedByUserId: userId,
-                    url,
+                    url: parsedUrl.toString(),
                     title,
                     description: description.substring(0, 500), // Limit description length
                     imageUrl: imageUrl ? imageUrl : null,
-                    content: content || "",
+                    content: cleanedContent,
                     extractionStatus: "EXTRACTED", // Basic extraction done
                     extractedAt: new Date(),
                 }
@@ -161,7 +234,15 @@ export async function addArticle(url: string, organizationId: string, userId: st
 
     } catch (error) {
         console.error("Error adding article:", error);
-        return { success: false, error: "Failed to add article" };
+        // (6) Distinguish a timeout from a network/DNS failure so the user knows what to try next.
+        if (error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError")) {
+            return { success: false, error: "The site took too long to respond. Please try again, or check that the link is correct." };
+        }
+        if (error instanceof TypeError) {
+            // fetch throws a TypeError for DNS / connection / TLS-level failures.
+            return { success: false, error: "We couldn't reach that website. Please check the URL and your connection, then try again." };
+        }
+        return { success: false, error: "Something went wrong while importing the article. Please try again." };
     }
 }
 

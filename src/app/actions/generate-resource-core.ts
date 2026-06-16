@@ -1,4 +1,4 @@
-import { db } from "@/server/db";
+import { db, withTenant } from "@/server/db";
 import { getPlaylistDetails } from "@/app/actions/youtube-actions";
 import { models } from "@/lib/ai/config";
 import { generateText, tool } from "ai";
@@ -53,16 +53,22 @@ export async function generateResourceCore(params: GenerateResourceCoreParams) {
 
     // 1b. Fetch User's Classroom Context for Persona (Philosophy & Faith)
     // We try to find a classroom created by this user to determine their style.
-    const classroom = await db.classroom.findFirst({
-        where: { createdByUserId: userId },
-    });
+    // Org-scoped table: stamp the explicit tenant (no request session in the Inngest runtime).
+    const classroom = await withTenant(
+        (tx) => tx.classroom.findFirst({ where: { createdByUserId: userId } }),
+        undefined,
+        { organizationId, userId },
+    );
 
     // 1c. Fetch Student Context if provided
     let student = null;
     if (additionalData?.studentId) {
-        student = await db.student.findUnique({
-            where: { id: additionalData.studentId },
-        });
+        const studentId = additionalData.studentId;
+        student = await withTenant(
+            (tx) => tx.student.findUnique({ where: { id: studentId } }),
+            undefined,
+            { organizationId, userId },
+        );
     }
 
 
@@ -79,10 +85,14 @@ export async function generateResourceCore(params: GenerateResourceCoreParams) {
 
     if (sourceType === "BOOK") {
         // ... (existing book logic) ...
-        const book = await db.book.findUnique({
-            where: { id: sourceId },
-            select: { title: true, summary: true, tableOfContents: true, organizationId: true },
-        });
+        const book = await withTenant(
+            (tx) => tx.book.findUnique({
+                where: { id: sourceId },
+                select: { title: true, summary: true, tableOfContents: true, organizationId: true },
+            }),
+            undefined,
+            { organizationId, userId },
+        );
         if (!book || book.organizationId !== organizationId) throw new Error("Book not found");
 
         context = `Book Title: ${book.title}\nSummary: ${book.summary || "N/A"}`;
@@ -93,10 +103,14 @@ export async function generateResourceCore(params: GenerateResourceCoreParams) {
         bookId = sourceId;
     } else if (sourceType === "VIDEO") {
         // ... (existing video logic) ...
-        const video = await db.videoResource.findUnique({
-            where: { id: sourceId },
-            select: { title: true, extractedSummary: true, extractedKeyPoints: true, organizationId: true },
-        });
+        const video = await withTenant(
+            (tx) => tx.videoResource.findUnique({
+                where: { id: sourceId },
+                select: { title: true, extractedSummary: true, extractedKeyPoints: true, organizationId: true },
+            }),
+            undefined,
+            { organizationId, userId },
+        );
         if (!video || video.organizationId !== organizationId) throw new Error("Video not found");
 
         context = `Video Title: ${video.title}\nSummary: ${video.extractedSummary || "N/A"}`;
@@ -107,21 +121,28 @@ export async function generateResourceCore(params: GenerateResourceCoreParams) {
         videoId = sourceId;
     } else if (sourceType === "COURSE") {
         // ... (existing course logic) ...
-        const course = await db.course.findUnique({
-            where: { id: sourceId },
-            select: {
-                title: true,
-                description: true,
-                organizationId: true,
+        // Both reads are org-scoped and must be consistent — group them in one tenant tx.
+        const { course, blocks } = await withTenant(
+            async (tx) => {
+                const course = await tx.course.findUnique({
+                    where: { id: sourceId },
+                    select: {
+                        title: true,
+                        description: true,
+                        organizationId: true,
+                    },
+                });
+                const blocks = await tx.courseBlock.findMany({
+                    where: { courseId: sourceId },
+                    orderBy: { position: "asc" },
+                    select: { title: true, description: true, kind: true }
+                });
+                return { course, blocks };
             },
-        });
+            undefined,
+            { organizationId, userId },
+        );
         if (!course || course.organizationId !== organizationId) throw new Error("Course not found");
-
-        const blocks = await db.courseBlock.findMany({
-            where: { courseId: sourceId },
-            orderBy: { position: "asc" },
-            select: { title: true, description: true, kind: true }
-        });
 
         context = `Course Title: ${course.title}\nDescription: ${course.description || "N/A"}`;
         if (blocks.length > 0) {
@@ -240,21 +261,25 @@ export async function generateResourceCore(params: GenerateResourceCoreParams) {
         storageType = "MARKDOWN";
     }
 
-    // 4. Save to DB
-    const resource = await db.resource.create({
-        data: {
-            organizationId,
-            createdByUserId: userId,
-            resourceKindId,
-            title: `${kind.label}: ${sourceTitle.substring(0, 100)}`, // Truncate title
-            description: `AI Generated from ${sourceType.toLowerCase()}: ${sourceTitle.substring(0, 100)}`,
-            storageType: storageType,
-            content: storageType === "JSON" ? (jsonContent as any) : { markdown: textContent },
-            generatedFromBookId: bookId,
-            generatedFromVideoId: videoId,
-            generationContext: genContext,
-        },
-    });
+    // 4. Save to DB (org-scoped write — stamp the explicit tenant).
+    const resource = await withTenant(
+        (tx) => tx.resource.create({
+            data: {
+                organizationId,
+                createdByUserId: userId,
+                resourceKindId,
+                title: `${kind.label}: ${sourceTitle.substring(0, 100)}`, // Truncate title
+                description: `AI Generated from ${sourceType.toLowerCase()}: ${sourceTitle.substring(0, 100)}`,
+                storageType: storageType,
+                content: storageType === "JSON" ? (jsonContent as any) : { markdown: textContent },
+                generatedFromBookId: bookId,
+                generatedFromVideoId: videoId,
+                generationContext: genContext,
+            },
+        }),
+        undefined,
+        { organizationId, userId },
+    );
 
     return { success: true, resourceId: resource.id };
 }

@@ -27,7 +27,7 @@ study, catechism drills, devotionals, prayer journaling, and missions/mercy tool
 - **`/students`** — Student roster, personality/learning-style **assessment wizard**, avatars.
 - **`/courses`** — **Course Builder**: blocks, activities, enrollment, distribution.
 - **`/living-library`** — Books / Videos / Articles / Documents + AI media pipeline.
-- **`/creation-station`** — **Inkling Toolkit** (single-resource generation) + **Studio 26** (bulk compiler).
+- **`/creation-station`** — **Inkling Toolkit** (single-resource generation) + **Curriculum Compiler** (bulk compiler).
 - **`/thinkling`** — Student AI chat ("Thinkling") with a background child-safety pipeline.
 - **`/family-discipleship`** — Bible study, catechism, devotionals, prayer, missions, neighbor-love.
 - **`/blueprint`** + **`/onboarding`** — **Family Blueprint** first-run setup & review.
@@ -80,7 +80,7 @@ Each row links a reference doc to its one-line role and primary routes/models.
 | [06](06-context-engine.md) | **AI context engine** — `getMasterContext` + serializer + completeness/suggestions | `/context`, `/api/context/inspect`; `Resource.generationContext` |
 | [07](07-academic-spine-curriculum-api.md) | **Academic spine & curriculum APIs** — global 5-level taxonomy, `/api/curriculum/*`, PHILOSOPHY_PROMPTS | `Subject>Strand>Topic>Subtopic>Objective`, `GradeBand`, `ResourceKind` |
 | [08](08-generators-inkling-toolkit.md) | **Inkling Toolkit / Creation Station** — single-resource generation (2 parallel engines) | `/creation-station`, `/creation-station/[id]`; `Resource`, `ResourceKind` |
-| [09](09-curriculum-compiler-studio26.md) | **Studio 26 curriculum compiler** — Inngest compile→verify→explode pipeline | `compile-curriculum.ts`; `CurriculumSpec`, `CurriculumBundle` |
+| [09](09-curriculum-compiler.md) | **Curriculum Compiler** — Inngest compile→verify→explode pipeline | `compile-curriculum.ts`; `CurriculumSpec`, `CurriculumBundle` |
 | [10](10-courses-builder-blocks.md) | **Course builder, blocks, activities, assignments** — dnd-kit tree, REST+actions | `/courses/*`; `Course`, `CourseBlock`, `Activity`, `ResourceAssignment` |
 | [11](11-planner-scheduling.md) | **Planner & scheduling** — `distributeCourse`, weekly grid, daily check-off | `/planner`, `/student/dashboard`; `StudentScheduleItem`, `CustomEvent` |
 | [12](12-students-personality-assessment.md) | **Students & personality assessment** — CRUD, 3-step AI calibration wizard, avatars | `/students/*`; `Student`, `LearnerProfile`, `SafetyFlag` (rel only) |
@@ -172,7 +172,7 @@ These threads run through nearly every subsystem; understand them once.
 5. **The `resource_kind` contract** (07/08/09). `ResourceKind` is a **global,
    non-tenant** generator catalog (`resource_kinds` table) seeded destructively from
    `GENERATOR_CONTENT_TYPES.YAML`. Its `code` (unique) is the join point that ties the
-   generators, the Studio 26 compiler (six lowercase-underscore codes:
+   generators, the Curriculum Compiler (six lowercase-underscore codes:
    `teacher_guide`, `student_packet`, `reading_anthology`, `graphic_organizers`,
    `slides`, `release_manifest`), and the seed slugify together. The compiler hardcodes
    these literals instead of importing `CURRICULUM_KIND_CODES` — bypassing the very
@@ -194,7 +194,7 @@ These threads run through nearly every subsystem; understand them once.
   → `buildMasterPrompt` → `generateObject` (QUIZ/WORKSHEET → JSON) or `generateText`
   (markdown) → persists an org-scoped `Resource` → viewed at `/living-library/resource/[id]`.
 
-- **Studio 26 compile → explode** (09). A `CurriculumSpec` + empty `CurriculumBundle`
+- **Curriculum Compiler: compile → explode** (09). A `CurriculumSpec` + empty `CurriculumBundle`
   shell is persisted → Inngest `curriculum/compile` event → durable 8-step function
   generates Teacher Guide / Student Packet / Slides / Reading Anthology / Graphic
   Organizers (each via `generateResourceCore`) → verification gate (SHA-256 + LLM QA,
@@ -272,7 +272,7 @@ leaks.** A lead should treat the following as the shortlist.
 - `ui/calendar.tsx` uses react-day-picker v8 API while v9 is installed — likely broken (21).
 
 **Shippable today:** the academic spine, Living Library intake (books/videos/articles/docs),
-single-resource generation, the Studio 26 compile→explode pipeline, Thinkling chat + safety
+single-resource generation, the Curriculum Compiler compile→explode pipeline, Thinkling chat + safety
 scan, the Family Blueprint (single-instructor), course building (minus Activities), planner
 distribution (Mon–Fri only), transcripts, and most of the Family Discipleship suite.
 **Not shippable without work:** grading, multi-instructor onboarding, activity creation,
@@ -289,7 +289,7 @@ Brand/marketing names vs. what they're called in code:
 | **Quill & Compass** | `QuillNext` (repo, layout metadata) | The product (brand drift: layout says "QuillNext") |
 | **Inkling** | `INKLING_BASE_PERSONALITY`, "Inkling-Generated" | The AI persona/brand for generation & summaries |
 | **Inkling Toolkit** | "Quick Create" / `/creation-station` | Single-resource AI generation (the name "Inkling Toolkit" never appears in code) |
-| **Studio 26** | `compile-curriculum.ts`, `CurriculumSpec`/`Bundle` | The bulk curriculum **compiler** |
+| **Curriculum Compiler** | `compile-curriculum.ts`, `CurriculumSpec`/`Bundle` | The bulk curriculum **compiler** |
 | **Thinkling** | `/thinkling`, `lib/thinkling.ts`, `/api/chat` | Student-facing AI **chat** (UI sometimes mislabels it "Inkling") |
 | **Family Blueprint** | `blueprint.ts`, `/onboarding`, `/blueprint` | First-run **onboarding** + read-only review |
 | **Living Library** | `/living-library`, `getLibraryResources` | Per-org content repository |
@@ -308,7 +308,7 @@ Pick the doc that owns your task, then read its "Risks / drift" and "Cross-links
 - **"How do auth & tenant isolation work? Why is my page public?"** → [04](04-auth-tenancy-user.md). The IDOR-safe pattern is there.
 - **"How does the AI know things / how do I add a prompt?"** → [05](05-ai-core.md) (models, schemas, guardrails) + [06](06-context-engine.md) (master context).
 - **"Where do objectives/subjects come from?"** → [07](07-academic-spine-curriculum-api.md).
-- **"How is a resource generated?"** → [08](08-generators-inkling-toolkit.md) (single) or [09](09-curriculum-compiler-studio26.md) (bulk / Inngest).
+- **"How is a resource generated?"** → [08](08-generators-inkling-toolkit.md) (single) or [09](09-curriculum-compiler.md) (bulk / Inngest).
 - **"Courses, blocks, activities, assignments?"** → [10](10-courses-builder-blocks.md). **Scheduling?** → [11](11-planner-scheduling.md).
 - **"Students, profiles, the assessment wizard, avatars?"** → [12](12-students-personality-assessment.md). **Onboarding?** → [13](13-onboarding-family-blueprint.md). **Dashboards/home?** → [14](14-dashboards.md).
 - **"Books/videos/docs, embeddings, vector search?"** → [15](15-living-library-media.md).

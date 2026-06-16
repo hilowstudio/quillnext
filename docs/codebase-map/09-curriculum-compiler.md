@@ -1,10 +1,10 @@
-# 09 — Curriculum Compiler "Studio 26" & Inngest Pipeline
+# 09 — Curriculum Compiler & Inngest Pipeline
 
 > Code-truth reference. Verified against source on 2026-06-15. Where this doc and any prose/README disagree, the code wins. All `file:line` citations are to the commit checked out at writing.
 
 ## Purpose & role in the app
 
-"Studio 26" is QuillNext's headline **bulk curriculum compiler**. A teacher fills out a short `CurriculumSpec` (subject, topic, reading level, duration in days, a few engineering constraints). The app persists the spec + an empty `CurriculumBundle` shell, then fires an **Inngest** background event. A durable Inngest function generates a coordinated set of teaching artifacts as inline `Resource` rows (Teacher Guide, Student Packet, Slides, Reading Anthology, Graphic Organizers), runs a **verification gate** that hashes each artifact and asks an LLM to QA the real generated content against the spec, writes a computed **Release Manifest** resource, and marks the bundle `COMPLETED` or `FAILED`.
+The **Curriculum Compiler** is QuillNext's headline bulk curriculum compiler. A teacher fills out a short `CurriculumSpec` (subject, topic, reading level, duration in days, a few engineering constraints). The app persists the spec + an empty `CurriculumBundle` shell, then fires an **Inngest** background event. A durable Inngest function generates a coordinated set of teaching artifacts as inline `Resource` rows (Teacher Guide, Student Packet, Slides, Reading Anthology, Graphic Organizers), runs a **verification gate** that hashes each artifact and asks an LLM to QA the real generated content against the spec, writes a computed **Release Manifest** resource, and marks the bundle `COMPLETED` or `FAILED`.
 
 A completed bundle can then be **"exploded"** into a teacher's `Course`: `explode-bundle.ts` materializes the bundle into a `UNIT` block tree (a "Unit Materials" module with one lesson per artifact, plus a "Daily Lessons" module with one lesson per day).
 

@@ -33,8 +33,19 @@ export async function searchBooks(query: string, limit = 5) {
 
 /**
  * Generate and store an embedding for a book.
+ *
+ * The org-scoped UPDATE runs inside withTenant. When called off the request frame
+ * (e.g. an Inngest worker, or anywhere AsyncLocalStorage doesn't propagate into Prisma),
+ * pass the tenant explicitly via `ctx` so the GUCs are stamped from an EXPLICIT context
+ * rather than relying on async-context propagation (which would otherwise fail closed and
+ * throw "new row violates row-level security policy"). When omitted, withTenant falls back
+ * to resolving the tenant from the session, preserving the previous behavior.
  */
-export async function generateBookEmbedding(bookId: string, text: string) {
+export async function generateBookEmbedding(
+  bookId: string,
+  text: string,
+  ctx?: { organizationId: string | null; userId: string | null },
+) {
   const { embedding } = await embed({
     model: embeddingModel,
     value: text,
@@ -42,12 +53,15 @@ export async function generateBookEmbedding(bookId: string, text: string) {
   });
   const vectorString = `[${embedding.join(",")}]`;
 
-  await withTenant((tx) =>
-    tx.$executeRaw`
+  await withTenant(
+    (tx) =>
+      tx.$executeRaw`
     UPDATE "books"
     SET embedding = ${vectorString}::vector
     WHERE id = ${bookId};
   `,
+    undefined,
+    ctx,
   );
 
   return embedding;
@@ -107,8 +121,17 @@ export async function searchVideos(query: string, limit = 5) {
 
 /**
  * Generate and store an embedding for a video (summary + key points).
+ *
+ * Like generateBookEmbedding, the org-scoped UPDATE runs inside withTenant. Pass `ctx`
+ * explicitly when invoked off the request frame (e.g. a background video-extract worker)
+ * so the RLS GUCs are stamped from an EXPLICIT context instead of relying on
+ * async-context propagation. Omitting `ctx` preserves the previous session-resolved behavior.
  */
-export async function generateVideoEmbedding(videoId: string, text: string) {
+export async function generateVideoEmbedding(
+  videoId: string,
+  text: string,
+  ctx?: { organizationId: string | null; userId: string | null },
+) {
   const { embedding } = await embed({
     model: embeddingModel,
     value: text,
@@ -116,12 +139,15 @@ export async function generateVideoEmbedding(videoId: string, text: string) {
   });
   const vectorString = `[${embedding.join(",")}]`;
 
-  await withTenant((tx) =>
-    tx.$executeRaw`
+  await withTenant(
+    (tx) =>
+      tx.$executeRaw`
     UPDATE "video_resources"
     SET embedding = ${vectorString}::vector
     WHERE id = ${videoId};
   `,
+    undefined,
+    ctx,
   );
 
   return embedding;

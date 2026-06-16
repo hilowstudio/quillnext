@@ -1,7 +1,7 @@
 import { inngest } from "@/inngest/client";
 import { assessMessageSafety } from "@/lib/safety/guard";
 import { decideSafetyResolution } from "@/lib/safety/policy";
-import { db } from "@/server/db";
+import { withTenant } from "@/server/db";
 import { sendSafetyAlert } from "@/lib/notifications/safety-alert";
 import { SafetyResolution } from "@/lib/safety/types";
 import { setRlsContext } from "@/server/rls-context";
@@ -41,14 +41,18 @@ export const scanMessage = inngest.createFunction(
             const tenDaysAgo = new Date();
             tenDaysAgo.setDate(tenDaysAgo.getDate() - 10);
 
-            const recentFlags = await db.safetyFlag.findMany({
-                where: {
-                    studentId: studentId,
-                    createdAt: { gte: tenDaysAgo }
-                },
-                orderBy: { createdAt: 'desc' },
-                select: { category: true, reasoning: true }
-            });
+            const recentFlags = await withTenant(
+                (tx) => tx.safetyFlag.findMany({
+                    where: {
+                        studentId: studentId,
+                        createdAt: { gte: tenDaysAgo }
+                    },
+                    orderBy: { createdAt: 'desc' },
+                    select: { category: true, reasoning: true }
+                }),
+                undefined,
+                { organizationId, userId: null },
+            );
 
             // Rule A: Frequency (>=3 flags in same category)
             const sameCategoryCount = recentFlags.filter(f => f.category === result.category).length;
@@ -78,19 +82,23 @@ export const scanMessage = inngest.createFunction(
             console.warn(`[SAFETY] Unsafe message detected for student ${studentId}:`, result);
 
             // 4. STORE
-            const flag = await db.safetyFlag.create({
-                data: {
-                    studentId,
-                    severity: result.severity,
-                    category: result.category,
-                    // DATA MINIMIZATION: Store snippet only
-                    message: message.substring(0, 100) + (message.length > 100 ? "..." : ""),
-                    // Store evidence level in reasoning for future pattern matching
-                    reasoning: `[EVIDENCE:${result.evidenceLevel}] ${result.reasoning}`,
-                    implicatedCaregiver: result.implicatedCaregiver,
-                    resolution: resolution
-                }
-            });
+            const flag = await withTenant(
+                (tx) => tx.safetyFlag.create({
+                    data: {
+                        studentId,
+                        severity: result.severity,
+                        category: result.category,
+                        // DATA MINIMIZATION: Store snippet only
+                        message: message.substring(0, 100) + (message.length > 100 ? "..." : ""),
+                        // Store evidence level in reasoning for future pattern matching
+                        reasoning: `[EVIDENCE:${result.evidenceLevel}] ${result.reasoning}`,
+                        implicatedCaregiver: result.implicatedCaregiver,
+                        resolution: resolution
+                    }
+                }),
+                undefined,
+                { organizationId, userId: null },
+            );
 
             // 5. ACT (Gated by Policy)
             if (resolution === "PARENT_SUMMARY_SAFETY_COACH" || resolution === "PARENT_SUMMARY_URGENT") {

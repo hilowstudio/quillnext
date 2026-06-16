@@ -309,7 +309,31 @@ async function main() {
       console.warn("   Tried:", sequencedPaths);
     }
 
-    // 3. ResourceKinds are seeded separately by `npm run db:seed:generators`
+    // 3. Grade Bands (global reference table powering the Course Creator dropdown)
+    //    US K-12 convention used across the spine: grade 0 = Kindergarten ... 12.
+    //    Idempotent upsert keyed on the unique `code` column.
+    console.log("🎓 Loading grade bands...");
+    const gradeBands: Array<{ code: string; name: string; minGrade: number; maxGrade: number }> = [
+      { code: "K-2", name: "Early Elementary (K-2)", minGrade: 0, maxGrade: 2 },
+      { code: "3-5", name: "Upper Elementary (3-5)", minGrade: 3, maxGrade: 5 },
+      { code: "6-8", name: "Middle School (6-8)", minGrade: 6, maxGrade: 8 },
+      { code: "9-12", name: "High School (9-12)", minGrade: 9, maxGrade: 12 },
+    ];
+    for (const band of gradeBands) {
+      await prisma.gradeBand.upsert({
+        where: { code: band.code },
+        update: { name: band.name, minGrade: band.minGrade, maxGrade: band.maxGrade },
+        create: {
+          code: band.code,
+          name: band.name,
+          minGrade: band.minGrade,
+          maxGrade: band.maxGrade,
+        },
+      });
+    }
+    console.log(`  ✓ Seeded ${gradeBands.length} grade bands`);
+
+    // 4. ResourceKinds are seeded separately by `npm run db:seed:generators`
     //    (prisma/seed-generator-content-types.ts) — underscore codes + hierarchical
     //    strand linking + description/requiresVision. Intentionally NOT seeded here
     //    to avoid re-introducing the old hyphen-coded duplicates.

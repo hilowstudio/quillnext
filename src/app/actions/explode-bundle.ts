@@ -9,7 +9,7 @@ import { clampDurationDays } from "@/lib/validation/curriculum-spec";
 
 /**
  * Why this exists:
- *   The Curriculum Compiler ("Studio 26") compiles a CurriculumSpec into a
+ *   The Curriculum Compiler compiles a CurriculumSpec into a
  *   CurriculumBundle of generated teaching artifacts (Teacher Guide, Student
  *   Packet, Slides, Reading Anthology, Graphic Organizers). "Exploding" a
  *   completed bundle materializes it into a teacher's Course as a ready-to-run

@@ -3,7 +3,7 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { getCurrentUserOrg } from "@/lib/auth-helpers";
-import { db } from "@/server/db";
+import { db, withTenant } from "@/server/db";
 
 export async function GET() {
   const session = await auth();
@@ -68,29 +68,36 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  const book = await db.book.create({
-    data: {
-      organizationId,
-      addedByUserId: userId,
-      title: data.title,
-      authors: data.authors || [],
-      publisher: data.publisher,
-      publishedDate: data.publishedDate,
-      description: data.description,
-      pageCount: data.pageCount,
-      coverUrl: data.coverUrl,
-      isbn: data.isbn,
-      externalSource: data.externalSource || "MANUAL",
-      externalId: data.externalId,
-      subjectId: data.subjectId,
-      strandId: data.strandId || null,
-      extractionStatus: "NOT_EXTRACTED",
-    },
-    include: {
-      subject: true,
-      strand: true,
-    },
-  });
+  // org-scoped INSERT: stamp the RLS tenant GUCs from the EXPLICIT org (resolved above via
+  // getCurrentUserOrg) so creation does not depend on async-context propagation into Prisma.
+  const book = await withTenant(
+    (tx) =>
+      tx.book.create({
+        data: {
+          organizationId,
+          addedByUserId: userId,
+          title: data.title,
+          authors: data.authors || [],
+          publisher: data.publisher,
+          publishedDate: data.publishedDate,
+          description: data.description,
+          pageCount: data.pageCount,
+          coverUrl: data.coverUrl,
+          isbn: data.isbn,
+          externalSource: data.externalSource || "MANUAL",
+          externalId: data.externalId,
+          subjectId: data.subjectId,
+          strandId: data.strandId || null,
+          extractionStatus: "NOT_EXTRACTED",
+        },
+        include: {
+          subject: true,
+          strand: true,
+        },
+      }),
+    undefined,
+    { organizationId, userId },
+  );
 
   // Generate embedding for semantic search. Best-effort: a failure must not fail
   // book creation, but it's logged loudly + traceably (with the book id) because a
@@ -100,7 +107,9 @@ export async function POST(request: NextRequest) {
     try {
       const { generateBookEmbedding } = await import("@/lib/utils/vector");
       const embeddingText = `${data.title} ${data.description || ""} ${(data.authors || []).join(" ")}`;
-      await generateBookEmbedding(book.id, embeddingText);
+      // Thread the explicit tenant so the embedding UPDATE's withTenant stamps the right GUCs
+      // (this runs in its own transaction — NOT nested inside the create above).
+      await generateBookEmbedding(book.id, embeddingText, { organizationId, userId });
       embedded = true;
     } catch (error) {
       console.error(

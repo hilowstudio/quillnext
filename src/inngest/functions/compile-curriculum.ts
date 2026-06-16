@@ -1,5 +1,5 @@
 import { inngest } from "@/inngest/client";
-import { db } from "@/server/db";
+import { db, withTenant } from "@/server/db";
 import { generateResourceCore } from "@/app/actions/generate-resource-core";
 import { NonRetriableError } from "inngest";
 import { generateObject } from "ai";
@@ -51,11 +51,17 @@ export const compileCurriculum = inngest.createFunction(
             const orig = (event as any)?.data?.event?.data as { bundleId?: string; organizationId?: string; userId?: string } | undefined;
             const bundleId = orig?.bundleId;
             if (!bundleId) return;
-            if (orig?.organizationId) setRlsContext({ organizationId: orig.organizationId, userId: orig.userId ?? null });
+            const organizationId = orig?.organizationId;
+            if (!organizationId) return;
+            const userId = orig?.userId ?? null;
             const failureReason = (error instanceof Error ? error.message : String(error ?? "Unknown error")).slice(0, 1000);
-            await db.curriculumBundle
-                .update({ where: { id: bundleId }, data: { status: "FAILED", failureReason } })
-                .catch((e) => console.error("[compile-curriculum onFailure] failed to mark bundle FAILED", e));
+            // curriculum_bundles is org-scoped; in the Inngest runtime AsyncLocalStorage does not
+            // reach Prisma, so stamp the tenant explicitly or the FAILED write is silently dropped.
+            await withTenant(
+                (tx) => tx.curriculumBundle.update({ where: { id: bundleId }, data: { status: "FAILED", failureReason } }),
+                undefined,
+                { organizationId, userId },
+            ).catch((e) => console.error("[compile-curriculum onFailure] failed to mark bundle FAILED", e));
         },
     },
     { event: "curriculum/compile" },
@@ -84,10 +90,17 @@ export const compileCurriculum = inngest.createFunction(
                 additionalData,
             });
 
-        // 1. Fetch Spec & Bundle
+        // 1. Fetch Spec & Bundle (both org-scoped — stamp tenant explicitly; grouped for consistency).
         const { spec, bundle } = await step.run("fetch-context", async () => {
-            const s = await db.curriculumSpec.findUnique({ where: { id: specId } });
-            const b = await db.curriculumBundle.findUnique({ where: { id: bundleId } });
+            const { s, b } = await withTenant(
+                async (tx) => {
+                    const s = await tx.curriculumSpec.findUnique({ where: { id: specId } });
+                    const b = await tx.curriculumBundle.findUnique({ where: { id: bundleId } });
+                    return { s, b };
+                },
+                undefined,
+                { organizationId, userId },
+            );
             if (!s || !b) throw new NonRetriableError("Spec or Bundle not found");
             return { spec: s, bundle: b };
         });
@@ -115,12 +128,16 @@ export const compileCurriculum = inngest.createFunction(
                 }
             );
 
-            // Link to Bundle
+            // Link to Bundle (org-scoped write — stamp the explicit tenant).
             if (result.success && result.resourceId) {
-                await db.resource.update({
-                    where: { id: result.resourceId },
-                    data: { curriculumBundleId: bundleId }
-                });
+                await withTenant(
+                    (tx) => tx.resource.update({
+                        where: { id: result.resourceId },
+                        data: { curriculumBundleId: bundleId }
+                    }),
+                    undefined,
+                    { organizationId, userId },
+                );
                 return { id: result.resourceId };
             }
             throw new Error("Failed to generate TG");
@@ -147,10 +164,14 @@ export const compileCurriculum = inngest.createFunction(
             );
 
             if (result.success && result.resourceId) {
-                await db.resource.update({
-                    where: { id: result.resourceId },
-                    data: { curriculumBundleId: bundleId }
-                });
+                await withTenant(
+                    (tx) => tx.resource.update({
+                        where: { id: result.resourceId },
+                        data: { curriculumBundleId: bundleId }
+                    }),
+                    undefined,
+                    { organizationId, userId },
+                );
                 return { id: result.resourceId };
             }
             throw new Error("Failed to generate SP");
@@ -178,10 +199,14 @@ export const compileCurriculum = inngest.createFunction(
             );
 
             if (result.success && result.resourceId) {
-                await db.resource.update({
-                    where: { id: result.resourceId },
-                    data: { curriculumBundleId: bundleId }
-                });
+                await withTenant(
+                    (tx) => tx.resource.update({
+                        where: { id: result.resourceId },
+                        data: { curriculumBundleId: bundleId }
+                    }),
+                    undefined,
+                    { organizationId, userId },
+                );
             }
         });
 
@@ -208,10 +233,14 @@ export const compileCurriculum = inngest.createFunction(
             );
 
             if (result.success && result.resourceId) {
-                await db.resource.update({
-                    where: { id: result.resourceId },
-                    data: { curriculumBundleId: bundleId, title: "Reading Anthology" }
-                });
+                await withTenant(
+                    (tx) => tx.resource.update({
+                        where: { id: result.resourceId },
+                        data: { curriculumBundleId: bundleId, title: "Reading Anthology" }
+                    }),
+                    undefined,
+                    { organizationId, userId },
+                );
                 return { id: result.resourceId };
             }
             return null;
@@ -239,16 +268,20 @@ export const compileCurriculum = inngest.createFunction(
             );
 
             if (result.success && result.resourceId) {
-                await db.resource.update({
-                    where: { id: result.resourceId },
-                    data: { curriculumBundleId: bundleId, title: "Charts & Organizers" }
-                });
+                await withTenant(
+                    (tx) => tx.resource.update({
+                        where: { id: result.resourceId },
+                        data: { curriculumBundleId: bundleId, title: "Charts & Organizers" }
+                    }),
+                    undefined,
+                    { organizationId, userId },
+                );
                 return { id: result.resourceId };
             }
             return null;
         });
 
-        // 7. Verification Gate (Studio 26 Validation)
+        // 7. Verification Gate
         // A real preflight check: hash every artifact for integrity, read the ACTUAL
         // generated content, have the model judge it against the spec, persist a
         // computed Release Manifest, and return a gate decision finalize must honor.
@@ -256,18 +289,23 @@ export const compileCurriculum = inngest.createFunction(
             const manifestKind = await db.resourceKind.findFirst({ where: { code: "release_manifest" } });
 
             // Pull every generated artifact (excluding any prior manifest) with its real content.
-            const artifacts = await db.resource.findMany({
-                where: {
-                    curriculumBundleId: bundleId,
-                    resourceKind: { code: { not: "release_manifest" } },
-                },
-                select: {
-                    id: true,
-                    storageType: true,
-                    content: true,
-                    resourceKind: { select: { code: true, label: true } },
-                },
-            });
+            // resources is org-scoped — stamp the explicit tenant or the read returns empty.
+            const artifacts = await withTenant(
+                (tx) => tx.resource.findMany({
+                    where: {
+                        curriculumBundleId: bundleId,
+                        resourceKind: { code: { not: "release_manifest" } },
+                    },
+                    select: {
+                        id: true,
+                        storageType: true,
+                        content: true,
+                        resourceKind: { select: { code: true, label: true } },
+                    },
+                }),
+                undefined,
+                { organizationId, userId },
+            );
 
             // Real integrity: SHA-256 over each artifact's actual content + its byte size.
             const artifactReport = artifacts.map((a) => {
@@ -347,20 +385,24 @@ export const compileCurriculum = inngest.createFunction(
                 gate: { result: gatePassed ? "PASS" : "FAIL", blockingReasons },
             };
 
-            // Persist the computed manifest as the release_manifest resource.
+            // Persist the computed manifest as the release_manifest resource (org-scoped write).
             if (manifestKind) {
-                await db.resource.create({
-                    data: {
-                        organizationId,
-                        createdByUserId: userId,
-                        resourceKindId: manifestKind.id,
-                        title: "Release Manifest & QA Report",
-                        description: `Verification gate: ${gatePassed ? "PASS" : "FAIL"}`,
-                        storageType: "JSON",
-                        content: manifest as object,
-                        curriculumBundleId: bundleId,
-                    },
-                });
+                await withTenant(
+                    (tx) => tx.resource.create({
+                        data: {
+                            organizationId,
+                            createdByUserId: userId,
+                            resourceKindId: manifestKind.id,
+                            title: "Release Manifest & QA Report",
+                            description: `Verification gate: ${gatePassed ? "PASS" : "FAIL"}`,
+                            storageType: "JSON",
+                            content: manifest as object,
+                            curriculumBundleId: bundleId,
+                        },
+                    }),
+                    undefined,
+                    { organizationId, userId },
+                );
             }
 
             const summary = gatePassed
@@ -369,14 +411,18 @@ export const compileCurriculum = inngest.createFunction(
             return { gatePassed, summary };
         });
 
-        // 8. Finalize Bundle — honor the gate decision.
+        // 8. Finalize Bundle — honor the gate decision (org-scoped write).
         await step.run("finalize-bundle", async () => {
-            await db.curriculumBundle.update({
-                where: { id: bundleId },
-                data: verification.gatePassed
-                    ? { status: "COMPLETED", failureReason: null }
-                    : { status: "FAILED", failureReason: `Verification gate failed: ${verification.summary}`.slice(0, 1000) },
-            });
+            await withTenant(
+                (tx) => tx.curriculumBundle.update({
+                    where: { id: bundleId },
+                    data: verification.gatePassed
+                        ? { status: "COMPLETED", failureReason: null }
+                        : { status: "FAILED", failureReason: `Verification gate failed: ${verification.summary}`.slice(0, 1000) },
+                }),
+                undefined,
+                { organizationId, userId },
+            );
         });
 
         return { success: true, bundleId, verified: verification.gatePassed };

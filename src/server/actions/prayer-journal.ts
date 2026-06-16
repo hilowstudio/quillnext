@@ -81,7 +81,7 @@ export async function createPrayerEntry(rawData: unknown) {
     if (!session?.user?.id) throw new Error("Not authenticated");
     const { userId, organizationId } = await getCurrentUserOrg(session);
 
-    await withTenant(
+    const created = await withTenant(
         (tx) => tx.prayerJournalEntry.create({
             data: {
                 userId,
@@ -96,12 +96,22 @@ export async function createPrayerEntry(rawData: unknown) {
                 type: 'entry',
                 status: 'ongoing',
             },
+            include: {
+                student: {
+                    select: {
+                        firstName: true,
+                        lastName: true,
+                    }
+                }
+            }
         }),
         undefined,
         { organizationId, userId }
     );
 
     revalidatePath('/family-discipleship/prayer');
+
+    return created;
 }
 
 const updatePrayerSchema = z.object({

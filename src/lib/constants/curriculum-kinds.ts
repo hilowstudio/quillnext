@@ -1,5 +1,5 @@
 /**
- * Canonical ResourceKind codes for the Curriculum Compiler ("Studio 26") artifacts.
+ * Canonical ResourceKind codes for the Curriculum Compiler artifacts.
  *
  * These MUST match the slugs produced by prisma/seed-generator-content-types.ts
  * (lowercase, underscore) from the "Universal Tools & Templates → Curriculum Design"

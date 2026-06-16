@@ -20,7 +20,8 @@ interface PrayerJournalEditorProps {
     isEditing: boolean;
     isCreating: boolean;
     categories: string[];
-    onSave: (data: PrayerEntryInput) => void;
+    onSave: (data: PrayerEntryInput) => void | Promise<void>;
+    onSaveAndClose?: (data: PrayerEntryInput) => void | Promise<void>;
     onCancel: () => void;
     onEdit: () => void;
     initialTitle?: string;
@@ -33,6 +34,7 @@ export default function PrayerJournalEditor({
     isCreating,
     categories,
     onSave,
+    onSaveAndClose,
     onCancel,
     onEdit,
     initialTitle = '',
@@ -80,11 +82,14 @@ export default function PrayerJournalEditor({
         }
     }, [isEditing, editor]);
 
-    // Auto-save: debounced save on content/metadata changes
+    // Auto-save: debounced save on content/metadata changes.
+    // Non-destructive: it ONLY persists (via onSave) and updates saveStatus.
+    // It must never navigate, reload, or flip edit mode — that is the parent's
+    // job for the explicit Save/Cancel buttons.
     const triggerAutoSave = useCallback(() => {
         if (!isEditing || !editor) return;
         if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
-        autoSaveTimerRef.current = setTimeout(() => {
+        autoSaveTimerRef.current = setTimeout(async () => {
             setSaveStatus('saving');
             const data: PrayerEntryInput = {
                 title: title || 'Untitled Entry',
@@ -94,9 +99,12 @@ export default function PrayerJournalEditor({
                 isPrivate: isPrivate,
                 category: category || null,
             };
-            onSave(data);
-            setSaveStatus('saved');
-            setTimeout(() => setSaveStatus('idle'), 2000);
+            try {
+                await onSave(data);
+            } finally {
+                setSaveStatus('saved');
+                setTimeout(() => setSaveStatus('idle'), 2000);
+            }
         }, 1500);
     }, [isEditing, editor, title, date, tags, isPrivate, category, onSave]);
 
@@ -119,8 +127,13 @@ export default function PrayerJournalEditor({
     }, [editor, isEditing, triggerAutoSave]);
 
     // Handlers
+    // Explicit Save button: cancel any pending autosave (so it can't fire a
+    // redundant write after we finalize) and persist immediately. If the parent
+    // provided onSaveAndClose it finalizes (e.g. exits edit mode for the
+    // create-then-close flow); otherwise it falls back to the in-place onSave.
     const handleSaveClick = () => {
         if (!editor) return;
+        if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
         const data: PrayerEntryInput = {
             title: title || 'Untitled Entry',
             content: editor.getHTML(),
@@ -129,7 +142,7 @@ export default function PrayerJournalEditor({
             isPrivate: isPrivate,
             category: category || null,
         };
-        onSave(data);
+        (onSaveAndClose ?? onSave)(data);
     };
 
     const handleAddTag = (e: React.KeyboardEvent) => {

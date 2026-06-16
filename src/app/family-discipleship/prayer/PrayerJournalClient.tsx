@@ -23,7 +23,7 @@ interface PrayerJournalClientProps {
     initialCategories: { id: string; name: string }[];
 }
 
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 
 export default function PrayerJournalClient({
     initialEntries,
@@ -33,12 +33,19 @@ export default function PrayerJournalClient({
     const searchParams = useSearchParams();
     const paramTitle = searchParams.get('title');
     const paramCategory = searchParams.get('category');
+    const router = useRouter();
 
     // State
     const [entries, setEntries] = useState<PrayerEntry[]>(initialEntries);
     const [selectedEntry, setSelectedEntry] = useState<PrayerEntry | null>(null);
     const [isCreating, setIsCreating] = useState(!!paramTitle);
     const [isEditing, setIsEditing] = useState(!!paramTitle);
+    // Stable identity for the mounted editor across an edit session. Changing
+    // this is the ONLY thing that should remount the TipTap editor; saving must
+    // never change it (otherwise autosave would unmount the editor mid-typing).
+    const [editorKey, setEditorKey] = useState<string>(() =>
+        paramTitle ? `new-${paramTitle}` : 'empty'
+    );
 
     // Filter State
     const [filterDate, setFilterDate] = useState('');
@@ -65,36 +72,64 @@ export default function PrayerJournalClient({
         setSelectedEntry(null);
         setIsCreating(true);
         setIsEditing(true);
+        // Fresh editor session for the new entry.
+        setEditorKey(`new-${Date.now()}`);
     };
 
     const handleSelectEntry = (entry: PrayerEntry) => {
         setSelectedEntry(entry);
         setIsCreating(false);
         setIsEditing(false); // Valid: View mode first
+        setEditorKey(entry.id);
     };
 
     const handleEditEntry = () => {
         setIsEditing(true);
     };
 
+    // Non-destructive save. Persists via the server action and updates local
+    // state in place so the editor stays mounted (no full reload / remount).
+    // Used by BOTH the debounced autosave and the explicit Save button.
     const handleSave = async (data: PrayerEntryInput) => {
         try {
             if (selectedEntry && !isCreating) {
+                // Update: persist, then merge edited fields into the matching
+                // entry. Keep selectedEntry / isEditing exactly as they were.
                 await updatePrayerEntry({ id: selectedEntry.id, ...data });
+                const updated: PrayerEntry = { ...selectedEntry, ...data };
+                setEntries(prev =>
+                    prev.map(e => (e.id === selectedEntry.id ? updated : e))
+                );
+                setSelectedEntry(updated);
                 toast.success('Prayer entry updated');
             } else {
-                await createPrayerEntry(data);
+                // Create: persist and adopt the returned row as the selected
+                // entry so subsequent (auto)saves become updates and the editor
+                // stays mounted. The editor key is left unchanged on purpose.
+                const created = await createPrayerEntry(data);
+                if (created) {
+                    setEntries(prev => [created as PrayerEntry, ...prev]);
+                    setSelectedEntry(created as PrayerEntry);
+                    setIsCreating(false);
+                }
                 toast.success('Prayer entry created');
             }
-            // In a real app with strict RSC, we rely on revalidatePath, 
-            // but for instant feedback we might optimistically update or rely on upcoming refresh.
-            // For now, let's assume the page refreshes or we need to manually reload/update local state if we want instant feedback without hydration mismatch.
-            // A hard reload is simple for this MVC step:
-            window.location.reload();
+            // Server actions already revalidatePath; refresh RSC data in place
+            // WITHOUT unmounting the client (no window.location.reload()).
+            router.refresh();
         } catch (error) {
             console.error(error);
             toast.error('Failed to save entry');
         }
+    };
+
+    // Explicit Save button (create-then-close flow): persist in place, then
+    // settle into VIEW mode on the saved entry instead of staying in edit mode.
+    // Does not reload/remount; the editor remains mounted on the saved row.
+    const handleSaveAndClose = async (data: PrayerEntryInput) => {
+        await handleSave(data);
+        setIsEditing(false);
+        setIsCreating(false);
     };
 
     const handleDelete = async (entry: PrayerEntry) => {
@@ -105,6 +140,7 @@ export default function PrayerJournalClient({
             if (selectedEntry?.id === entry.id) {
                 setSelectedEntry(null);
                 setIsEditing(false);
+                setEditorKey('empty');
             }
             toast.success('Entry deleted');
         } catch (error) {
@@ -116,7 +152,10 @@ export default function PrayerJournalClient({
     const handleCancelEdit = () => {
         setIsEditing(false);
         setIsCreating(false);
-        if (isCreating) setSelectedEntry(null);
+        if (isCreating) {
+            setSelectedEntry(null);
+            setEditorKey('empty');
+        }
     };
 
     return (
@@ -145,12 +184,13 @@ export default function PrayerJournalClient({
             {/* Main Content (70%) */}
             <div className="flex-1 h-full min-w-0">
                 <PrayerJournalEditor
-                    key={selectedEntry?.id || (isCreating ? `new-${paramTitle || 'entry'}` : 'empty')}
+                    key={editorKey}
                     entry={selectedEntry}
                     isEditing={isEditing}
                     isCreating={isCreating}
                     categories={uniqueCategories}
                     onSave={handleSave}
+                    onSaveAndClose={handleSaveAndClose}
                     onCancel={handleCancelEdit}
                     onEdit={handleEditEntry}
                     initialTitle={paramTitle || ''}

@@ -1,8 +1,7 @@
 import { revalidateTag } from "next/cache";
 import { inngest } from "@/inngest/client";
 import { getStorageBucket } from "@/lib/firebase-admin";
-import { db } from "@/server/db";
-import { setRlsContext } from "@/server/rls-context";
+import { withTenant } from "@/server/db";
 // @ts-ignore
 import PDFParser from "pdf2json";
 
@@ -34,8 +33,10 @@ export const processDocument = inngest.createFunction(
     { event: "resource/process.document" },
     async ({ event, step }) => {
         const { resourceId, fileUrl, fileType, organizationId } = event.data;
-        // Background worker has no request — establish RLS tenant context from the event.
-        setRlsContext({ organizationId, userId: null });
+        // Background worker has no request — AsyncLocalStorage does NOT reach the Prisma
+        // layer here, so the tenant must be threaded EXPLICITLY into withTenant for every
+        // org-scoped db op (see update-db step). DocumentResource is org-scoped, not
+        // user-scoped, so { organizationId, userId: null } is correct.
 
         // 1. Download file from Firebase Storage
         const base64File = await step.run("download-file", async (): Promise<string> => {
@@ -84,20 +85,31 @@ export const processDocument = inngest.createFunction(
 
         // 3. Update Database
         await step.run("update-db", async () => {
-            // Fetch the doc first to get the orgId for the cache tag
-            const doc = await db.documentResource.findUnique({
-                where: { id: resourceId },
-                select: { organizationId: true }
-            });
+            // Both the read and the write target the org-scoped DocumentResource table, so
+            // they run inside ONE withTenant tx with the event's organizationId stamped on
+            // the connection (ALS doesn't propagate into Prisma in the Inngest runtime).
+            const doc = await withTenant(
+                async (tx) => {
+                    // Fetch the doc first to get the orgId for the cache tag
+                    const found = await tx.documentResource.findUnique({
+                        where: { id: resourceId },
+                        select: { organizationId: true }
+                    });
 
-            if (!doc) throw new Error("Document not found");
+                    if (!found) throw new Error("Document not found");
 
-            await db.documentResource.update({
-                where: { id: resourceId },
-                data: {
-                    extractedText: extractedText,
+                    await tx.documentResource.update({
+                        where: { id: resourceId },
+                        data: {
+                            extractedText: extractedText,
+                        },
+                    });
+
+                    return found;
                 },
-            });
+                undefined,
+                { organizationId, userId: null },
+            );
 
             // Invalidate the library list so the user sees the new text/status
             // @ts-ignore

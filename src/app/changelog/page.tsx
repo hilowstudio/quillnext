@@ -38,7 +38,7 @@ export default function ChangelogPage() {
             <h2 className="font-display text-2xl">February 2026</h2>
             <h3 className="font-display text-lg">Curriculum Compiler</h3>
             <ul className="list-disc pl-6 space-y-1">
-              <li><strong>Added:</strong> Complete Curriculum Compiler (Studio 26 Integration)</li>
+              <li><strong>Added:</strong> Complete Curriculum Compiler</li>
               <li><strong>Improved:</strong> Icon dependencies optimized for smaller bundle size</li>
               <li><strong>Improved:</strong> Heart-check UI refined with Boxicons, emoji replaced</li>
               <li><strong>Fixed:</strong> Prisma build with pg driver adapter, enforced Node runtime</li>
