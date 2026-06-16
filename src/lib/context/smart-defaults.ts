@@ -23,8 +23,10 @@ export async function getSmartDefaults(organizationId: string, courseId?: string
 
   // If courseId provided, get enrolled students
   if (courseId) {
-    const course = await db.course.findUnique({
-      where: { id: courseId },
+    // SECURITY: scope the course lookup to the caller's org so a foreign courseId
+    // resolves to null (no cross-org student id / objective leak).
+    const course = await db.course.findFirst({
+      where: { id: courseId, organizationId },
       include: {
         students: {
           include: {

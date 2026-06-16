@@ -19,6 +19,7 @@ export async function exportUserData() {
       role: true,
       createdAt: true,
       updatedAt: true,
+      organizationId: true,
       organization: {
         select: {
           name: true,
@@ -32,14 +33,29 @@ export async function exportUserData() {
     return { success: false, error: "User not found" };
   }
 
-  const orgId = (
-    await db.user.findUnique({
-      where: { id: userId },
-      select: { organizationId: true },
-    })
-  )?.organizationId;
+  // SECURITY: when the user has no org, NEVER run an org-scoped findMany. In Prisma a
+  // `{ organizationId: undefined }` filter is DROPPED, which would match EVERY tenant's rows
+  // (a cross-tenant leak in a data-export surface). Org-scoped queries run only for a real id.
+  const orgId = user.organizationId;
 
-  // Fetch all user-owned and org-related data in parallel
+  // User-scoped data — always exportable.
+  const [
+    prayerEntries,
+    bibleMemory,
+    devotionalReflections,
+    churchNotes,
+    gratitudeEntries,
+    resources,
+  ] = await Promise.all([
+    db.prayerJournalEntry.findMany({ where: { userId } }),
+    db.bibleMemory.findMany({ where: { userId } }),
+    db.devotionalReflection.findMany({ where: { userId } }),
+    db.localChurchNotes.findMany({ where: { userId } }),
+    db.gratitudeJournal.findMany({ where: { userId } }),
+    db.resource.findMany({ where: { createdByUserId: userId } }),
+  ]);
+
+  // Org-scoped data — only when the user actually belongs to an org.
   const [
     students,
     courses,
@@ -47,91 +63,38 @@ export async function exportUserData() {
     videos,
     articles,
     documents,
-    prayerEntries,
-    bibleMemory,
-    devotionalReflections,
-    churchNotes,
-    gratitudeEntries,
     transcripts,
     classrooms,
-    resources,
   ] = await Promise.all([
-    // Students with all nested data
-    db.student.findMany({
-      where: { organizationId: orgId ?? undefined },
-      include: {
-        learnerProfile: true,
-        courseProgress: true,
-        courseEnrollments: {
-          select: { courseId: true },
-        },
-      },
-    }),
-
-    // Courses with structure
-    db.course.findMany({
-      where: { organizationId: orgId ?? undefined },
-      include: {
-        blocks: {
-          include: {
-            activities: true,
-          },
-        },
-      },
-    }),
-
-    // Library resources
-    db.book.findMany({
-      where: { organizationId: orgId ?? undefined },
-    }),
-    db.videoResource.findMany({
-      where: { organizationId: orgId ?? undefined },
-    }),
-    db.article.findMany({
-      where: { organizationId: orgId ?? undefined },
-    }),
-    db.documentResource.findMany({
-      where: { organizationId: orgId ?? undefined },
-    }),
-
-    // Discipleship data
-    db.prayerJournalEntry.findMany({
-      where: { userId },
-    }),
-    db.bibleMemory.findMany({
-      where: { userId },
-    }),
-    db.devotionalReflection.findMany({
-      where: { userId },
-    }),
-    db.localChurchNotes.findMany({
-      where: { userId },
-    }),
-    db.gratitudeJournal.findMany({
-      where: { userId },
-    }),
-
-    // Transcripts
     orgId
-      ? db.transcript.findMany({
+      ? db.student.findMany({
           where: { organizationId: orgId },
+          include: {
+            learnerProfile: true,
+            courseProgress: true,
+            courseEnrollments: { select: { courseId: true } },
+          },
         })
       : Promise.resolve([]),
-
-    // Classrooms / Blueprint
+    orgId
+      ? db.course.findMany({
+          where: { organizationId: orgId },
+          include: { blocks: { include: { activities: true } } },
+        })
+      : Promise.resolve([]),
+    orgId ? db.book.findMany({ where: { organizationId: orgId } }) : Promise.resolve([]),
+    orgId ? db.videoResource.findMany({ where: { organizationId: orgId } }) : Promise.resolve([]),
+    orgId ? db.article.findMany({ where: { organizationId: orgId } }) : Promise.resolve([]),
+    orgId
+      ? db.documentResource.findMany({ where: { organizationId: orgId } })
+      : Promise.resolve([]),
+    orgId ? db.transcript.findMany({ where: { organizationId: orgId } }) : Promise.resolve([]),
     orgId
       ? db.classroom.findMany({
           where: { organizationId: orgId },
-          include: {
-            instructors: true,
-          },
+          include: { instructors: true },
         })
       : Promise.resolve([]),
-
-    // Generated resources
-    db.resource.findMany({
-      where: { createdByUserId: userId },
-    }),
   ]);
 
   const exportData = {

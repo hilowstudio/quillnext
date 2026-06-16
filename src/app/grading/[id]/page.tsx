@@ -108,7 +108,6 @@ export default async function GradingPage({
           <GradingInterface
             attempt={attempt}
             personalityData={personalityData}
-            organizationId={organizationId}
           />
         </div>
 

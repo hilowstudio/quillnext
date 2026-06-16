@@ -10,13 +10,11 @@ import { generateItemFeedback, generateOverallFeedback } from "@/app/actions/gra
 interface GradingInterfaceProps {
   attempt: any;
   personalityData: any;
-  organizationId: string;
 }
 
 export function GradingInterface({
   attempt,
   personalityData,
-  organizationId,
 }: GradingInterfaceProps) {
   const [scores, setScores] = useState<Record<string, number>>({});
   const [feedback, setFeedback] = useState<Record<string, string>>({});
@@ -40,7 +38,6 @@ export function GradingInterface({
       if (!item || !response) return;
 
       const { text } = await generateItemFeedback({
-        organizationId,
         studentId: attempt.studentId,
         courseId: attempt.assessment.courseId,
         questionText: item.questionText,
@@ -66,7 +63,6 @@ export function GradingInterface({
       );
 
       const { text } = await generateOverallFeedback({
-        organizationId,
         studentId: attempt.studentId,
         courseId: attempt.assessment.courseId,
         assessmentTitle: attempt.assessment.title,

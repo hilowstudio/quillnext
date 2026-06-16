@@ -1,12 +1,39 @@
 import React from 'react';
+import { redirect } from 'next/navigation';
+import { auth } from '@/auth';
+import { getCurrentUserOrg } from '@/lib/auth-helpers';
 import { db } from "@/server/db";
 import { getLibraryVerses, getUserVerses, getStudentFolders } from './actions';
 import BibleMemoryDashboard from './BibleMemoryDashboard';
 
-export default async function BibleMemoryPage() {
-    // 1. Fetch Data
-    // Get the first student for demo purposes
-    const student = await db.student.findFirst();
+export default async function BibleMemoryPage({
+    searchParams,
+}: {
+    searchParams: Promise<{ studentId?: string }>;
+}) {
+    // SECURITY: require a session and only ever resolve a student that belongs to the
+    // caller's org. Previously this did a global `db.student.findFirst()` ("first student
+    // for demo purposes"), leaking an arbitrary cross-tenant student into the UI.
+    const session = await auth();
+    if (!session?.user) {
+        redirect('/login');
+    }
+
+    const { organizationId } = await getCurrentUserOrg(session);
+    if (!organizationId) {
+        redirect('/onboarding');
+    }
+
+    const { studentId: requestedStudentId } = await searchParams;
+
+    // Honor ?studentId only if it belongs to this org; otherwise fall back to the org's
+    // first student.
+    let student = requestedStudentId
+        ? await db.student.findFirst({ where: { id: requestedStudentId, organizationId } })
+        : null;
+    if (!student) {
+        student = await db.student.findFirst({ where: { organizationId } });
+    }
     const studentId = student?.id || "";
 
     if (!studentId) {

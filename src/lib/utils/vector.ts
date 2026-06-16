@@ -70,7 +70,9 @@ export async function generateBookEmbedding(bookId: string, text: string) {
  * Find books similar to a given book
  * Useful for "related books" or "if you liked this" features
  */
-export async function findSimilarBooks(bookId: string, limit = 5) {
+export async function findSimilarBooks(bookId: string, organizationId: string, limit = 5) {
+  // SECURITY: both the source book (b1) and every candidate (b2) MUST belong to the caller's
+  // org (DB column `account_id`); otherwise this cross-join leaks other tenants' titles/summaries.
   const books = await db.$queryRaw<
     Array<{
       id: string;
@@ -79,14 +81,16 @@ export async function findSimilarBooks(bookId: string, limit = 5) {
       similarity: number;
     }>
   >`
-    SELECT 
-      b2.id, 
-      b2.title, 
+    SELECT
+      b2.id,
+      b2.title,
       b2.summary,
       1 - (b1.embedding <=> b2.embedding) as similarity
     FROM "books" b1
     CROSS JOIN "books" b2
     WHERE b1.id = ${bookId}
+      AND b1.account_id = ${organizationId}
+      AND b2.account_id = ${organizationId}
       AND b2.id != ${bookId}
       AND b1.embedding IS NOT NULL
       AND b2.embedding IS NOT NULL

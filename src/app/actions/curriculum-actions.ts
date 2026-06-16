@@ -2,6 +2,7 @@
 
 import { db } from "@/server/db";
 import { z } from "zod";
+import { getCurrentUserOrg } from "@/lib/auth-helpers";
 
 // Define validation schemas inline since these are simple
 const getCourseBooksSchema = z.object({
@@ -17,12 +18,17 @@ const getSubtopicObjectivesSchema = z.object({
 });
 
 export async function getCourseBooks(rawData: unknown) {
+    // SECURITY: require a session and scope all reads to the caller's org. Course ownership
+    // is verified, and books are filtered by organizationId (not just shared subject/strand).
+    const { organizationId } = await getCurrentUserOrg();
+    if (!organizationId) return { books: [] };
+
     const courseId = typeof rawData === "string"
         ? rawData
         : getCourseBooksSchema.parse(rawData).courseId;
 
-    const course = await db.course.findUnique({
-        where: { id: courseId },
+    const course = await db.course.findFirst({
+        where: { id: courseId, organizationId },
         select: { subjectId: true, strandId: true },
     });
 
@@ -30,6 +36,7 @@ export async function getCourseBooks(rawData: unknown) {
 
     const books = await db.book.findMany({
         where: {
+            organizationId,
             OR: [
                 { subjectId: course.subjectId },
                 { strandId: course.strandId || undefined },
@@ -44,12 +51,16 @@ export async function getCourseBooks(rawData: unknown) {
 }
 
 export async function getBookChapters(rawData: unknown) {
+    // SECURITY: scope the book lookup to the caller's org so a foreign bookId returns nothing.
+    const { organizationId } = await getCurrentUserOrg();
+    if (!organizationId) return { chapters: [] };
+
     const bookId = typeof rawData === "string"
         ? rawData
         : getBookChaptersSchema.parse(rawData).bookId;
 
-    const book = await db.book.findUnique({
-        where: { id: bookId },
+    const book = await db.book.findFirst({
+        where: { id: bookId, organizationId },
         select: { tableOfContents: true },
     });
 

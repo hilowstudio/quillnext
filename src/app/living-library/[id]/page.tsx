@@ -55,7 +55,7 @@ export default async function BookDetailPage({
 
   // Get similar books
   // Similar books feature - gracefully degrade if unavailable rather than breaking page
-  const similarBooks = await findSimilarBooks(book.id, 5).catch(() => []);
+  const similarBooks = await findSimilarBooks(book.id, organizationId, 5).catch(() => []);
 
   return (
     <div className="container mx-auto max-w-6xl px-4 py-8">

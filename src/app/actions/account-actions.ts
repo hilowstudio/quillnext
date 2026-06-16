@@ -44,95 +44,131 @@ export async function deleteAccount() {
 
   const user = await db.user.findUnique({
     where: { id: userId },
-    select: { organizationId: true },
+    select: { organizationId: true, role: true },
   });
 
   const orgId = user?.organizationId;
 
-  // Nullify grader references (optional FK — don't cascade, just clear)
-  await db.assessmentAttempt.updateMany({
-    where: { graderUserId: userId },
-    data: { graderUserId: null },
-  });
-
-  // Delete resources created by user
-  await db.resourceAssignment.deleteMany({
-    where: { assignedByUserId: userId },
-  });
-  await db.resource.deleteMany({
-    where: { createdByUserId: userId },
-  });
-
+  // ROLE GATE: deleting an account cascades to the ENTIRE Organization
+  // (User.organization is onDelete: Cascade — every user/student/course/transcript/library
+  // item in the family is destroyed). In a multi-member org, only the OWNER may do this;
+  // otherwise any member could wipe everyone else's data.
   if (orgId) {
-    // Students cascade their nested data (progress, attempts, etc.)
-    await db.student.deleteMany({ where: { organizationId: orgId } });
-
-    // Transcripts
-    await db.transcript.deleteMany({ where: { organizationId: orgId } });
-
-    // Courses — delete bottom-up to respect FK constraints
-    // Assessment items/attempts reference assessments which reference courses
-    const courses = await db.course.findMany({
-      where: { organizationId: orgId },
-      select: { id: true },
-    });
-    const courseIds = courses.map((c: { id: string }) => c.id);
-
-    if (courseIds.length > 0) {
-      // Delete assessment data
-      await db.assessmentItemResponse.deleteMany({
-        where: { attempt: { assessment: { courseId: { in: courseIds } } } },
-      });
-      await db.assessmentAttempt.deleteMany({
-        where: { assessment: { courseId: { in: courseIds } } },
-      });
-      await db.assessmentItem.deleteMany({
-        where: { assessment: { courseId: { in: courseIds } } },
-      });
-      await db.assessment.deleteMany({
-        where: { courseId: { in: courseIds } },
-      });
-
-      // Delete activity data
-      await db.activityProgress.deleteMany({
-        where: { activity: { courseBlock: { courseId: { in: courseIds } } } },
-      });
-      await db.resourceAssignment.deleteMany({
-        where: { activity: { courseBlock: { courseId: { in: courseIds } } } },
-      });
-      await db.activity.deleteMany({
-        where: { courseBlock: { courseId: { in: courseIds } } },
-      });
-
-      // Delete blocks and courses
-      await db.courseBlock.deleteMany({
-        where: { courseId: { in: courseIds } },
-      });
-      await db.courseProgress.deleteMany({
-        where: { courseId: { in: courseIds } },
-      });
-      await db.course.deleteMany({ where: { id: { in: courseIds } } });
+    const memberCount = await db.user.count({ where: { organizationId: orgId } });
+    if (memberCount > 1 && user?.role !== "OWNER") {
+      return {
+        success: false,
+        error:
+          "Only the organization owner can delete the account — this permanently removes the whole family's data. Ask an owner, or remove other members first.",
+      };
     }
-
-    // Library items
-    await db.book.deleteMany({ where: { organizationId: orgId } });
-    await db.videoResource.deleteMany({ where: { organizationId: orgId } });
-    await db.article.deleteMany({ where: { organizationId: orgId } });
-    await db.documentResource.deleteMany({ where: { organizationId: orgId } });
-
-    // Classrooms
-    await db.classroomInstructor.deleteMany({
-      where: { classroom: { organizationId: orgId } },
-    });
-    await db.classroom.deleteMany({ where: { organizationId: orgId } });
-
-    // Organization
-    await db.organization.delete({ where: { id: orgId } });
   }
 
-  // Delete user (cascades: accounts, sessions, prayer entries, bible memory,
-  // devotional reflections, church notes, gratitude journal)
-  await db.user.delete({ where: { id: userId } });
+  // ATOMIC: one transaction so a mid-way failure can never leave a half-deleted tenant.
+  await db.$transaction(
+    async (tx) => {
+      // Nullify grader references (optional FK — don't cascade, just clear)
+      await tx.assessmentAttempt.updateMany({
+        where: { graderUserId: userId },
+        data: { graderUserId: null },
+      });
+
+      // Delete resources created by user
+      await tx.resourceAssignment.deleteMany({
+        where: { assignedByUserId: userId },
+      });
+      await tx.resource.deleteMany({
+        where: { createdByUserId: userId },
+      });
+
+      if (orgId) {
+        // Students cascade their nested data (progress, attempts, etc.)
+        await tx.student.deleteMany({ where: { organizationId: orgId } });
+
+        // Transcripts
+        await tx.transcript.deleteMany({ where: { organizationId: orgId } });
+
+        // Courses — delete bottom-up to respect FK constraints
+        const courses = await tx.course.findMany({
+          where: { organizationId: orgId },
+          select: { id: true },
+        });
+        const courseIds = courses.map((c: { id: string }) => c.id);
+
+        if (courseIds.length > 0) {
+          await tx.assessmentItemResponse.deleteMany({
+            where: { attempt: { assessment: { courseId: { in: courseIds } } } },
+          });
+          await tx.assessmentAttempt.deleteMany({
+            where: { assessment: { courseId: { in: courseIds } } },
+          });
+          await tx.assessmentItem.deleteMany({
+            where: { assessment: { courseId: { in: courseIds } } },
+          });
+          await tx.assessment.deleteMany({
+            where: { courseId: { in: courseIds } },
+          });
+
+          await tx.activityProgress.deleteMany({
+            where: { activity: { courseBlock: { courseId: { in: courseIds } } } },
+          });
+          await tx.resourceAssignment.deleteMany({
+            where: { activity: { courseBlock: { courseId: { in: courseIds } } } },
+          });
+          await tx.activity.deleteMany({
+            where: { courseBlock: { courseId: { in: courseIds } } },
+          });
+
+          await tx.courseBlock.deleteMany({
+            where: { courseId: { in: courseIds } },
+          });
+          await tx.courseProgress.deleteMany({
+            where: { courseId: { in: courseIds } },
+          });
+          await tx.course.deleteMany({ where: { id: { in: courseIds } } });
+        }
+
+        // Library items
+        await tx.book.deleteMany({ where: { organizationId: orgId } });
+        await tx.videoResource.deleteMany({ where: { organizationId: orgId } });
+        await tx.article.deleteMany({ where: { organizationId: orgId } });
+        await tx.documentResource.deleteMany({ where: { organizationId: orgId } });
+
+        // Classrooms
+        await tx.classroomInstructor.deleteMany({
+          where: { classroom: { organizationId: orgId } },
+        });
+        await tx.classroom.deleteMany({ where: { organizationId: orgId } });
+
+        // Org-wide resources + their assignments. These reference users via RESTRICT FKs
+        // (resources.created_by_user_id, resource_assignments.assigned_by_user_id) and are NOT
+        // covered by the course/library deletes above, so a resource authored by ANOTHER member
+        // would block the users cascade below and roll the whole transaction back. Delete them
+        // org-wide first. (resource_assignments.resource_id is ON DELETE CASCADE, so deleting the
+        // resources clears their assignments; we also delete assignments authored by org members
+        // directly, to be safe against any cross-org resource reference.)
+        await tx.resourceAssignment.deleteMany({
+          where: {
+            OR: [
+              { resource: { organizationId: orgId } },
+              { assignedByUser: { organizationId: orgId } },
+            ],
+          },
+        });
+        await tx.resource.deleteMany({ where: { organizationId: orgId } });
+
+        // Deleting the organization cascades to its users (User.organization onDelete: Cascade)
+        // — this user and their personal discipleship data go with it — so there is no separate
+        // user.delete in the org path (that would target an already-removed row).
+        await tx.organization.delete({ where: { id: orgId } });
+      } else {
+        // No org: delete just this user (cascades accounts, sessions, prayer entries,
+        // bible memory, devotional reflections, church notes, gratitude journal).
+        await tx.user.delete({ where: { id: userId } });
+      }
+    },
+    { timeout: 30000 },
+  );
 
   return { success: true };
 }

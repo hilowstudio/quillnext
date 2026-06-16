@@ -5,6 +5,7 @@ import { getCurrentUserOrg } from "@/lib/auth-helpers";
 import { db } from "@/server/db";
 import { revalidatePath } from "next/cache";
 import { CURRICULUM_KIND_CODES } from "@/lib/constants/curriculum-kinds";
+import { clampDurationDays } from "@/lib/validation/curriculum-spec";
 
 /**
  * Why this exists:
@@ -96,7 +97,8 @@ export async function explodeCurriculumBundle(bundleId: string, courseId: string
             : bundle.resources.map((r) => ({ resourceId: r.id, title: r.title || r.resourceKind.label }));
 
     const topicLabel = bundle.spec.topic || bundle.spec.title;
-    const duration = bundle.spec.durationDays && bundle.spec.durationDays > 0 ? bundle.spec.durationDays : 1;
+    // Defensive: clamp to 1..MAX even though compileCurriculumAction now validates on the way in.
+    const duration = clampDurationDays(bundle.spec.durationDays ?? 1);
 
     // 3. Append after the course's current last block. The builder renders a flat
     //    list ordered by `position` (indentation derives from `kind`), and drag

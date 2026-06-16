@@ -18,19 +18,8 @@ import { Textarea } from "@/components/ui/textarea"; // Assuming you have this o
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { CircleNotch, Sparkle } from "@phosphor-icons/react";
-
-const formSchema = z.object({
-    subject: z.string().min(2, { message: "Subject is required." }),
-    topic: z.string().min(5, { message: "Detailed topic is required." }),
-    readingLevel: z.string().min(1, { message: "Reading level is required." }),
-    durationDays: z.coerce.number().min(1).max(20),
-    constraints: z.object({
-        noDevices: z.boolean(),
-        lowPrep: z.boolean(),
-        groupWork: z.boolean(),
-        visualAid: z.boolean(),
-    }),
-});
+// SECURITY: the SAME schema is enforced server-side in compileCurriculumAction (don't fork it).
+import { curriculumSpecSchema as formSchema } from "@/lib/validation/curriculum-spec";
 
 interface SpecFormProps {
     onSubmit: (values: z.infer<typeof formSchema>) => void;

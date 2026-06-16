@@ -25,25 +25,46 @@ export async function reorderBlocks(
     }
 
     const { organizationId } = await getCurrentUserOrg();
+    if (!organizationId) {
+        throw new Error("Unauthorized");
+    }
 
-    // Verify course ownership
-    const course = await db.course.findUnique({
-        where: { id: courseId },
+    // Validate the payload (ReorderSchema was previously declared but never parsed).
+    const safeUpdates = ReorderSchema.parse(updates);
+
+    // Verify the caller owns the course.
+    const course = await db.course.findFirst({
+        where: { id: courseId, organizationId },
+        select: { id: true },
     });
 
-    if (!course || course.organizationId !== organizationId) {
+    if (!course) {
         throw new Error("Course not found or unauthorized");
     }
 
-    // Transaction for batch updates
-    // Note: Prisma doesn't support bulk update with different values easily, 
-    // so we use a transaction of individual updates or raw query if performance needed.
-    // For small courses (<50 blocks), this is fine.
+    // SECURITY: you may only reorder/re-parent blocks that belong to THIS course. Reject any
+    // foreign block id (and any cross-course parentBlockId) before writing — otherwise a crafted
+    // drag-save payload could reposition/re-parent another org's blocks.
+    const ownBlocks = await db.courseBlock.findMany({
+        where: { courseId },
+        select: { id: true },
+    });
+    const ownBlockIds = new Set(ownBlocks.map((b) => b.id));
 
+    for (const u of safeUpdates) {
+        if (!ownBlockIds.has(u.id)) {
+            throw new Error("Cannot reorder a block that does not belong to this course");
+        }
+        if (u.parentBlockId !== null && !ownBlockIds.has(u.parentBlockId)) {
+            throw new Error("Cannot set a parent block from a different course");
+        }
+    }
+
+    // Each write is additionally scoped by courseId, so a foreign block id matches zero rows.
     await db.$transaction(
-        updates.map((update) =>
-            db.courseBlock.update({
-                where: { id: update.id },
+        safeUpdates.map((update) =>
+            db.courseBlock.updateMany({
+                where: { id: update.id, courseId },
                 data: {
                     position: update.position,
                     parentBlockId: update.parentBlockId,

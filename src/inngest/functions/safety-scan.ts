@@ -22,9 +22,17 @@ export const scanMessage = inngest.createFunction(
         let resolution = decideSafetyResolution(result);
 
         // 3. PATTERN SCALAR (Escalation Logic)
-        if (!result.isSafe && resolution !== "INTERNAL_LOG_ONLY" && resolution !== "SUPPORTIVE_ONLY") {
-            // Only escalate if we are not in a hard-stop state (implicated caregiver/high risk)
-            // AND the resolution is not already urgent.
+        // HARD STOP (Minimum Social Responsibility): NEVER escalate toward caregiver notification
+        // when the caregiver is implicated OR the child fears disclosure. STUDENT_OPTIONAL_OUTREACH
+        // is itself a hard-stop output of decideSafetyResolution; without the two extra guards below
+        // it could be upgraded to a PARENT_SUMMARY_* and emailed to the very caregiver the child fears.
+        if (
+            !result.isSafe &&
+            resolution !== "INTERNAL_LOG_ONLY" &&
+            resolution !== "SUPPORTIVE_ONLY" &&
+            !result.implicatedCaregiver &&
+            result.disclosureRisk !== "HIGH"
+        ) {
 
             // Check last 10 days
             const tenDaysAgo = new Date();

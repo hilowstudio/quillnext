@@ -3,9 +3,10 @@
 import { generateText } from "ai";
 import { buildMasterPrompt } from "@/lib/utils/prompt-builder";
 import { models } from "@/lib/ai/config";
+import { getCurrentUserOrg } from "@/lib/auth-helpers";
+import { db } from "@/server/db";
 
 interface GenerateFeedbackParams {
-    organizationId: string;
     studentId: string;
     courseId: string;
     questionText: string;
@@ -13,7 +14,6 @@ interface GenerateFeedbackParams {
 }
 
 interface GenerateOverallFeedbackParams {
-    organizationId: string;
     studentId: string;
     courseId: string;
     assessmentTitle: string;
@@ -21,13 +21,30 @@ interface GenerateOverallFeedbackParams {
     maxScore: number;
 }
 
+/**
+ * SECURITY: the organization is ALWAYS derived from the session — never accepted from the
+ * caller — and the studentId is verified to belong to that org before any family/student
+ * context is assembled. (Previously both actions trusted a client-supplied organizationId,
+ * a cross-tenant context leak.)
+ */
+async function assertStudentInOrg(studentId: string): Promise<string> {
+    const { organizationId } = await getCurrentUserOrg();
+    if (!organizationId) throw new Error("Forbidden");
+    const student = await db.student.findFirst({
+        where: { id: studentId, organizationId },
+        select: { id: true },
+    });
+    if (!student) throw new Error("Forbidden: student is not in your organization");
+    return organizationId;
+}
+
 export async function generateItemFeedback({
-    organizationId,
     studentId,
     courseId,
     questionText,
     responseContent,
 }: GenerateFeedbackParams) {
+    const organizationId = await assertStudentInOrg(studentId);
     try {
         const prompt = await buildMasterPrompt({
             organizationId,
@@ -58,13 +75,13 @@ Provide feedback that:
 }
 
 export async function generateOverallFeedback({
-    organizationId,
     studentId,
     courseId,
     assessmentTitle,
     totalScore,
     maxScore,
 }: GenerateOverallFeedbackParams) {
+    const organizationId = await assertStudentInOrg(studentId);
     try {
         const percentage = maxScore > 0 ? (totalScore / maxScore) * 100 : 0;
 

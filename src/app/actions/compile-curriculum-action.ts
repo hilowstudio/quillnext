@@ -5,19 +5,18 @@ import { getCurrentUserOrg } from "@/lib/auth-helpers";
 import { db } from "@/server/db";
 import { inngest } from "@/inngest/client";
 import { revalidatePath } from "next/cache";
+import { curriculumSpecSchema } from "@/lib/validation/curriculum-spec";
 
-export async function compileCurriculumAction(data: {
-    subject: string;
-    topic: string;
-    readingLevel: string;
-    durationDays: number;
-    constraints: any;
-}) {
+export async function compileCurriculumAction(rawData: unknown) {
     const session = await auth();
     if (!session?.user?.id) throw new Error("Unauthorized");
 
     const { organizationId } = await getCurrentUserOrg();
     if (!organizationId) throw new Error("No organization found");
+
+    // SECURITY: validate server-side. The client form schema is bypassable; durationDays in
+    // particular MUST be bounded (it drives explode-bundle's per-day block creation).
+    const data = curriculumSpecSchema.parse(rawData);
 
     // 1. Create Spec
     const spec = await db.curriculumSpec.create({
