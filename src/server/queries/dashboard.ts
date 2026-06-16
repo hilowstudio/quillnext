@@ -1,8 +1,12 @@
 import "server-only";
 import { db } from "@/server/db";
+import { setRlsContext } from "@/server/rls-context";
 import { analyzeContextCompleteness } from "@/lib/context/context-suggestions";
 
 export async function getStudentDashboardData(organizationId: string, studentId: string) {
+    // RLS: set the tenant context in THIS frame (same async frame as the queries below), since
+    // getCurrentUserOrg's context doesn't propagate back to the page's queries across frames.
+    setRlsContext({ organizationId, userId: null });
     return db.student.findUnique({
         where: {
             id: studentId,
@@ -28,6 +32,7 @@ export async function getStudentDashboardData(organizationId: string, studentId:
 }
 
 export async function getParentDashboardData(organizationId: string) {
+    setRlsContext({ organizationId, userId: null });
 
     // 1. Context Completeness
     const { completeness, suggestions } = await analyzeContextCompleteness(organizationId);
