@@ -83,7 +83,10 @@ export const scanMessage = inngest.createFunction(
 
             // 5. ACT (Gated by Policy)
             if (resolution === "PARENT_SUMMARY_SAFETY_COACH" || resolution === "PARENT_SUMMARY_URGENT") {
-                await sendSafetyAlert(flag.id);
+                const alert = await sendSafetyAlert(flag.id);
+                if (!alert.sent) {
+                    console.error(`[SAFETY] Alert delivery FAILED for flag ${flag.id}: ${alert.error}`);
+                }
             } else {
                 console.log(`[SAFETY] Resolution '${resolution}' applied. Notification SUPPRESSED.`);
             }
