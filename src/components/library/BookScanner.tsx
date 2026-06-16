@@ -2,16 +2,18 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { lookupBook } from "@/app/actions/library-lookup-actions";
+import type { BookMetadata } from "@/lib/api/google-books";
 import { processImageForOcr } from "@/lib/image-processing";
+import { BarcodeScanner } from "@/components/library/BarcodeScanner";
 import { toast } from "sonner";
-import { Camera, MagnifyingGlass, Barcode, TextT } from "@phosphor-icons/react";
+import { Camera, MagnifyingGlass, Barcode } from "@phosphor-icons/react";
 
 interface BookScannerProps {
   organizationId: string;
@@ -41,21 +43,33 @@ interface Strand {
   subjectId: string;
 }
 
+/** True when the trimmed query (sans spaces/hyphens) looks like an ISBN-10/13. */
+function looksLikeIsbn(query: string): boolean {
+  const stripped = query.trim().replace(/[\s-]/g, "");
+  return /^[0-9]{9}[0-9X]$/i.test(stripped) || /^[0-9]{13}$/.test(stripped);
+}
+
 export function BookScanner({ organizationId }: BookScannerProps) {
+  // organizationId is reserved for org-scoped behavior; currently the save route
+  // resolves the tenant server-side, so it is intentionally not read here.
+  void organizationId;
   const router = useRouter();
 
   // State
-  const [activeTab, setActiveTab] = useState("isbn");
+  const [activeTab, setActiveTab] = useState("search");
   const [isLoading, setIsLoading] = useState(false);
   const [extractedData, setExtractedData] = useState<ExtractedBookData | null>(null);
 
-  // Form State
-  const [isbnQuery, setIsbnQuery] = useState("");
-  const [textQuery, setTextQuery] = useState("");
+  // Omnibox search
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<BookMetadata[] | null>(null);
 
   // Image State
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+
+  // Barcode manual fallback
+  const [manualIsbn, setManualIsbn] = useState("");
 
   // Taxonomy
   const [selectedSubject, setSelectedSubject] = useState<string>("");
@@ -83,15 +97,17 @@ export function BookScanner({ organizationId }: BookScannerProps) {
     }
   }, [selectedSubject]);
 
-  // Handlers
-  const handleIsbnLookup = async () => {
-    if (!isbnQuery) return toast.error("Please enter an ISBN");
+  /** Run an ISBN lookup (single result) and jump straight to the preview form. */
+  const runIsbnLookup = async (rawIsbn: string) => {
+    const isbn = rawIsbn.trim();
+    if (!isbn) return toast.error("Please enter an ISBN");
 
     setIsLoading(true);
-    const result = await lookupBook({ query: isbnQuery, type: "BOOK" });
+    const result = await lookupBook({ query: isbn, type: "BOOK" });
     setIsLoading(false);
 
     if (result.success && result.data) {
+      setSearchResults(null);
       setExtractedData(result.data);
       toast.success("Book found!");
     } else {
@@ -99,20 +115,45 @@ export function BookScanner({ organizationId }: BookScannerProps) {
     }
   };
 
-  const handleTextLookup = async () => {
-    if (!textQuery) return toast.error("Please enter a title or author");
+  /** Omnibox handler: auto-detect ISBN vs. title/author and act accordingly. */
+  const handleOmniSearch = async () => {
+    const query = searchQuery.trim();
+    if (!query) return toast.error("Enter a title, author, or ISBN");
+
+    if (looksLikeIsbn(query)) {
+      await runIsbnLookup(query);
+      return;
+    }
 
     setIsLoading(true);
-    // Type undefined defaults to TITLE_AUTHOR search in backend for now
-    const result = await lookupBook({ query: textQuery });
+    setSearchResults(null);
+    const result = await lookupBook({ query });
     setIsLoading(false);
 
-    if (result.success && result.data) {
-      setExtractedData(result.data);
-      toast.success("Book found!");
+    if (result.success && result.results && result.results.length > 0) {
+      setSearchResults(result.results);
+    } else if (result.success && result.data) {
+      // Defensive: a backend that still returns a single `data` for titles.
+      setSearchResults([result.data]);
     } else {
-      toast.error(result.error || "Book not found");
+      setSearchResults([]);
+      toast.error(result.error || "No books found matching that search.");
     }
+  };
+
+  /** User picked a result from the list — promote it to the preview form. */
+  const handleSelectResult = (book: BookMetadata) => {
+    setExtractedData({
+      isbn: book.isbn,
+      title: book.title,
+      authors: book.authors,
+      publisher: book.publisher,
+      publishedDate: book.publishedDate,
+      description: book.description,
+      coverUrl: book.coverUrl,
+      pageCount: book.pageCount,
+    });
+    setSearchResults(null);
   };
 
   const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -121,9 +162,6 @@ export function BookScanner({ organizationId }: BookScannerProps) {
       setImageFile(file);
       const url = URL.createObjectURL(file);
       setImagePreview(url);
-
-      // If we are in "Scan" mode, we might want to auto-process
-      // For now, we wait for user to click "Proccess"
     }
   };
 
@@ -195,6 +233,57 @@ export function BookScanner({ organizationId }: BookScannerProps) {
     }
   };
 
+  // Render the selectable list of search results.
+  const renderResults = () => {
+    if (!searchResults) return null;
+    if (searchResults.length === 0) {
+      return (
+        <p className="text-sm text-qc-text-muted text-center py-6">
+          No matches found. Try a different search or an ISBN.
+        </p>
+      );
+    }
+    return (
+      <div className="space-y-2 animate-in fade-in duration-300">
+        <div className="flex items-center justify-between">
+          <p className="text-xs text-qc-text-muted">{searchResults.length} result{searchResults.length === 1 ? "" : "s"} — pick one to continue.</p>
+          <Button variant="ghost" size="sm" onClick={() => setSearchResults(null)}>Clear</Button>
+        </div>
+        <ul className="divide-y divide-qc-border-subtle rounded-lg border border-qc-border-subtle overflow-hidden">
+          {searchResults.map((book, idx) => {
+            const year = book.publishedDate?.slice(0, 4);
+            return (
+              <li key={`${book.isbn || book.title}-${idx}`}>
+                <button
+                  type="button"
+                  onClick={() => handleSelectResult(book)}
+                  className="flex w-full gap-3 p-3 text-left hover:bg-qc-parchment/60 transition-colors"
+                >
+                  {book.coverUrl ? (
+                    <img src={book.coverUrl} alt="" className="w-12 h-16 object-cover rounded shadow-sm flex-shrink-0" />
+                  ) : (
+                    <div className="w-12 h-16 rounded bg-qc-parchment flex items-center justify-center flex-shrink-0">
+                      <Barcode className="w-5 h-5 text-qc-text-muted" />
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-sm text-qc-charcoal truncate">{book.title}</p>
+                    {book.authors && book.authors.length > 0 && (
+                      <p className="text-xs text-qc-text-muted truncate">{book.authors.join(", ")}</p>
+                    )}
+                    <p className="text-xs text-qc-text-muted mt-0.5 truncate">
+                      {[year, book.publisher].filter(Boolean).join(" · ")}
+                    </p>
+                  </div>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+    );
+  };
+
   // Render form fields
   const renderForm = () => {
     if (!extractedData) return null;
@@ -259,43 +348,50 @@ export function BookScanner({ organizationId }: BookScannerProps) {
       <Card>
         <CardHeader>
           <CardTitle className="font-display text-2xl">Add New Book</CardTitle>
-          <CardDescription>Search by ISBN, scan a cover, or enter manually.</CardDescription>
+          <CardDescription>Search by title, author, or ISBN, scan a barcode or cover, or enter manually.</CardDescription>
         </CardHeader>
         <CardContent>
           {!extractedData ? (
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
               <TabsList className="grid w-full grid-cols-3 mb-6">
-                <TabsTrigger value="isbn"><Barcode className="mr-2" /> ISBN</TabsTrigger>
-                <TabsTrigger value="text"><MagnifyingGlass className="mr-2" /> Search</TabsTrigger>
+                <TabsTrigger value="search"><MagnifyingGlass className="mr-2" /> Search</TabsTrigger>
+                <TabsTrigger value="barcode"><Barcode className="mr-2" /> Scan Barcode</TabsTrigger>
                 <TabsTrigger value="scan"><Camera className="mr-2" /> Scan Cover</TabsTrigger>
               </TabsList>
 
-              <TabsContent value="isbn" className="space-y-4">
+              <TabsContent value="search" className="space-y-4">
                 <div className="flex gap-2">
                   <Input
-                    placeholder="Enter ISBN (e.g. 9780141182636)"
-                    value={isbnQuery}
-                    onChange={(e) => setIsbnQuery(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && handleIsbnLookup()}
+                    placeholder="Search by title, author, or ISBN"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleOmniSearch()}
                   />
-                  <Button onClick={handleIsbnLookup} disabled={isLoading}>
-                    {isLoading ? "Searching..." : "Lookup"}
-                  </Button>
-                </div>
-                <p className="text-xs text-qc-text-muted">Supports ISBN-10 and ISBN-13.</p>
-              </TabsContent>
-
-              <TabsContent value="text" className="space-y-4">
-                <div className="flex gap-2">
-                  <Input
-                    placeholder="Title or Author..."
-                    value={textQuery}
-                    onChange={(e) => setTextQuery(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && handleTextLookup()}
-                  />
-                  <Button onClick={handleTextLookup} disabled={isLoading}>
+                  <Button onClick={handleOmniSearch} disabled={isLoading}>
                     {isLoading ? "Searching..." : "Search"}
                   </Button>
+                </div>
+                <p className="text-xs text-qc-text-muted">
+                  Enter an ISBN-10/13 for an exact match, or a title/author to browse results.
+                </p>
+                {renderResults()}
+              </TabsContent>
+
+              <TabsContent value="barcode" className="space-y-4">
+                <BarcodeScanner onIsbn={(isbn) => void runIsbnLookup(isbn)} />
+                <div className="space-y-2">
+                  <Label className="text-xs text-qc-text-muted">Or enter the ISBN manually</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="e.g. 9780141182636"
+                      value={manualIsbn}
+                      onChange={(e) => setManualIsbn(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && runIsbnLookup(manualIsbn)}
+                    />
+                    <Button variant="outline" onClick={() => runIsbnLookup(manualIsbn)} disabled={isLoading}>
+                      {isLoading ? "..." : "Lookup"}
+                    </Button>
+                  </div>
                 </div>
               </TabsContent>
 
@@ -309,7 +405,7 @@ export function BookScanner({ organizationId }: BookScannerProps) {
                       <Camera className="w-12 h-12 text-qc-text-muted mb-2" />
                     )}
                     <span className="text-sm font-medium text-qc-primary">Tap to Take Photo / Upload</span>
-                    <span className="text-xs text-qc-text-muted mt-1">We'll attempt to read the cover text</span>
+                    <span className="text-xs text-qc-text-muted mt-1">We&apos;ll attempt to read the cover text</span>
                   </label>
                 </div>
                 {imagePreview && (
@@ -326,8 +422,8 @@ export function BookScanner({ organizationId }: BookScannerProps) {
       </Card>
 
       <div className="p-4 bg-qc-warning-bg border border-qc-warning-border rounded-lg text-sm text-qc-warning-text">
-        <p className="font-bold mb-1">💡 Deep Extraction (Alpha)</p>
-        <p>After saving, you can upload Table of Contents images to automatically generate chapter-level metadata using AI.</p>
+        <p className="font-bold mb-1">Deep Extraction</p>
+        <p>After saving, open the book to run Deep Extraction — it generates a summary, chapter table of contents, and reading-level metadata.</p>
       </div>
     </div>
   );

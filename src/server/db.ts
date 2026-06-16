@@ -39,6 +39,9 @@ const CONTEXT_FREE_MODELS = new Set([
   "Subject", "Strand", "Topic", "Subtopic", "Objective", "GradeBand", "ResourceKind",
   "Catechism", "CatechismQuestion", "CommentaryChapter", "CommentarySection",
   "Devotional", "County", "PrayerCategory",
+  // Global cross-org shared book-extraction catalog: readable by all orgs (USING true) and
+  // written by the producer as app_user — must skip the per-request org GUC like other globals.
+  "BookExtraction",
 ]);
 
 /**

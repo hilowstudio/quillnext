@@ -668,6 +668,7 @@ model Book {
   tableOfContents    Json?                   @map("table_of_contents")
   summary            String?
   embedding          Unsupported("vector")?
+  bookExtractionId   String?                 @map("book_extraction_id")
   createdAt          DateTime                @default(now()) @map("created_at")
   updatedAt          DateTime                @updatedAt @map("updated_at")
   generatedMaterials BookGeneratedMaterial[]
@@ -677,8 +678,37 @@ model Book {
   subject            Subject                 @relation(fields: [subjectId], references: [id])
   courseBlocks       CourseBlock[]
   resources          Resource[]
+  bookExtraction     BookExtraction?         @relation(fields: [bookExtractionId], references: [id])
 
   @@map("books")
+}
+
+/// Global, cross-org shared AI book extraction. One row per real-world book (deduped on
+/// dedupKey = normalized ISBN-13, or a title|author slug fallback). NOT org-scoped: the
+/// first org to extract a book populates this, and every other org's Book links to the
+/// same row for free (see book/extract.requested Inngest worker). Readable by all orgs via
+/// a USING(true) RLS policy; listed in CONTEXT_FREE_MODELS so the per-query org GUC is skipped.
+model BookExtraction {
+  id              String           @id @default(uuid())
+  dedupKey        String           @unique @map("dedup_key")
+  isbn13          String?          @map("isbn_13")
+  titleAuthorSlug String           @map("title_author_slug")
+  title           String
+  authors         String[]
+  status          ExtractionStatus @default(NOT_EXTRACTED)
+  stage           String? // perfect-parse | chapter-parse | manual-needed (graceful-degradation tier)
+  summary         String?
+  tableOfContents Json?            @map("table_of_contents")
+  readingLevel    String?          @map("reading_level")
+  mainThemes      String[]         @map("main_themes")
+  sources         Json? // web grounding citations: [{ title, url }]
+  confidence      String?
+  extractedAt     DateTime?        @map("extracted_at")
+  createdAt       DateTime         @default(now()) @map("created_at")
+  updatedAt       DateTime         @updatedAt @map("updated_at")
+  books           Book[]
+
+  @@map("book_extractions")
 }
 
 model BookGeneratedMaterial {

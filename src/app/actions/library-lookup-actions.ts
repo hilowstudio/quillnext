@@ -9,7 +9,7 @@ import { searchLibrarySchema } from "@/lib/schemas/actions";
  * 1. Try Google Books (richest data)
  * 2. Try OpenLibrary (fallback)
  */
-export async function lookupBook(rawData: unknown): Promise<{ success: boolean; data?: BookMetadata; error?: string }> {
+export async function lookupBook(rawData: unknown): Promise<{ success: boolean; data?: BookMetadata; results?: BookMetadata[]; error?: string }> {
     const validated = searchLibrarySchema.parse(rawData);
 
     const apiKey = process.env.GOOGLE_BOOKS_API_KEY ?? process.env.NEXT_PUBLIC_GOOGLE_BOOKS_API_KEY;
@@ -36,11 +36,11 @@ export async function lookupBook(rawData: unknown): Promise<{ success: boolean; 
             return { success: false, error: "Book not found in any database." };
         }
         else {
-            // Search by Title/Author
+            // Search by Title/Author — return the full list so the UI can present
+            // a selectable result set instead of auto-picking the first match.
             const results = await searchGoogleBooks(query, apiKey);
             if (results.length > 0) {
-                // Return first match for now, or we could return list
-                return { success: true, data: results[0] };
+                return { success: true, results };
             }
             return { success: false, error: "No books found matching query." };
         }

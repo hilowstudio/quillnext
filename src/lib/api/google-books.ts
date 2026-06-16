@@ -18,7 +18,7 @@ export interface BookMetadata {
 export async function searchGoogleBooks(query: string, apiKey?: string): Promise<BookMetadata[]> {
     const url = new URL(GOOGLE_BOOKS_API_BASE);
     url.searchParams.append("q", query);
-    url.searchParams.append("maxResults", "5");
+    url.searchParams.append("maxResults", "10");
     if (apiKey) {
         url.searchParams.append("key", apiKey);
     }

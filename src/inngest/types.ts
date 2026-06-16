@@ -26,10 +26,20 @@ type CurriculumCompileEvent = {
     };
 };
 
+type BookExtractRequestedEvent = {
+    data: {
+        bookExtractionId: string;
+        triggeringBookId: string;
+        organizationId: string;
+        userId: string | null;
+    };
+};
+
 type Events = {
     "resource/process.document": ProcessDocumentEvent;
     "chat/message.sent": ChatMessageSentEvent;
     "curriculum/compile": CurriculumCompileEvent;
+    "book/extract.requested": BookExtractRequestedEvent;
 };
 
 export const schema = new EventSchemas().fromRecord<Events>();
