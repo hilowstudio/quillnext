@@ -8,6 +8,21 @@ import type { TranscriptData, TestScore } from './types';
 import { formatGPA, formatCredits, calculateAcademicSummary, calculateYearSummary, calculateTotalCredits, formatDateLocal, DEFAULT_GRADING_SCALE } from './utils';
 
 /**
+ * Escape user-controlled values before interpolating into the print HTML.
+ * The PDF/print window builds raw HTML via template strings + document.write, so
+ * unescaped fields (names, notes, course titles, school info, etc.) would allow
+ * HTML/script injection.
+ */
+function esc(value: unknown): string {
+    return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+/**
  * Export transcript to PDF using browser print functionality
  * Uses the same modern styling as TranscriptPreview
  */
@@ -35,13 +50,15 @@ export function exportToPDF(transcript: TranscriptData): void {
  * Generate print-ready HTML matching TranscriptPreview styling
  */
 function generatePrintHTML(transcript: TranscriptData): string {
-    const studentName = `${transcript.studentInfo.firstName} ${transcript.studentInfo.middleName || ''} ${transcript.studentInfo.lastName}`.trim();
+    const studentName = esc(`${transcript.studentInfo.firstName} ${transcript.studentInfo.middleName || ''} ${transcript.studentInfo.lastName}`.trim());
 
-    const formatDate = (dateStr?: string): string => formatDateLocal(dateStr);
+    const formatDate = (dateStr?: string): string => esc(formatDateLocal(dateStr));
 
-    // Calculate academic summary
+    // Calculate academic summary — honor the user's grading settings, exactly like
+    // the on-screen TranscriptPreview, so the PDF GPA matches what was shown.
     const academicSummary = calculateAcademicSummary(
-        transcript.courses.filter(c => c.included !== false)
+        transcript.courses.filter(c => c.included !== false),
+        transcript.gradingSettings,
     );
 
     // Year summaries for year-based template
@@ -49,7 +66,7 @@ function generatePrintHTML(transcript: TranscriptData): string {
         const yearCourses = transcript.courses.filter(
             c => c.gradeLevel === gradeLevel && c.included !== false
         );
-        return calculateYearSummary(gradeLevel, yearCourses);
+        return calculateYearSummary(gradeLevel, yearCourses, transcript.gradingSettings);
     });
 
     return `
@@ -610,13 +627,13 @@ function generatePrintHTML(transcript: TranscriptData): string {
         ${transcript.studentInfo.email ? `
         <div class="info-item">
           <span class="info-label">EMAIL:</span>
-          <span class="info-value">${transcript.studentInfo.email}</span>
+          <span class="info-value">${esc(transcript.studentInfo.email)}</span>
         </div>
         ` : ''}
         ${transcript.studentInfo.gender ? `
         <div class="info-item">
           <span class="info-label">GENDER:</span>
-          <span class="info-value">${transcript.studentInfo.gender}</span>
+          <span class="info-value">${esc(transcript.studentInfo.gender)}</span>
         </div>
         ` : ''}
         ${transcript.studentInfo.birthDate ? `
@@ -628,7 +645,7 @@ function generatePrintHTML(transcript: TranscriptData): string {
         ${transcript.studentInfo.socialSecurityNumber ? `
         <div class="info-item">
           <span class="info-label">SOCIAL SECURITY NUMBER:</span>
-          <span class="info-value info-value-mono">${transcript.studentInfo.socialSecurityNumber}</span>
+          <span class="info-value info-value-mono">${esc(transcript.studentInfo.socialSecurityNumber)}</span>
         </div>
         ` : ''}
         ${transcript.studentInfo.graduationDate ? `
@@ -642,26 +659,26 @@ function generatePrintHTML(transcript: TranscriptData): string {
         <div class="info-title">SCHOOL INFORMATION</div>
         <div class="info-item">
           <span class="info-label">NAME:</span>
-          <span class="info-value">${transcript.schoolInfo.name}</span>
+          <span class="info-value">${esc(transcript.schoolInfo.name)}</span>
         </div>
         <div class="info-item">
           <span class="info-label">ADDRESS:</span>
-          <span class="info-value">${transcript.schoolInfo.address}</span>
+          <span class="info-value">${esc(transcript.schoolInfo.address)}</span>
         </div>
         <div class="info-item">
           <span class="info-label">ADMINISTRATOR:</span>
-          <span class="info-value">${transcript.schoolInfo.administrator}</span>
+          <span class="info-value">${esc(transcript.schoolInfo.administrator)}</span>
         </div>
         ${transcript.schoolInfo.email ? `
         <div class="info-item">
           <span class="info-label">EMAIL:</span>
-          <span class="info-value">${transcript.schoolInfo.email}</span>
+          <span class="info-value">${esc(transcript.schoolInfo.email)}</span>
         </div>
         ` : ''}
         ${transcript.schoolInfo.phone ? `
         <div class="info-item">
           <span class="info-label">PHONE:</span>
-          <span class="info-value">${transcript.schoolInfo.phone}</span>
+          <span class="info-value">${esc(transcript.schoolInfo.phone)}</span>
         </div>
         ` : ''}
       </div>
@@ -742,8 +759,8 @@ function generatePrintHTML(transcript: TranscriptData): string {
               <tbody>
                 ${sortedCourses.map((course, idx) => `
                 <tr style="border-bottom: 1px solid rgba(209, 213, 219, 0.4); ${idx % 2 === 0 ? 'background: white;' : 'background: rgba(249, 250, 251, 0.3);'}">
-                  <td style="padding: 0.125rem 0.25rem; color: #1f2937;">${course.courseName}</td>
-                  <td style="padding: 0.125rem 0.25rem; text-align: center; font-weight: bold; color: #383A57;">${course.grade || '—'}</td>
+                  <td style="padding: 0.125rem 0.25rem; color: #1f2937;">${esc(course.courseName)}</td>
+                  <td style="padding: 0.125rem 0.25rem; text-align: center; font-weight: bold; color: #383A57;">${esc(course.grade) || '—'}</td>
                   <td style="padding: 0.125rem 0.25rem; text-align: center; color: #4b5563;">${formatCredits(course.credits)}</td>
                 </tr>
                 `).join('')}
@@ -762,7 +779,7 @@ function generatePrintHTML(transcript: TranscriptData): string {
       ${transcript.tests.map((test: TestScore) => `
       <div class="test-card">
         <div class="test-header">
-          <div class="test-name">${test.testType}</div>
+          <div class="test-name">${esc(test.testType)}</div>
           ${test.date ? `<div class="test-date">Date: ${formatDate(test.date)}</div>` : ''}
         </div>
         <div class="test-scores-grid">
@@ -796,15 +813,15 @@ function generatePrintHTML(transcript: TranscriptData): string {
         ${transcript.activities.map((activity: any) => `
         <div class="activity-card">
           <div class="activity-header">
-            <div class="activity-name">${activity.title}</div>
-            ${activity.position ? `<div class="activity-position">${activity.position}</div>` : ''}
-            ${activity.years ? `<div class="activity-years">${activity.years}</div>` : ''}
+            <div class="activity-name">${esc(activity.title)}</div>
+            ${activity.position ? `<div class="activity-position">${esc(activity.position)}</div>` : ''}
+            ${activity.years ? `<div class="activity-years">${esc(activity.years)}</div>` : ''}
           </div>
-          ${activity.description ? `<div class="activity-description">${activity.description}</div>` : ''}
+          ${activity.description ? `<div class="activity-description">${esc(activity.description)}</div>` : ''}
           ${(activity.hours || activity.awards) ? `
           <div class="activity-meta">
-            ${activity.hours ? `<span><strong>Hours:</strong> ${activity.hours}</span>` : ''}
-            ${activity.awards ? `<span class="award"><strong>Awards:</strong> ${activity.awards}</span>` : ''}
+            ${activity.hours ? `<span><strong>Hours:</strong> ${esc(activity.hours)}</span>` : ''}
+            ${activity.awards ? `<span class="award"><strong>Awards:</strong> ${esc(activity.awards)}</span>` : ''}
           </div>
           ` : ''}
         </div>
@@ -818,7 +835,7 @@ function generatePrintHTML(transcript: TranscriptData): string {
         <div class="notes-title">ADDITIONAL NOTES</div>
         ${transcript.notes.map((note: any) => `
         <div class="note-item">
-          ${note.content}
+          ${esc(note.content)}
         </div>
         `).join('')}
       </div>
@@ -832,8 +849,8 @@ function generatePrintHTML(transcript: TranscriptData): string {
         <div>
           <div class="signature-label">SCHOOL ADMINISTRATOR SIGNATURE</div>
           ${transcript.signature.type === 'draw'
-                ? `<img src="${transcript.signature.data}" alt="Signature" style="height: 40px; border-bottom: 2px solid #383A57; margin-bottom: 0.25rem;" />`
-                : `<div class="signature-handwritten">${transcript.signature.data}</div>`
+                ? `<img src="${/^data:image\//.test(transcript.signature.data || '') ? esc(transcript.signature.data) : ''}" alt="Signature" style="height: 40px; border-bottom: 2px solid #383A57; margin-bottom: 0.25rem;" />`
+                : `<div class="signature-handwritten">${esc(transcript.signature.data)}</div>`
             }
           <div class="signature-date">Date: ${formatDate(transcript.signature.date)}</div>
         </div>
@@ -855,8 +872,8 @@ function generateTestScoresHTML(test: TestScore): string {
 
     return Object.entries(test.scores).map(([key, value]) => `
     <div class="test-score-item">
-      <span class="test-score-label">${key}:</span>
-      <span class="test-score-value">${value}</span>
+      <span class="test-score-label">${esc(key)}:</span>
+      <span class="test-score-value">${esc(value)}</span>
     </div>
   `).join('');
 }

@@ -280,7 +280,7 @@ export function TranscriptBuilder({ initialData, studentId }: TranscriptBuilderP
                                                                     value={transcript.gradingSettings?.scale || '10-point'}
                                                                     onValueChange={(val) => updateTranscript({
                                                                         gradingSettings: {
-                                                                            grade: val as any,
+                                                                            scale: val as any,
                                                                             weighted: transcript.gradingSettings?.weighted ?? true,
                                                                             showNarratives: transcript.gradingSettings?.showNarratives
                                                                         } as any,
