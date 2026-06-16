@@ -5,7 +5,10 @@ import { getRlsContext, setRlsContext, type RlsContext } from "./rls-context";
 // When true, the app connects as the non-bypass `app_user` role and the data layer stamps
 // the per-request tenant GUCs that the RLS policies read. OFF by default so the DB-side RLS
 // (migration 00000000000002_rls_policies) stays inert until a verified cutover.
-const RLS_ENABLED = process.env.RLS_ENABLED === "true";
+// Case/whitespace-insensitive so "TRUE"/"True"/"1" in the env also enable it.
+const RLS_ENABLED = ["true", "1", "yes", "on"].includes(
+  (process.env.RLS_ENABLED ?? "").trim().toLowerCase(),
+);
 
 const createBaseClient = () => {
   const adapter = new PrismaPg({
