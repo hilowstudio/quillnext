@@ -1,6 +1,6 @@
 import { db } from "@/server/db";
 import { embed } from "ai";
-import { embeddingModel } from "@/lib/ai/config";
+import { embeddingModel, embeddingProviderOptions } from "@/lib/ai/config";
 
 /**
  * Semantic search for books using pgvector
@@ -11,6 +11,7 @@ export async function searchBooks(query: string, limit = 5) {
   const { embedding: queryEmbedding } = await embed({
     model: embeddingModel,
     value: query,
+    providerOptions: embeddingProviderOptions("RETRIEVAL_QUERY"),
   });
 
   // 2. Perform vector similarity search (Cosine Distance)
@@ -50,6 +51,7 @@ export async function generateBookEmbedding(bookId: string, text: string) {
   const { embedding } = await embed({
     model: embeddingModel,
     value: text,
+    providerOptions: embeddingProviderOptions("RETRIEVAL_DOCUMENT"),
   });
 
   // Store in database using raw SQL
@@ -103,6 +105,7 @@ export async function searchVideos(query: string, limit = 5) {
   const { embedding: queryEmbedding } = await embed({
     model: embeddingModel,
     value: query,
+    providerOptions: embeddingProviderOptions("RETRIEVAL_QUERY"),
   });
 
   const vectorQuery = `[${queryEmbedding.join(",")}]`;
@@ -137,6 +140,7 @@ export async function generateVideoEmbedding(videoId: string, text: string) {
   const { embedding } = await embed({
     model: embeddingModel,
     value: text,
+    providerOptions: embeddingProviderOptions("RETRIEVAL_DOCUMENT"),
   });
 
   const vectorString = `[${embedding.join(",")}]`;
