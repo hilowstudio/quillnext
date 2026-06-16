@@ -82,8 +82,12 @@ function setConfigRaw(tx: Pick<PrismaClient, "$executeRaw">, ctx: RlsContext | n
 export async function withTenant<T>(
   fn: (tx: Prisma.TransactionClient) => Promise<T>,
   options?: { maxWait?: number; timeout?: number },
+  ctxOverride?: RlsContext | null,
 ): Promise<T> {
-  const ctx = RLS_ENABLED ? await resolveTenant() : null;
+  // Prefer an EXPLICITLY passed context (org threaded as a plain argument) — this is the only
+  // reliable path in the Next runtime, which does not propagate AsyncLocalStorage/the request
+  // into the Prisma query layer. Falls back to resolving from session only when not provided.
+  const ctx = ctxOverride !== undefined ? ctxOverride : (RLS_ENABLED ? await resolveTenant() : null);
   return base.$transaction(async (tx) => {
     if (RLS_ENABLED) await setConfigRaw(tx, ctx);
     return fn(tx);
