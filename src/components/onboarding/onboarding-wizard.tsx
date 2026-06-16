@@ -34,6 +34,7 @@ export function OnboardingWizard({
   const steps = [
     { number: 1, title: "Classroom Setup", component: ClassroomStep },
     { number: 2, title: "Schedule", component: ScheduleStep },
+    { number: 3, title: "Environment", component: EnvironmentStep },
   ];
 
   const currentStepIndex = Math.max(0, Math.min(step - 1, steps.length - 1));

@@ -28,6 +28,7 @@ const PersonalityProfileSchema = z.object({
   gamificationMode: z.boolean().describe("If true, use scores, XP, and challenges"),
   scaffoldingLevel: z.enum(["High", "Medium", "Low"]).describe("Amount of support/hints to provide"),
   toneInstructions: z.string().describe("Specific instructions for the AI persona (e.g. 'Act like a sports coach')"),
+  suggestedSystemPrompt: z.string().describe("A complete, ready-to-use system prompt (2-4 sentences) an AI tutor can adopt to match this student — synthesize from the motivational driver, feedback style, scaffolding level, work style, and tone instructions."),
 });
 
 export type PersonalityProfile = z.infer<typeof PersonalityProfileSchema>;
@@ -108,7 +109,9 @@ ${answersText}
 
 Map these answers to the schema variables. For example:
 - If they like "The Win", set gamificationMode to true.
-- If they are "Overwhelmed" or "Freeze", set scaffoldingLevel to High.`,
+- If they are "Overwhelmed" or "Freeze", set scaffoldingLevel to High.
+
+Also synthesize suggestedSystemPrompt: a concise, ready-to-use system prompt an AI tutor can adopt to match this student's drivers, feedback style, scaffolding level, and tone.`,
   });
 
   return object;

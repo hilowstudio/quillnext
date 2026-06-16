@@ -5,6 +5,7 @@ import { auth } from "@/auth";
 import { getCurrentUserOrg } from "@/lib/auth-helpers";
 import { db } from "@/server/db";
 import { extractVideoContent } from "@/lib/ai/video-processing";
+import { generateVideoEmbedding } from "@/lib/utils/vector";
 
 export async function POST(
   request: NextRequest,
@@ -48,6 +49,15 @@ export async function POST(
         // For now, we store the summary and key points
       },
     });
+
+    // Generate + store the embedding so the video surfaces in semantic search,
+    // matching the background video-processor flow. Non-fatal on failure.
+    try {
+      const textToEmbed = `${extracted.summary}\n\nKey Points:\n${(extracted.keyPoints || []).join("\n")}`;
+      await generateVideoEmbedding(id, textToEmbed);
+    } catch (embedErr) {
+      console.error("Video embedding failed (extraction still saved):", embedErr);
+    }
 
     return NextResponse.json({ success: true, extracted });
   } catch (error) {
