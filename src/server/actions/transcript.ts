@@ -1,6 +1,6 @@
 "use server";
 
-import { db } from "@/server/db";
+import { withTenant } from "@/server/db";
 import { auth } from "@/auth";
 import type { TranscriptData, TranscriptCourse, StudentInfo, SchoolInfo } from "@/components/transcript/types";
 import { DEFAULT_GRADING_SCALE } from "@/components/transcript/utils";
@@ -28,7 +28,11 @@ type StudentWithDetails = Prisma.StudentGetPayload<{
 // The student must belong to the caller's organization (throws otherwise).
 async function assertStudentInOrg(studentId: string, organizationId: string | null) {
     if (!organizationId) throw new Error("Organization not found for user");
-    const s = await db.student.findUnique({ where: { id: studentId }, select: { organizationId: true } });
+    const s = await withTenant(
+        (tx) => tx.student.findUnique({ where: { id: studentId }, select: { organizationId: true } }),
+        undefined,
+        { organizationId, userId: null }
+    );
     if (!s || s.organizationId !== organizationId) throw new Error("Unauthorized");
 }
 
@@ -41,24 +45,28 @@ export async function generateTranscriptData(studentId: string): Promise<Transcr
     if (!session?.user?.id) throw new Error("Not authenticated");
     const { organizationId } = await getCurrentUserOrg(session);
 
-    const student = await db.student.findUnique({
-        where: { id: studentId },
-        include: {
-            organization: true,
-            classroomEnrollments: {
-                take: 1,
-                orderBy: { enrolledAt: 'desc' },
-                include: {
-                    classroom: true
-                }
-            },
-            courseEnrollments: {
-                include: {
-                    course: true
+    const student = await withTenant(
+        (tx) => tx.student.findUnique({
+            where: { id: studentId },
+            include: {
+                organization: true,
+                classroomEnrollments: {
+                    take: 1,
+                    orderBy: { enrolledAt: 'desc' },
+                    include: {
+                        classroom: true
+                    }
+                },
+                courseEnrollments: {
+                    include: {
+                        course: true
+                    }
                 }
             }
-        }
-    }) as unknown as StudentWithDetails | null;
+        }),
+        undefined,
+        { organizationId, userId: null }
+    ) as unknown as StudentWithDetails | null;
 
     if (!student) throw new Error("Student not found");
     // Multi-tenant guard.
@@ -135,23 +143,31 @@ export async function saveTranscript(studentId: string, data: TranscriptData, tr
     // The student must be in the caller's org, and (if updating) so must the transcript.
     await assertStudentInOrg(studentId, organizationId);
     if (transcriptId) {
-        const existing = await db.transcript.findUnique({ where: { id: transcriptId }, select: { organizationId: true } });
+        const existing = await withTenant(
+            (tx) => tx.transcript.findUnique({ where: { id: transcriptId }, select: { organizationId: true } }),
+            undefined,
+            { organizationId, userId: null }
+        );
         if (!existing || existing.organizationId !== organizationId) throw new Error("Unauthorized");
     }
 
-    const transcript = await db.transcript.upsert({
-        where: { id: transcriptId || "new" },
-        create: {
-            studentId,
-            organizationId,
-            name: data.name,
-            data: data as any,
-        },
-        update: {
-            name: data.name,
-            data: data as any,
-        }
-    });
+    const transcript = await withTenant(
+        (tx) => tx.transcript.upsert({
+            where: { id: transcriptId || "new" },
+            create: {
+                studentId,
+                organizationId,
+                name: data.name,
+                data: data as any,
+            },
+            update: {
+                name: data.name,
+                data: data as any,
+            }
+        }),
+        undefined,
+        { organizationId, userId: null }
+    );
 
     revalidatePath("/transcripts");
     return transcript;
@@ -166,10 +182,14 @@ export async function getTranscripts(studentId: string) {
     const { organizationId } = await getCurrentUserOrg(session);
     await assertStudentInOrg(studentId, organizationId);
 
-    const transcripts = await db.transcript.findMany({
-        where: { studentId, organizationId: organizationId! },
-        orderBy: { updatedAt: "desc" }
-    });
+    const transcripts = await withTenant(
+        (tx) => tx.transcript.findMany({
+            where: { studentId, organizationId: organizationId! },
+            orderBy: { updatedAt: "desc" }
+        }),
+        undefined,
+        { organizationId, userId: null }
+    );
 
     return transcripts.map(t => ({
         ...t,
@@ -186,12 +206,20 @@ export async function deleteTranscript(transcriptId: string) {
     const { organizationId } = await getCurrentUserOrg(session);
     if (!organizationId) throw new Error("Organization not found for user");
 
-    const existing = await db.transcript.findUnique({ where: { id: transcriptId }, select: { organizationId: true } });
+    const existing = await withTenant(
+        (tx) => tx.transcript.findUnique({ where: { id: transcriptId }, select: { organizationId: true } }),
+        undefined,
+        { organizationId, userId: null }
+    );
     if (!existing || existing.organizationId !== organizationId) throw new Error("Unauthorized");
 
-    await db.transcript.delete({
-        where: { id: transcriptId }
-    });
+    await withTenant(
+        (tx) => tx.transcript.delete({
+            where: { id: transcriptId }
+        }),
+        undefined,
+        { organizationId, userId: null }
+    );
 
     revalidatePath("/transcripts");
 }

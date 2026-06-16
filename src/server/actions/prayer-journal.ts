@@ -1,7 +1,8 @@
 'use server';
 
 import { auth } from "@/auth";
-import { db } from "@/server/db";
+import { db, withTenant } from "@/server/db";
+import { getCurrentUserOrg } from "@/lib/auth-helpers";
 import { revalidatePath } from "next/cache";
 import { Prisma } from "@/generated/client";
 import { createPrayerJournalSchema } from "@/lib/schemas/actions";
@@ -45,24 +46,29 @@ export type PrayerEntry = {
 export async function getPrayerEntries(studentId?: string): Promise<PrayerEntry[]> {
     const session = await auth();
     if (!session?.user?.id) return [];
+    const { userId, organizationId } = await getCurrentUserOrg(session);
 
     const where: Prisma.PrayerJournalEntryWhereInput = {
         userId: session.user.id,
         ...(studentId ? { studentId } : {}),
     };
 
-    const entries = await db.prayerJournalEntry.findMany({
-        where,
-        orderBy: { date: 'desc' },
-        include: {
-            student: {
-                select: {
-                    firstName: true,
-                    lastName: true,
+    const entries = await withTenant(
+        (tx) => tx.prayerJournalEntry.findMany({
+            where,
+            orderBy: { date: 'desc' },
+            include: {
+                student: {
+                    select: {
+                        firstName: true,
+                        lastName: true,
+                    }
                 }
             }
-        }
-    });
+        }),
+        undefined,
+        { organizationId, userId }
+    );
 
     return entries;
 }
@@ -73,22 +79,27 @@ export async function createPrayerEntry(rawData: unknown) {
 
     const session = await auth();
     if (!session?.user?.id) throw new Error("Not authenticated");
+    const { userId, organizationId } = await getCurrentUserOrg(session);
 
-    await db.prayerJournalEntry.create({
-        data: {
-            userId: session.user.id,
-            studentId: data.studentId,
-            title: data.title,
-            content: data.content,
-            date: new Date(), // Use current date
-            tags: [], // Default empty
-            isPrivate: false, // Default
-            category: data.prayerType,
-            // Defaults
-            type: 'entry',
-            status: 'ongoing',
-        },
-    });
+    await withTenant(
+        (tx) => tx.prayerJournalEntry.create({
+            data: {
+                userId,
+                studentId: data.studentId,
+                title: data.title,
+                content: data.content,
+                date: new Date(), // Use current date
+                tags: [], // Default empty
+                isPrivate: false, // Default
+                category: data.prayerType,
+                // Defaults
+                type: 'entry',
+                status: 'ongoing',
+            },
+        }),
+        undefined,
+        { organizationId, userId }
+    );
 
     revalidatePath('/family-discipleship/prayer');
 }
@@ -106,30 +117,37 @@ export async function updatePrayerEntry(rawData: unknown) {
 
     const session = await auth();
     if (!session?.user?.id) throw new Error("Not authenticated");
+    const { userId, organizationId } = await getCurrentUserOrg(session);
 
-    // Verify ownership
-    const existing = await db.prayerJournalEntry.findUnique({
-        where: { id: data.id },
-    });
+    await withTenant(
+        async (tx) => {
+            // Verify ownership
+            const existing = await tx.prayerJournalEntry.findUnique({
+                where: { id: data.id },
+            });
 
-    if (!existing) {
-        throw new Error("Prayer entry not found");
-    }
+            if (!existing) {
+                throw new Error("Prayer entry not found");
+            }
 
-    if (existing.userId !== session.user.id) {
-        throw new Error("Unauthorized - entry belongs to different user");
-    }
+            if (existing.userId !== userId) {
+                throw new Error("Unauthorized - entry belongs to different user");
+            }
 
-    await db.prayerJournalEntry.update({
-        where: { id: data.id },
-        data: {
-            title: data.title,
-            content: data.content,
-            answerNotes: data.answerNotes,
-            answeredAt: data.answeredAt ? new Date(data.answeredAt) : null,
-            status: data.answeredAt ? 'answered' : 'ongoing',
+            await tx.prayerJournalEntry.update({
+                where: { id: data.id },
+                data: {
+                    title: data.title,
+                    content: data.content,
+                    answerNotes: data.answerNotes,
+                    answeredAt: data.answeredAt ? new Date(data.answeredAt) : null,
+                    status: data.answeredAt ? 'answered' : 'ongoing',
+                },
+            });
         },
-    });
+        undefined,
+        { organizationId, userId }
+    );
 
     revalidatePath('/family-discipleship/prayer');
 }
@@ -143,23 +161,30 @@ export async function deletePrayerEntry(rawData: unknown) {
 
     const session = await auth();
     if (!session?.user?.id) throw new Error("Not authenticated");
+    const { userId, organizationId } = await getCurrentUserOrg(session);
 
-    // Verify ownership
-    const existing = await db.prayerJournalEntry.findUnique({
-        where: { id: data.id },
-    });
+    await withTenant(
+        async (tx) => {
+            // Verify ownership
+            const existing = await tx.prayerJournalEntry.findUnique({
+                where: { id: data.id },
+            });
 
-    if (!existing) {
-        throw new Error("Prayer entry not found");
-    }
+            if (!existing) {
+                throw new Error("Prayer entry not found");
+            }
 
-    if (existing.userId !== session.user.id) {
-        throw new Error("Unauthorized - entry belongs to different user");
-    }
+            if (existing.userId !== userId) {
+                throw new Error("Unauthorized - entry belongs to different user");
+            }
 
-    await db.prayerJournalEntry.delete({
-        where: { id: data.id },
-    });
+            await tx.prayerJournalEntry.delete({
+                where: { id: data.id },
+            });
+        },
+        undefined,
+        { organizationId, userId }
+    );
 
     revalidatePath('/family-discipleship/prayer');
 }
@@ -167,24 +192,31 @@ export async function deletePrayerEntry(rawData: unknown) {
 export async function togglePrayerAnswered(id: string, date?: Date) {
     const session = await auth();
     if (!session?.user?.id) throw new Error("Unauthorized");
+    const { userId, organizationId } = await getCurrentUserOrg(session);
 
-    const existing = await db.prayerJournalEntry.findUnique({
-        where: { id },
-    });
+    await withTenant(
+        async (tx) => {
+            const existing = await tx.prayerJournalEntry.findUnique({
+                where: { id },
+            });
 
-    if (!existing || existing.userId !== session.user.id) {
-        throw new Error("Unauthorized or not found");
-    }
+            if (!existing || existing.userId !== userId) {
+                throw new Error("Unauthorized or not found");
+            }
 
-    const isAnswered = !!existing.answeredAt;
+            const isAnswered = !!existing.answeredAt;
 
-    await db.prayerJournalEntry.update({
-        where: { id },
-        data: {
-            answeredAt: isAnswered ? null : (date || new Date()),
-            status: isAnswered ? 'ongoing' : 'answered',
+            await tx.prayerJournalEntry.update({
+                where: { id },
+                data: {
+                    answeredAt: isAnswered ? null : (date || new Date()),
+                    status: isAnswered ? 'ongoing' : 'answered',
+                },
+            });
         },
-    });
+        undefined,
+        { organizationId, userId }
+    );
 
     revalidatePath('/family-discipleship/prayer');
 }

@@ -1,4 +1,4 @@
-import { db } from "@/server/db";
+import { db, withTenant } from "@/server/db";
 import { getMasterContext, type MasterContextParams } from "@/lib/context/master-context";
 import { serializeMasterContext, type SerializationOptions } from "@/lib/context/context-serializer";
 
@@ -113,13 +113,19 @@ Please create content that:
 export async function buildPersonalizedPrompt(
   studentId: string,
   basePrompt: string,
+  organizationId: string,
 ): Promise<string> {
-  const student = await db.student.findUnique({
-    where: { id: studentId },
-    include: {
-      learnerProfile: true,
-    },
-  });
+  const student = await withTenant(
+    (tx) =>
+      tx.student.findUnique({
+        where: { id: studentId },
+        include: {
+          learnerProfile: true,
+        },
+      }),
+    undefined,
+    { organizationId, userId: null },
+  );
 
   if (!student) {
     throw new Error(`Student ${studentId} not found`);
@@ -163,15 +169,20 @@ export async function buildFamilyContextPrompt(
   organizationId: string,
   basePrompt: string,
 ): Promise<string> {
-  const organization = await db.organization.findUnique({
-    where: { id: organizationId },
-    include: {
-      classrooms: {
-        take: 1,
-        orderBy: { createdAt: "desc" },
-      },
-    },
-  });
+  const organization = await withTenant(
+    (tx) =>
+      tx.organization.findUnique({
+        where: { id: organizationId },
+        include: {
+          classrooms: {
+            take: 1,
+            orderBy: { createdAt: "desc" },
+          },
+        },
+      }),
+    undefined,
+    { organizationId, userId: null },
+  );
 
   const orgWithClassrooms = organization as unknown as { classrooms?: Array<{ educationalPhilosophy: string | null; educationalPhilosophyOther: string | null; faithBackground: string | null; faithBackgroundOther: string | null }> };
 
@@ -219,7 +230,7 @@ export async function buildCompletePrompt(
 
   // 2. Add student personality context
   if (params.studentId) {
-    prompt = await buildPersonalizedPrompt(params.studentId, prompt);
+    prompt = await buildPersonalizedPrompt(params.studentId, prompt, params.organizationId);
   }
 
   // 3. Add family context

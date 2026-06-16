@@ -1,4 +1,4 @@
-import { db } from "@/server/db";
+import { withTenant } from "@/server/db";
 
 export type ThinklingMode = "TUTOR" | "RESEARCH" | "CAREER";
 
@@ -7,8 +7,8 @@ interface ThinklingContext {
     studentName: string;
 }
 
-export async function getContextForThinkling(studentId: string, mode: ThinklingMode): Promise<ThinklingContext> {
-    const student = await db.student.findUnique({
+export async function getContextForThinkling(studentId: string, mode: ThinklingMode, organizationId: string | null): Promise<ThinklingContext> {
+    const student = await withTenant((tx) => tx.student.findUnique({
         where: { id: studentId },
         include: {
             learnerProfile: true,
@@ -20,7 +20,7 @@ export async function getContextForThinkling(studentId: string, mode: ThinklingM
                 }
             }
         }
-    });
+    }), undefined, { organizationId, userId: null });
 
     if (!student) {
         throw new Error("Student not found");

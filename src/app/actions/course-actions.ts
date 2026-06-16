@@ -2,7 +2,7 @@
 
 import { auth } from "@/auth";
 import { getCurrentUserOrg } from "@/lib/auth-helpers";
-import { db, withTenant } from "@/server/db";
+import { withTenant } from "@/server/db";
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { deleteBlockSchema, updateBlockSchema, deleteCourseSchema } from "@/lib/schemas/actions";
@@ -32,37 +32,40 @@ export async function reorderBlocks(
     // Validate the payload (ReorderSchema was previously declared but never parsed).
     const safeUpdates = ReorderSchema.parse(updates);
 
-    // Verify the caller owns the course.
-    const course = await db.course.findFirst({
-        where: { id: courseId, organizationId },
-        select: { id: true },
-    });
-
-    if (!course) {
-        throw new Error("Course not found or unauthorized");
-    }
-
-    // SECURITY: you may only reorder/re-parent blocks that belong to THIS course. Reject any
-    // foreign block id (and any cross-course parentBlockId) before writing — otherwise a crafted
-    // drag-save payload could reposition/re-parent another org's blocks.
-    const ownBlocks = await db.courseBlock.findMany({
-        where: { courseId },
-        select: { id: true },
-    });
-    const ownBlockIds = new Set(ownBlocks.map((b) => b.id));
-
-    for (const u of safeUpdates) {
-        if (!ownBlockIds.has(u.id)) {
-            throw new Error("Cannot reorder a block that does not belong to this course");
-        }
-        if (u.parentBlockId !== null && !ownBlockIds.has(u.parentBlockId)) {
-            throw new Error("Cannot set a parent block from a different course");
-        }
-    }
-
-    // Each write is additionally scoped by courseId, so a foreign block id matches zero rows.
-    // withTenant runs these in one transaction with the RLS tenant GUCs set (see server/db.ts).
+    // The ownership guard reads (course + courseBlock) are org-scoped, so they must run on a
+    // tenant-stamped tx alongside the writes — otherwise RLS returns zero rows and the guard
+    // throws for legitimate users. Fold them into the same withTenant tx as the writes so the
+    // reads and writes share one consistent transaction.
     await withTenant(async (tx) => {
+        // Verify the caller owns the course.
+        const course = await tx.course.findFirst({
+            where: { id: courseId, organizationId },
+            select: { id: true },
+        });
+
+        if (!course) {
+            throw new Error("Course not found or unauthorized");
+        }
+
+        // SECURITY: you may only reorder/re-parent blocks that belong to THIS course. Reject any
+        // foreign block id (and any cross-course parentBlockId) before writing — otherwise a crafted
+        // drag-save payload could reposition/re-parent another org's blocks.
+        const ownBlocks = await tx.courseBlock.findMany({
+            where: { courseId },
+            select: { id: true },
+        });
+        const ownBlockIds = new Set(ownBlocks.map((b) => b.id));
+
+        for (const u of safeUpdates) {
+            if (!ownBlockIds.has(u.id)) {
+                throw new Error("Cannot reorder a block that does not belong to this course");
+            }
+            if (u.parentBlockId !== null && !ownBlockIds.has(u.parentBlockId)) {
+                throw new Error("Cannot set a parent block from a different course");
+            }
+        }
+
+        // Each write is additionally scoped by courseId, so a foreign block id matches zero rows.
         for (const update of safeUpdates) {
             await tx.courseBlock.updateMany({
                 where: { id: update.id, courseId },
@@ -72,7 +75,7 @@ export async function reorderBlocks(
                 },
             });
         }
-    });
+    }, undefined, { organizationId, userId: null });
 
     revalidatePath(`/courses/${courseId}/builder`);
     return { success: true };
@@ -86,29 +89,33 @@ export async function deleteBlock(rawData: unknown) {
 
     const { organizationId } = await getCurrentUserOrg();
 
-    const block = await db.courseBlock.findUnique({
-        where: { id: data.id },
-        select: {
-            id: true,
-            course: {
-                select: {
-                    organizationId: true,
+    // courseBlock is org-scoped: the guard read and the delete must run on a tenant-stamped tx,
+    // and sharing one tx keeps the ownership check consistent with the write.
+    await withTenant(async (tx) => {
+        const block = await tx.courseBlock.findUnique({
+            where: { id: data.id },
+            select: {
+                id: true,
+                course: {
+                    select: {
+                        organizationId: true,
+                    },
                 },
             },
-        },
-    });
+        });
 
-    if (!block) {
-        throw new Error("Block not found");
-    }
+        if (!block) {
+            throw new Error("Block not found");
+        }
 
-    if (block.course.organizationId !== organizationId) {
-        throw new Error("Unauthorized - block belongs to different organization");
-    }
+        if (block.course.organizationId !== organizationId) {
+            throw new Error("Unauthorized - block belongs to different organization");
+        }
 
-    await db.courseBlock.delete({
-        where: { id: data.id },
-    });
+        await tx.courseBlock.delete({
+            where: { id: data.id },
+        });
+    }, undefined, { organizationId, userId: null });
 
     revalidatePath(`/courses/${data.courseId}/builder`);
     return { success: true };
@@ -126,33 +133,37 @@ export async function updateBlock(rawData: unknown) {
 
     const { organizationId } = await getCurrentUserOrg();
 
-    const block = await db.courseBlock.findUnique({
-        where: { id: data.id },
-        select: {
-            id: true,
-            course: {
-                select: {
-                    organizationId: true,
+    // courseBlock is org-scoped: the guard read and the update must run on a tenant-stamped tx,
+    // and sharing one tx keeps the ownership check consistent with the write.
+    await withTenant(async (tx) => {
+        const block = await tx.courseBlock.findUnique({
+            where: { id: data.id },
+            select: {
+                id: true,
+                course: {
+                    select: {
+                        organizationId: true,
+                    },
                 },
             },
-        },
-    });
+        });
 
-    if (!block) {
-        throw new Error("Block not found");
-    }
+        if (!block) {
+            throw new Error("Block not found");
+        }
 
-    if (block.course.organizationId !== organizationId) {
-        throw new Error("Unauthorized - block belongs to different organization");
-    }
+        if (block.course.organizationId !== organizationId) {
+            throw new Error("Unauthorized - block belongs to different organization");
+        }
 
-    await db.courseBlock.update({
-        where: { id: data.id },
-        data: {
-            title: data.title,
-            kind: data.kind as any, // Type cast needed for dynamic kind value
-        },
-    });
+        await tx.courseBlock.update({
+            where: { id: data.id },
+            data: {
+                title: data.title,
+                kind: data.kind as any, // Type cast needed for dynamic kind value
+            },
+        });
+    }, undefined, { organizationId, userId: null });
 
     revalidatePath(`/courses/${data.courseId}/builder`);
     return { success: true };
@@ -168,22 +179,26 @@ export async function deleteCourse(rawData: unknown) {
 
     const { organizationId } = await getCurrentUserOrg();
 
-    // Verify course belongs to organization
-    const course = await db.course.findUnique({
-        where: { id: data.id },
-    });
+    // course is org-scoped: the ownership guard read and the delete must run on a tenant-stamped
+    // tx, and sharing one tx keeps the check consistent with the write.
+    await withTenant(async (tx) => {
+        // Verify course belongs to organization
+        const course = await tx.course.findUnique({
+            where: { id: data.id },
+        });
 
-    if (!course) {
-        throw new Error("Course not found");
-    }
+        if (!course) {
+            throw new Error("Course not found");
+        }
 
-    if (course.organizationId !== organizationId) {
-        throw new Error("Unauthorized - course belongs to different organization");
-    }
+        if (course.organizationId !== organizationId) {
+            throw new Error("Unauthorized - course belongs to different organization");
+        }
 
-    await db.course.delete({
-        where: { id: data.id },
-    });
+        await tx.course.delete({
+            where: { id: data.id },
+        });
+    }, undefined, { organizationId, userId: null });
 
     // Revalidate library and courses page
     revalidatePath("/living-library");

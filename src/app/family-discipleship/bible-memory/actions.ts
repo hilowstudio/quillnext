@@ -1,6 +1,6 @@
 'use server';
 
-import { db } from "@/server/db";
+import { withTenant } from "@/server/db";
 import { revalidatePath } from "next/cache";
 import { getBibleText } from "@/server/actions/bible-study";
 import { getCurrentUserOrg } from "@/lib/auth-helpers";
@@ -31,27 +31,39 @@ async function requireCaller() {
     return { userId, organizationId };
 }
 
-async function assertStudentInOrg(studentId: string, organizationId: string) {
-    const s = await db.student.findUnique({ where: { id: studentId }, select: { organizationId: true } });
+async function assertStudentInOrg(studentId: string, organizationId: string, userId: string) {
+    const s = await withTenant(
+        (tx) => tx.student.findUnique({ where: { id: studentId }, select: { organizationId: true } }),
+        undefined,
+        { organizationId, userId },
+    );
     if (!s || s.organizationId !== organizationId) throw new Error("Unauthorized");
 }
 
 // A verse is the caller's if its student is in the caller's org, or it is the caller's own user verse.
 async function assertVerseAccess(verseId: string, organizationId: string, userId: string) {
-    const v = await db.bibleMemory.findUnique({
-        where: { id: verseId },
-        select: { userId: true, student: { select: { organizationId: true } } },
-    });
+    const v = await withTenant(
+        (tx) => tx.bibleMemory.findUnique({
+            where: { id: verseId },
+            select: { userId: true, student: { select: { organizationId: true } } },
+        }),
+        undefined,
+        { organizationId, userId },
+    );
     if (!v || (v.student?.organizationId !== organizationId && v.userId !== userId)) {
         throw new Error("Unauthorized");
     }
 }
 
-async function assertFolderInOrg(folderId: string, organizationId: string) {
-    const f = await db.bibleMemoryFolder.findUnique({
-        where: { id: folderId },
-        select: { student: { select: { organizationId: true } } },
-    });
+async function assertFolderInOrg(folderId: string, organizationId: string, userId: string) {
+    const f = await withTenant(
+        (tx) => tx.bibleMemoryFolder.findUnique({
+            where: { id: folderId },
+            select: { student: { select: { organizationId: true } } },
+        }),
+        undefined,
+        { organizationId, userId },
+    );
     if (!f || f.student.organizationId !== organizationId) throw new Error("Unauthorized");
 }
 
@@ -61,59 +73,69 @@ async function assertFolderInOrg(folderId: string, organizationId: string) {
  * Ensure library verses exist in DB.
  * Lazy-load: We only check counts and seed if low/empty.
  */
-async function ensureLibrarySeeded() {
-    const count = await db.bibleMemory.count({ where: { isDefault: true } });
-    if (count > 5) return; // Assume seeded
+async function ensureLibrarySeeded(organizationId: string, userId: string) {
+    await withTenant(async (tx) => {
+        const count = await tx.bibleMemory.count({ where: { isDefault: true } });
+        if (count > 5) return; // Assume seeded
 
-    const existing = await db.bibleMemory.findMany({
-        where: { isDefault: true, reference: { in: PRELOADED_VERSES } },
-        select: { reference: true },
-    });
-
-    const existingRefs = new Set(existing.map(v => v.reference));
-
-    const toCreate = PRELOADED_VERSES
-        .filter(ref => !existingRefs.has(ref))
-        .map(ref => ({
-            reference: ref,
-            isDefault: true,
-            text: "" // Placeholder - will be fetched later
-        }));
-
-    if (toCreate.length > 0) {
-        await db.bibleMemory.createMany({
-            data: toCreate,
-            skipDuplicates: true
+        const existing = await tx.bibleMemory.findMany({
+            where: { isDefault: true, reference: { in: PRELOADED_VERSES } },
+            select: { reference: true },
         });
-    }
+
+        const existingRefs = new Set(existing.map(v => v.reference));
+
+        const toCreate = PRELOADED_VERSES
+            .filter(ref => !existingRefs.has(ref))
+            .map(ref => ({
+                reference: ref,
+                isDefault: true,
+                text: "" // Placeholder - will be fetched later
+            }));
+
+        if (toCreate.length > 0) {
+            await tx.bibleMemory.createMany({
+                data: toCreate,
+                skipDuplicates: true
+            });
+        }
+    }, undefined, { organizationId, userId });
 }
 
 // --- Actions ---
 
 export async function getLibraryVerses() {
-    await requireCaller(); // global library, but still require a logged-in user
-    await ensureLibrarySeeded();
-    return db.bibleMemory.findMany({
-        where: { isDefault: true },
-        orderBy: { reference: 'asc' }
-    });
+    const { organizationId, userId } = await requireCaller(); // global library, but still require a logged-in user
+    await ensureLibrarySeeded(organizationId, userId);
+    return withTenant(
+        (tx) => tx.bibleMemory.findMany({
+            where: { isDefault: true },
+            orderBy: { reference: 'asc' }
+        }),
+        undefined,
+        { organizationId, userId },
+    );
 }
 
 export async function getUserVerses(studentId?: string) {
     if (!studentId) return [];
-    const { organizationId } = await requireCaller();
-    await assertStudentInOrg(studentId, organizationId);
+    const { organizationId, userId } = await requireCaller();
+    await assertStudentInOrg(studentId, organizationId, userId);
 
-    return db.bibleMemory.findMany({
-        where: { studentId, isDefault: false },
-        orderBy: { createdAt: 'desc' }
-    });
+    return withTenant(
+        (tx) => tx.bibleMemory.findMany({
+            where: { studentId, isDefault: false },
+            orderBy: { createdAt: 'desc' }
+        }),
+        undefined,
+        { organizationId, userId },
+    );
 }
 
 export async function addVerseToUser(data: { studentId: string, reference: string, text?: string }) {
     try {
-        const { organizationId } = await requireCaller();
-        await assertStudentInOrg(data.studentId, organizationId);
+        const { organizationId, userId } = await requireCaller();
+        await assertStudentInOrg(data.studentId, organizationId, userId);
 
         let text = data.text;
         if (!text) {
@@ -124,16 +146,20 @@ export async function addVerseToUser(data: { studentId: string, reference: strin
             }
         }
 
-        const newVerse = await db.bibleMemory.create({
-            data: {
-                studentId: data.studentId,
-                reference: data.reference,
-                text: text,
-                isDefault: false,
-                currentStep: 0,
-                lastPracticedAt: new Date()
-            }
-        });
+        const newVerse = await withTenant(
+            (tx) => tx.bibleMemory.create({
+                data: {
+                    studentId: data.studentId,
+                    reference: data.reference,
+                    text: text,
+                    isDefault: false,
+                    currentStep: 0,
+                    lastPracticedAt: new Date()
+                }
+            }),
+            undefined,
+            { organizationId, userId },
+        );
 
         revalidatePath('/family-discipleship/bible-memory');
         return { success: true, verse: newVerse };
@@ -156,7 +182,11 @@ export async function updateVerseProgress(verseId: string, stepCompleted: number
             updateData.masteredAt = new Date();
         }
 
-        await db.bibleMemory.update({ where: { id: verseId }, data: updateData });
+        await withTenant(
+            (tx) => tx.bibleMemory.update({ where: { id: verseId }, data: updateData }),
+            undefined,
+            { organizationId, userId },
+        );
 
         revalidatePath('/family-discipleship/bible-memory');
         return { success: true };
@@ -171,7 +201,11 @@ export async function deleteUserVerse(verseId: string) {
         const { organizationId, userId } = await requireCaller();
         await assertVerseAccess(verseId, organizationId, userId);
 
-        await db.bibleMemory.delete({ where: { id: verseId } });
+        await withTenant(
+            (tx) => tx.bibleMemory.delete({ where: { id: verseId } }),
+            undefined,
+            { organizationId, userId },
+        );
         revalidatePath('/family-discipleship/bible-memory');
         return { success: true };
     } catch (e) {
@@ -184,7 +218,11 @@ export async function updateVerseText(verseId: string, text: string) {
         const { organizationId, userId } = await requireCaller();
         await assertVerseAccess(verseId, organizationId, userId);
 
-        await db.bibleMemory.update({ where: { id: verseId }, data: { text } });
+        await withTenant(
+            (tx) => tx.bibleMemory.update({ where: { id: verseId }, data: { text } }),
+            undefined,
+            { organizationId, userId },
+        );
         revalidatePath('/family-discipleship/bible-memory');
         return { success: true };
     } catch (e) {
@@ -197,23 +235,31 @@ export async function updateVerseText(verseId: string, text: string) {
 
 export async function getStudentFolders(studentId: string) {
     if (!studentId) return [];
-    const { organizationId } = await requireCaller();
-    await assertStudentInOrg(studentId, organizationId);
+    const { organizationId, userId } = await requireCaller();
+    await assertStudentInOrg(studentId, organizationId, userId);
 
-    return db.bibleMemoryFolder.findMany({
-        where: { studentId },
-        include: { _count: { select: { verses: true } } },
-        orderBy: { name: 'asc' }
-    });
+    return withTenant(
+        (tx) => tx.bibleMemoryFolder.findMany({
+            where: { studentId },
+            include: { _count: { select: { verses: true } } },
+            orderBy: { name: 'asc' }
+        }),
+        undefined,
+        { organizationId, userId },
+    );
 }
 
 export async function createFolder(studentId: string, name: string) {
     if (!studentId || !name) return { success: false, error: "Missing required fields" };
     try {
-        const { organizationId } = await requireCaller();
-        await assertStudentInOrg(studentId, organizationId);
+        const { organizationId, userId } = await requireCaller();
+        await assertStudentInOrg(studentId, organizationId, userId);
 
-        const folder = await db.bibleMemoryFolder.create({ data: { studentId, name } });
+        const folder = await withTenant(
+            (tx) => tx.bibleMemoryFolder.create({ data: { studentId, name } }),
+            undefined,
+            { organizationId, userId },
+        );
         revalidatePath('/family-discipleship/bible-memory');
         return { success: true, folder };
     } catch (e) {
@@ -223,10 +269,14 @@ export async function createFolder(studentId: string, name: string) {
 
 export async function deleteFolder(folderId: string) {
     try {
-        const { organizationId } = await requireCaller();
-        await assertFolderInOrg(folderId, organizationId);
+        const { organizationId, userId } = await requireCaller();
+        await assertFolderInOrg(folderId, organizationId, userId);
 
-        await db.bibleMemoryFolder.delete({ where: { id: folderId } });
+        await withTenant(
+            (tx) => tx.bibleMemoryFolder.delete({ where: { id: folderId } }),
+            undefined,
+            { organizationId, userId },
+        );
         revalidatePath('/family-discipleship/bible-memory');
         return { success: true };
     } catch (e) {
@@ -236,10 +286,14 @@ export async function deleteFolder(folderId: string) {
 
 export async function renameFolder(folderId: string, name: string) {
     try {
-        const { organizationId } = await requireCaller();
-        await assertFolderInOrg(folderId, organizationId);
+        const { organizationId, userId } = await requireCaller();
+        await assertFolderInOrg(folderId, organizationId, userId);
 
-        await db.bibleMemoryFolder.update({ where: { id: folderId }, data: { name } });
+        await withTenant(
+            (tx) => tx.bibleMemoryFolder.update({ where: { id: folderId }, data: { name } }),
+            undefined,
+            { organizationId, userId },
+        );
         revalidatePath('/family-discipleship/bible-memory');
         return { success: true };
     } catch (e) {
@@ -252,9 +306,13 @@ export async function moveVerseToFolder(verseId: string, folderId: string | null
         const { organizationId, userId } = await requireCaller();
         await assertVerseAccess(verseId, organizationId, userId);
         // Moving INTO a folder requires that folder to belong to the caller's org too.
-        if (folderId) await assertFolderInOrg(folderId, organizationId);
+        if (folderId) await assertFolderInOrg(folderId, organizationId, userId);
 
-        await db.bibleMemory.update({ where: { id: verseId }, data: { folderId } });
+        await withTenant(
+            (tx) => tx.bibleMemory.update({ where: { id: verseId }, data: { folderId } }),
+            undefined,
+            { organizationId, userId },
+        );
         revalidatePath('/family-discipleship/bible-memory');
         return { success: true };
     } catch (e) {
@@ -264,33 +322,39 @@ export async function moveVerseToFolder(verseId: string, folderId: string | null
 
 export async function copyFolderToStudent(folderId: string, targetStudentId: string) {
     try {
-        const { organizationId } = await requireCaller();
+        const { organizationId, userId } = await requireCaller();
         // Both the source folder and the destination student must be in the caller's org.
-        await assertFolderInOrg(folderId, organizationId);
-        await assertStudentInOrg(targetStudentId, organizationId);
+        await assertFolderInOrg(folderId, organizationId, userId);
+        await assertStudentInOrg(targetStudentId, organizationId, userId);
 
-        const sourceFolder = await db.bibleMemoryFolder.findUnique({
-            where: { id: folderId },
-            include: { verses: true }
-        });
-        if (!sourceFolder) return { success: false, error: "Folder not found" };
+        const result = await withTenant(async (tx) => {
+            const sourceFolder = await tx.bibleMemoryFolder.findUnique({
+                where: { id: folderId },
+                include: { verses: true }
+            });
+            if (!sourceFolder) return { success: false as const, error: "Folder not found" };
 
-        const newFolder = await db.bibleMemoryFolder.create({
-            data: { studentId: targetStudentId, name: sourceFolder.name }
-        });
+            const newFolder = await tx.bibleMemoryFolder.create({
+                data: { studentId: targetStudentId, name: sourceFolder.name }
+            });
 
-        const versesToCreate = sourceFolder.verses.map((v: any) => ({
-            studentId: targetStudentId,
-            folderId: newFolder.id,
-            reference: v.reference,
-            text: v.text,
-            isDefault: false,
-            currentStep: 0
-        }));
+            const versesToCreate = sourceFolder.verses.map((v: any) => ({
+                studentId: targetStudentId,
+                folderId: newFolder.id,
+                reference: v.reference,
+                text: v.text,
+                isDefault: false,
+                currentStep: 0
+            }));
 
-        if (versesToCreate.length > 0) {
-            await db.bibleMemory.createMany({ data: versesToCreate });
-        }
+            if (versesToCreate.length > 0) {
+                await tx.bibleMemory.createMany({ data: versesToCreate });
+            }
+
+            return { success: true as const };
+        }, undefined, { organizationId, userId });
+
+        if (!result.success) return result;
 
         revalidatePath('/family-discipleship/bible-memory');
         return { success: true };
@@ -307,10 +371,14 @@ export async function refreshVerse(verseId: string) {
         const { organizationId, userId } = await requireCaller();
         await assertVerseAccess(verseId, organizationId, userId);
 
-        await db.bibleMemory.update({
-            where: { id: verseId },
-            data: { lastRefreshedAt: new Date(), lastPracticedAt: new Date() }
-        });
+        await withTenant(
+            (tx) => tx.bibleMemory.update({
+                where: { id: verseId },
+                data: { lastRefreshedAt: new Date(), lastPracticedAt: new Date() }
+            }),
+            undefined,
+            { organizationId, userId },
+        );
         revalidatePath('/family-discipleship/bible-memory');
         return { success: true };
     } catch (e) {
@@ -323,15 +391,19 @@ export async function resetVerseMastery(verseId: string) {
         const { organizationId, userId } = await requireCaller();
         await assertVerseAccess(verseId, organizationId, userId);
 
-        await db.bibleMemory.update({
-            where: { id: verseId },
-            data: {
-                masteredAt: null,
-                currentStep: 0,
-                lastPracticedAt: new Date(),
-                lastRefreshedAt: null
-            }
-        });
+        await withTenant(
+            (tx) => tx.bibleMemory.update({
+                where: { id: verseId },
+                data: {
+                    masteredAt: null,
+                    currentStep: 0,
+                    lastPracticedAt: new Date(),
+                    lastRefreshedAt: null
+                }
+            }),
+            undefined,
+            { organizationId, userId },
+        );
         revalidatePath('/family-discipleship/bible-memory');
         return { success: true };
     } catch (e) {

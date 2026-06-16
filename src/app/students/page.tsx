@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { getCurrentUserOrg } from "@/lib/auth-helpers";
-import { db } from "@/server/db";
+import { withTenant } from "@/server/db";
 import { cacheQuery } from "@/lib/utils/prisma-cache";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,7 +10,7 @@ import { StudentCard } from "@/components/students/StudentCard";
 
 const getOrganizationStudents = cacheQuery(
   async (organizationId: string) => {
-    return db.student.findMany({
+    return withTenant((tx) => tx.student.findMany({
       where: { organizationId },
       select: {
         id: true,
@@ -51,7 +51,7 @@ const getOrganizationStudents = cacheQuery(
       },
       orderBy: { createdAt: "desc" },
       take: 100, // Explicit bound - organizations shouldn't have hundreds of students
-    });
+    }), undefined, { organizationId, userId: null });
   },
   ["organization-students"],
   {

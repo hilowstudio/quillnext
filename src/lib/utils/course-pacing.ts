@@ -1,4 +1,5 @@
-import { db } from "@/server/db";
+import { db, withTenant } from "@/server/db";
+import { getCurrentUserOrg } from "@/lib/auth-helpers";
 import type { Schedule } from "@/lib/schemas/onboarding";
 
 // -----------------------------------------------------------------------
@@ -39,12 +40,18 @@ export async function calculateCoursePacing(
     hoursPerWeek: number;
   },
 ): Promise<CalculatedPacing> {
-  const classroom = await db.classroom.findUnique({
-    where: { id: classroomId },
-    include: {
-      holidays: true,
-    },
-  });
+  const { organizationId, userId } = await getCurrentUserOrg();
+  const classroom = await withTenant(
+    (tx) =>
+      tx.classroom.findUnique({
+        where: { id: classroomId },
+        include: {
+          holidays: true,
+        },
+      }),
+    undefined,
+    { organizationId, userId },
+  );
 
   if (!classroom) {
     throw new Error(`Classroom ${classroomId} not found`);

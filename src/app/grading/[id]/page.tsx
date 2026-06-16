@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { getCurrentUserOrg } from "@/lib/auth-helpers";
-import { db } from "@/server/db";
+import { withTenant } from "@/server/db";
 import { getMasterContext } from "@/lib/context/master-context";
 import { serializeMasterContext } from "@/lib/context/context-serializer";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -26,39 +26,44 @@ export default async function GradingPage({
     redirect("/grading");
   }
 
-  const attempt = (await db.assessmentAttempt.findUnique({
-    where: { id },
-    include: {
-      assessment: {
+  const attempt = (await withTenant(
+    (tx) =>
+      tx.assessmentAttempt.findUnique({
+        where: { id },
         include: {
-          course: {
+          assessment: {
             include: {
-              subject: true,
-              strand: true,
+              course: {
+                include: {
+                  subject: true,
+                  strand: true,
+                },
+              },
+              items: {
+                orderBy: { position: "asc" },
+              },
             },
           },
-          items: {
-            orderBy: { position: "asc" },
+          student: {
+            include: {
+              learnerProfile: true,
+            },
+          },
+          itemResponses: {
+            include: {
+              item: true,
+            },
+            orderBy: {
+              item: {
+                position: "asc",
+              },
+            },
           },
         },
-      },
-      student: {
-        include: {
-          learnerProfile: true,
-        },
-      },
-      itemResponses: {
-        include: {
-          item: true,
-        },
-        orderBy: {
-          item: {
-            position: "asc",
-          },
-        },
-      },
-    },
-  })) as any;
+      }),
+    undefined,
+    { organizationId, userId: null },
+  )) as any;
 
   if (!attempt || !attempt.assessment?.course || attempt.assessment.course.organizationId !== organizationId) {
     redirect("/grading");

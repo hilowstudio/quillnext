@@ -4,7 +4,7 @@ import { getCurrentUserOrg } from "@/lib/auth-helpers";
 import { getBlueprintProgress } from "@/server/actions/blueprint";
 import { getMasterContext } from "@/lib/context/master-context";
 import { serializeMasterContext } from "@/lib/context/context-serializer";
-import { db } from "@/server/db";
+import { withTenant } from "@/server/db";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
@@ -34,15 +34,15 @@ export default async function BlueprintPage() {
 
   // Get counts for context completeness
   const [studentsCount, studentsWithProfilesCount, booksCount, coursesCount] = await Promise.all([
-    db.student.count({ where: { organizationId } }),
-    db.student.count({
+    withTenant((tx) => tx.student.count({ where: { organizationId } }), undefined, { organizationId, userId: null }),
+    withTenant((tx) => tx.student.count({
       where: {
         organizationId,
         learnerProfile: { isNot: null },
       },
-    }),
-    db.book.count({ where: { organizationId } }),
-    db.course.count({ where: { organizationId } }),
+    }), undefined, { organizationId, userId: null }),
+    withTenant((tx) => tx.book.count({ where: { organizationId } }), undefined, { organizationId, userId: null }),
+    withTenant((tx) => tx.course.count({ where: { organizationId } }), undefined, { organizationId, userId: null }),
   ]);
 
   // Calculate context completeness score

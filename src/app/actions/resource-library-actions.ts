@@ -1,14 +1,12 @@
 "use server";
 
-import { db as dbInstance } from "@/server/db";
+import { withTenant } from "@/server/db";
 import { auth } from "@/auth";
 import { getCurrentUserOrg } from "@/lib/auth-helpers";
 import { revalidatePath, revalidateTag, unstable_cache } from "next/cache";
 import { z } from "zod";
 import * as cheerio from "cheerio";
 
-// Prisma client instance
-const prisma = dbInstance;
 // Helper removed - processing moved to Inngest worker
 
 export async function getLibraryResources(organizationId: string) {
@@ -16,94 +14,100 @@ export async function getLibraryResources(organizationId: string) {
         async () => {
             // Removed defensive try/catch - let database errors surface explicitly
             // Converted include to select for precise field selection
-            const [books, videos, articles, documents, courses, resources, bundles] = await Promise.all([
-                prisma.book.findMany({
-                    where: { organizationId },
-                    include: {
-                        subject: {
-                            select: {
-                                id: true,
-                                name: true,
-                                code: true,
+            // RLS: all 7 org-scoped reads share ONE tenant-stamped tx so they
+            // resolve against app.current_org under the non-bypass app_user role.
+            const [books, videos, articles, documents, courses, resources, bundles] = await withTenant(
+                (tx) => Promise.all([
+                    tx.book.findMany({
+                        where: { organizationId },
+                        include: {
+                            subject: {
+                                select: {
+                                    id: true,
+                                    name: true,
+                                    code: true,
+                                },
                             },
                         },
-                    },
-                    orderBy: { createdAt: "desc" },
-                    take: 100, // Explicit bound
-                }),
-                prisma.videoResource.findMany({
-                    where: { organizationId },
-                    // Fetch full object
-                    orderBy: { createdAt: "desc" },
-                    take: 100, // Explicit bound
-                }),
-                prisma.article.findMany({
-                    where: { organizationId },
-                    include: {
-                        subject: {
-                            select: {
-                                id: true,
-                                name: true,
+                        orderBy: { createdAt: "desc" },
+                        take: 100, // Explicit bound
+                    }),
+                    tx.videoResource.findMany({
+                        where: { organizationId },
+                        // Fetch full object
+                        orderBy: { createdAt: "desc" },
+                        take: 100, // Explicit bound
+                    }),
+                    tx.article.findMany({
+                        where: { organizationId },
+                        include: {
+                            subject: {
+                                select: {
+                                    id: true,
+                                    name: true,
+                                },
+                            },
+                            strand: {
+                                select: {
+                                    id: true,
+                                    name: true,
+                                },
                             },
                         },
-                        strand: {
-                            select: {
-                                id: true,
-                                name: true,
+                        orderBy: { createdAt: "desc" },
+                        take: 100, // Explicit bound
+                    }),
+                    tx.documentResource.findMany({
+                        where: { organizationId },
+                        include: {
+                            subject: {
+                                select: {
+                                    id: true,
+                                    name: true,
+                                },
+                            },
+                            strand: {
+                                select: {
+                                    id: true,
+                                    name: true,
+                                },
                             },
                         },
-                    },
-                    orderBy: { createdAt: "desc" },
-                    take: 100, // Explicit bound
-                }),
-                prisma.documentResource.findMany({
-                    where: { organizationId },
-                    include: {
-                        subject: {
-                            select: {
-                                id: true,
-                                name: true,
+                        orderBy: { createdAt: "desc" },
+                        take: 100, // Explicit bound
+                    }),
+                    tx.course.findMany({
+                        where: { organizationId },
+                        select: { id: true, title: true, subjectId: true, strandId: true },
+                        orderBy: { createdAt: "desc" },
+                        take: 100, // Explicit bound
+                    }),
+                    tx.resource.findMany({
+                        where: { organizationId },
+                        select: {
+                            id: true,
+                            title: true,
+                            resourceKind: {
+                                select: {
+                                    label: true,
+                                    code: true,
+                                }
                             },
+                            createdAt: true,
                         },
-                        strand: {
-                            select: {
-                                id: true,
-                                name: true,
-                            },
-                        },
-                    },
-                    orderBy: { createdAt: "desc" },
-                    take: 100, // Explicit bound
-                }),
-                prisma.course.findMany({
-                    where: { organizationId },
-                    select: { id: true, title: true, subjectId: true, strandId: true },
-                    orderBy: { createdAt: "desc" },
-                    take: 100, // Explicit bound
-                }),
-                prisma.resource.findMany({
-                    where: { organizationId },
-                    select: {
-                        id: true,
-                        title: true,
-                        resourceKind: {
-                            select: {
-                                label: true,
-                                code: true,
-                            }
-                        },
-                        createdAt: true,
-                    },
-                    orderBy: { createdAt: "desc" },
-                    take: 100,
-                }),
-                prisma.curriculumBundle.findMany({
-                    where: { spec: { organizationId } },
-                    include: { spec: true },
-                    orderBy: { createdAt: "desc" },
-                    take: 20,
-                })
-            ]);
+                        orderBy: { createdAt: "desc" },
+                        take: 100,
+                    }),
+                    tx.curriculumBundle.findMany({
+                        where: { spec: { organizationId } },
+                        include: { spec: true },
+                        orderBy: { createdAt: "desc" },
+                        take: 20,
+                    })
+                ]),
+                undefined,
+                { organizationId, userId: null }
+            );
 
             return { success: true, books, videos, articles, documents, courses, resources, bundles };
         },
@@ -134,19 +138,23 @@ export async function addArticle(url: string, organizationId: string, userId: st
         // Basic content extraction - getting text from paragraphs
         const content = $('video, script, style, nav, footer, header').remove().end().find('p').map((i: number, el: any) => $(el).text()).get().join('\n\n');
 
-        const article = await prisma.article.create({
-            data: {
-                organizationId,
-                addedByUserId: userId,
-                url,
-                title,
-                description: description.substring(0, 500), // Limit description length
-                imageUrl: imageUrl ? imageUrl : null,
-                content: content || "",
-                extractionStatus: "EXTRACTED", // Basic extraction done
-                extractedAt: new Date(),
-            }
-        });
+        const article = await withTenant(
+            (tx) => tx.article.create({
+                data: {
+                    organizationId,
+                    addedByUserId: userId,
+                    url,
+                    title,
+                    description: description.substring(0, 500), // Limit description length
+                    imageUrl: imageUrl ? imageUrl : null,
+                    content: content || "",
+                    extractionStatus: "EXTRACTED", // Basic extraction done
+                    extractedAt: new Date(),
+                }
+            }),
+            undefined,
+            { organizationId, userId: null }
+        );
 
         revalidateTag(`library-${organizationId}`, {});
         return { success: true, article };
@@ -186,16 +194,20 @@ export async function addDocuments(formData: FormData, organizationId: string, u
                 });
 
                 // 2. Create DB Record (Initial State)
-                const doc = await prisma.documentResource.create({
-                    data: {
-                        organizationId,
-                        addedByUserId: userId,
-                        fileName: file.name,
-                        fileType: file.type || "unknown",
-                        fileSize: file.size,
-                        extractedText: "", // Will be populated by worker
-                    }
-                });
+                const doc = await withTenant(
+                    (tx) => tx.documentResource.create({
+                        data: {
+                            organizationId,
+                            addedByUserId: userId,
+                            fileName: file.name,
+                            fileType: file.type || "unknown",
+                            fileSize: file.size,
+                            extractedText: "", // Will be populated by worker
+                        }
+                    }),
+                    undefined,
+                    { organizationId, userId: null }
+                );
 
                 // 3. Dispatch Background Job
                 await inngest.send({
@@ -267,10 +279,14 @@ async function deleteResource(id: string, model: "book" | "videoResource" | "art
     const { organizationId } = await getCurrentUserOrg();
 
     // Removed defensive try/catch - authorization and delete errors should surface explicitly
-    // @ts-ignore - dynamic model access
-    const resource = await prisma[model].findUnique({
-        where: { id },
-    });
+    const resource = await withTenant<any>(
+        // @ts-ignore - dynamic model access
+        (tx) => tx[model].findUnique({
+            where: { id },
+        }),
+        undefined,
+        { organizationId, userId: null }
+    );
 
     if (!resource) {
         throw new Error(`${model} not found`);
@@ -280,10 +296,14 @@ async function deleteResource(id: string, model: "book" | "videoResource" | "art
         throw new Error("Unauthorized - resource belongs to different organization");
     }
 
-    // @ts-ignore
-    await prisma[model].delete({
-        where: { id },
-    });
+    await withTenant(
+        // @ts-ignore
+        (tx) => tx[model].delete({
+            where: { id },
+        }),
+        undefined,
+        { organizationId, userId: null }
+    );
 
     revalidateTag(`library-${organizationId}`, {});
     revalidatePath("/living-library");

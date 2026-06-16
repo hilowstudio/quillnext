@@ -2,7 +2,7 @@ import React from 'react';
 import { redirect } from 'next/navigation';
 import { auth } from '@/auth';
 import { getCurrentUserOrg } from '@/lib/auth-helpers';
-import { db } from "@/server/db";
+import { withTenant } from "@/server/db";
 import { getLibraryVerses, getUserVerses, getStudentFolders } from './actions';
 import BibleMemoryDashboard from './BibleMemoryDashboard';
 
@@ -29,10 +29,18 @@ export default async function BibleMemoryPage({
     // Honor ?studentId only if it belongs to this org; otherwise fall back to the org's
     // first student.
     let student = requestedStudentId
-        ? await db.student.findFirst({ where: { id: requestedStudentId, organizationId } })
+        ? await withTenant(
+              (tx) => tx.student.findFirst({ where: { id: requestedStudentId, organizationId } }),
+              undefined,
+              { organizationId, userId: null },
+          )
         : null;
     if (!student) {
-        student = await db.student.findFirst({ where: { organizationId } });
+        student = await withTenant(
+            (tx) => tx.student.findFirst({ where: { organizationId } }),
+            undefined,
+            { organizationId, userId: null },
+        );
     }
     const studentId = student?.id || "";
 

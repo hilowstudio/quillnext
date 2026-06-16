@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { getCurrentUserOrg } from "@/lib/auth-helpers";
-import { db } from "@/server/db";
+import { db, withTenant } from "@/server/db";
 import { Prisma } from "@/generated/client";
 import { getMasterContext } from "@/lib/context/master-context";
 import { serializeMasterContext } from "@/lib/context/context-serializer";
@@ -64,10 +64,15 @@ export default async function CourseBuilderPage({
     },
   } satisfies Prisma.CourseInclude;
 
-  const course = await db.course.findUnique({
-    where: { id },
-    include: courseInclude,
-  }) as Prisma.CourseGetPayload<{ include: typeof courseInclude }> | null;
+  const course = await withTenant(
+    (tx) =>
+      tx.course.findUnique({
+        where: { id },
+        include: courseInclude,
+      }),
+    undefined,
+    { organizationId, userId: null }
+  ) as Prisma.CourseGetPayload<{ include: typeof courseInclude }> | null;
 
   if (!course || course.organizationId !== organizationId) {
     redirect("/courses");
@@ -91,36 +96,41 @@ export default async function CourseBuilderPage({
   });
 
   // Get relevant books for this course - converted include to select
-  const relevantBooks = await db.book.findMany({
-    where: {
-      organizationId,
-      OR: [
-        { subjectId: course.subjectId },
-        { strandId: course.strandId || undefined },
-      ],
-    },
-    select: {
-      id: true,
-      title: true,
-      authors: true,
-      summary: true,
-      subject: {
+  const relevantBooks = await withTenant(
+    (tx) =>
+      tx.book.findMany({
+        where: {
+          organizationId,
+          OR: [
+            { subjectId: course.subjectId },
+            { strandId: course.strandId || undefined },
+          ],
+        },
         select: {
           id: true,
-          name: true,
-          code: true,
+          title: true,
+          authors: true,
+          summary: true,
+          subject: {
+            select: {
+              id: true,
+              name: true,
+              code: true,
+            },
+          },
+          strand: {
+            select: {
+              id: true,
+              name: true,
+              code: true,
+            },
+          },
         },
-      },
-      strand: {
-        select: {
-          id: true,
-          name: true,
-          code: true,
-        },
-      },
-    },
-    take: 10,
-  });
+        take: 10,
+      }),
+    undefined,
+    { organizationId, userId: null }
+  );
 
   // Get available tools for this strand
   const availableTools = await db.resourceKind.findMany({

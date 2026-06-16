@@ -1,6 +1,6 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
-import { db as prisma } from "@/server/db";
+import { db as prisma, withTenant } from "@/server/db";
 import { getLibraryResources } from "@/app/actions/resource-library-actions";
 import { LibraryClient } from "@/app/living-library/LibraryClient";
 
@@ -32,11 +32,16 @@ export default async function LibraryPage(
   const { books, videos, articles, documents, courses } = await getLibraryResources(organizationId);
 
   // Fetch Students (needed for filtering options in LibraryClient -> ResourceList)
-  const students = await prisma.student.findMany({
-    where: { organizationId },
-    select: { id: true, firstName: true, lastName: true, preferredName: true },
-    orderBy: { createdAt: "desc" },
-  });
+  const students = await withTenant(
+    (tx) =>
+      tx.student.findMany({
+        where: { organizationId },
+        select: { id: true, firstName: true, lastName: true, preferredName: true },
+        orderBy: { createdAt: "desc" },
+      }),
+    undefined,
+    { organizationId, userId: null }
+  );
 
   // Fetch Filtered Generated Resources logic
   const where: any = { organizationId };
@@ -47,7 +52,9 @@ export default async function LibraryPage(
   if (searchParams.toolType) where.resourceKind = { code: searchParams.toolType };
 
   // Converted include to select for precise field selection
-  const resources = await prisma.resource.findMany({
+  const resources = await withTenant(
+    (tx) =>
+      tx.resource.findMany({
     where,
     select: {
       id: true,
@@ -91,7 +98,10 @@ export default async function LibraryPage(
     },
     orderBy: { createdAt: "desc" },
     take: 50,
-  });
+      }),
+    undefined,
+    { organizationId, userId: null }
+  );
 
 
   // Initial data for the client component

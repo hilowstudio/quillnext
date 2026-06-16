@@ -1,6 +1,6 @@
 import { auth } from "@/auth";
 import { getCurrentUserOrg } from "@/lib/auth-helpers";
-import { db } from "@/server/db";
+import { withTenant } from "@/server/db";
 import { Prisma } from "@/generated/client";
 import { redirect } from "next/navigation";
 import Link from "next/link";
@@ -59,7 +59,7 @@ const courseSelect = {
 
 const getOrganizationCourses = cacheQuery(
     async (organizationId: string) => {
-        return db.course.findMany({
+        return withTenant((tx) => tx.course.findMany({
             where: {
                 organizationId,
             },
@@ -68,7 +68,7 @@ const getOrganizationCourses = cacheQuery(
                 updatedAt: "desc",
             },
             take: 100, // Explicit bound - organizations shouldn't have hundreds of active courses
-        }) as unknown as Promise<Prisma.CourseGetPayload<{ select: typeof courseSelect }>[]>;
+        }), undefined, { organizationId, userId: null }) as unknown as Promise<Prisma.CourseGetPayload<{ select: typeof courseSelect }>[]>;
     },
     ["organization-courses"],
     {

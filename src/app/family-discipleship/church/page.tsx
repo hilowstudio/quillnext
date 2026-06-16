@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { db } from "@/server/db";
+import { withTenant } from "@/server/db";
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { ChurchNotesClient } from "./ChurchNotesClient";
@@ -10,15 +10,20 @@ export default async function ChurchNotesPage() {
     if (!session?.user?.id) {
         redirect("/login");
     }
+    const userId = session.user.id;
 
-    const notes = await db.localChurchNotes.findMany({
-        where: {
-            userId: session.user.id,
-        },
-        orderBy: {
-            date: 'desc',
-        },
-    });
+    const notes = await withTenant(
+        (tx) => tx.localChurchNotes.findMany({
+            where: {
+                userId,
+            },
+            orderBy: {
+                date: 'desc',
+            },
+        }),
+        undefined,
+        { organizationId: null, userId },
+    );
 
     return (
         <div className="container mx-auto p-4 md:p-6 space-y-8">

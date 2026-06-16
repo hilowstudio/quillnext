@@ -1,6 +1,6 @@
 "use server";
 
-import { db, withTenant } from "@/server/db";
+import { withTenant } from "@/server/db";
 import { setRlsContext } from "@/server/rls-context";
 import {
   classroomStepSchema,
@@ -146,7 +146,7 @@ export async function saveClassroomStep(
     }
 
     return { classroom, instructors, organizationId: activeOrgId };
-  });
+  }, undefined, { organizationId, userId });
 
   revalidatePath("/onboarding");
   return { success: true, data: result };
@@ -166,16 +166,6 @@ export async function saveScheduleStep(
 
   const validated = scheduleStepSchema.parse(data);
 
-  // Find the classroom for this organization
-  const classroom = await db.classroom.findFirst({
-    where: { organizationId },
-    orderBy: { createdAt: "desc" },
-  });
-
-  if (!classroom) {
-    throw new Error("Classroom not found. Please complete Step 1 first.");
-  }
-
   // Parse times if provided
   let dailyStartTime: Date | null = null;
   let dailyEndTime: Date | null = null;
@@ -192,42 +182,61 @@ export async function saveScheduleStep(
     dailyEndTime.setHours(hours, minutes, 0, 0);
   }
 
-  // Update classroom schedule
-  const updated = await db.classroom.update({
-    where: { id: classroom.id },
-    data: {
-      schoolYearStartDate: validated.schoolYearStartDate,
-      schoolYearEndDate: validated.schoolYearEndDate,
-      schoolDaysOfWeek: validated.schoolDaysOfWeek,
-      dailyStartTime: dailyStartTime,
-      dailyEndTime: dailyEndTime,
+  // RLS: org-scoped reads/writes (classroom, classroomHoliday) share one tenant-stamped tx.
+  const updated = await withTenant(
+    async (tx) => {
+      // Find the classroom for this organization
+      const classroom = await tx.classroom.findFirst({
+        where: { organizationId },
+        orderBy: { createdAt: "desc" },
+      });
+
+      if (!classroom) {
+        throw new Error("Classroom not found. Please complete Step 1 first.");
+      }
+
+      // Update classroom schedule
+      const updated = await tx.classroom.update({
+        where: { id: classroom.id },
+        data: {
+          schoolYearStartDate: validated.schoolYearStartDate,
+          schoolYearEndDate: validated.schoolYearEndDate,
+          schoolDaysOfWeek: validated.schoolDaysOfWeek,
+          dailyStartTime: dailyStartTime,
+          dailyEndTime: dailyEndTime,
+        },
+      });
+
+      // Handle breaks (store in a separate table or JSON field)
+      // For now, we'll skip breaks as they may need a separate model
+
+      // Handle planned off days
+      if (validated.plannedOffDays && validated.plannedOffDays.length > 0) {
+        // Delete existing holidays
+        await tx.classroomHoliday.deleteMany({
+          where: { classroomId: classroom.id },
+        });
+
+        // Create new holidays
+        await Promise.all(
+          validated.plannedOffDays.map((date) =>
+            tx.classroomHoliday.create({
+              data: {
+                classroomId: classroom.id,
+                holidayDate: date,
+                name: "Planned Day Off",
+                isAllDay: true,
+              },
+            }),
+          ),
+        );
+      }
+
+      return updated;
     },
-  });
-
-  // Handle breaks (store in a separate table or JSON field)
-  // For now, we'll skip breaks as they may need a separate model
-
-  // Handle planned off days
-  if (validated.plannedOffDays && validated.plannedOffDays.length > 0) {
-    // Delete existing holidays
-    await db.classroomHoliday.deleteMany({
-      where: { classroomId: classroom.id },
-    });
-
-    // Create new holidays
-    await Promise.all(
-      validated.plannedOffDays.map((date) =>
-        db.classroomHoliday.create({
-          data: {
-            classroomId: classroom.id,
-            holidayDate: date,
-            name: "Planned Day Off",
-            isAllDay: true,
-          },
-        }),
-      ),
-    );
-  }
+    undefined,
+    { organizationId, userId: null },
+  );
 
   revalidatePath("/onboarding");
   return { success: true, data: updated };
@@ -249,15 +258,6 @@ export async function saveEnvironmentStep(
 
   const validated = environmentStepSchema.parse(data);
 
-  const classroom = await db.classroom.findFirst({
-    where: { organizationId },
-    orderBy: { createdAt: "desc" },
-  });
-
-  if (!classroom) {
-    throw new Error("Classroom not found. Please complete Step 1 first.");
-  }
-
   // Store environment data in the proper JSON field
   const environmentData = {
     philosophyPreferences: validated.philosophyPreferences || [],
@@ -268,13 +268,29 @@ export async function saveEnvironmentStep(
     faithBackground: validated.faithBackground || null,
   };
 
-  // Update classroom with environment preferences
-  await db.classroom.update({
-    where: { id: classroom.id },
-    data: {
-      environmentPreferences: environmentData,
+  // RLS: org-scoped classroom read + update share one tenant-stamped tx.
+  await withTenant(
+    async (tx) => {
+      const classroom = await tx.classroom.findFirst({
+        where: { organizationId },
+        orderBy: { createdAt: "desc" },
+      });
+
+      if (!classroom) {
+        throw new Error("Classroom not found. Please complete Step 1 first.");
+      }
+
+      // Update classroom with environment preferences
+      await tx.classroom.update({
+        where: { id: classroom.id },
+        data: {
+          environmentPreferences: environmentData,
+        },
+      });
     },
-  });
+    undefined,
+    { organizationId, userId: null },
+  );
 
   revalidatePath("/onboarding");
   revalidatePath("/blueprint");
@@ -293,14 +309,19 @@ export async function getBlueprintProgress(organizationId: string | null) {
     return { step: 1, data: null };
   }
 
-  const classroom = await db.classroom.findFirst({
-    where: { organizationId },
-    include: {
-      instructors: true,
-      holidays: true,
-    },
-    orderBy: { createdAt: "desc" },
-  });
+  const classroom = await withTenant(
+    (tx) =>
+      tx.classroom.findFirst({
+        where: { organizationId },
+        include: {
+          instructors: true,
+          holidays: true,
+        },
+        orderBy: { createdAt: "desc" },
+      }),
+    undefined,
+    { organizationId, userId: null },
+  );
 
   if (!classroom) {
     return { step: 1, data: null };

@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { getCurrentUserOrg } from "@/lib/auth-helpers";
-import { db } from "@/server/db";
+import { db, withTenant } from "@/server/db";
 import { getMasterContext } from "@/lib/context/master-context";
 import { serializeMasterContext } from "@/lib/context/context-serializer";
 import { GeneratorForm } from "@/components/generators/GeneratorForm";
@@ -92,7 +92,7 @@ export default async function GeneratorPage(
   let video = null;
 
   if (studentId) {
-    student = await db.student.findUnique({
+    student = await withTenant((tx) => tx.student.findUnique({
       where: { id: studentId },
       select: {
         id: true,
@@ -100,7 +100,7 @@ export default async function GeneratorPage(
         lastName: true,
         preferredName: true,
       },
-    });
+    }), undefined, { organizationId, userId: null });
   }
 
   if (objectiveId) {
@@ -125,23 +125,23 @@ export default async function GeneratorPage(
   }
 
   if (bookId) {
-    book = await db.book.findUnique({
+    book = await withTenant((tx) => tx.book.findUnique({
       where: { id: bookId },
       select: {
         id: true,
         title: true,
       },
-    });
+    }), undefined, { organizationId, userId: null });
   }
 
   if (videoId) {
-    const v = await db.videoResource.findUnique({
+    const v = await withTenant((tx) => tx.videoResource.findUnique({
       where: { id: videoId },
       select: {
         id: true,
         title: true,
       },
-    });
+    }), undefined, { organizationId, userId: null });
     if (v) {
       video = { id: v.id, title: v.title || "Untitled Video" };
     }

@@ -1,4 +1,4 @@
-import { db } from "@/server/db";
+import { db, withTenant } from "@/server/db";
 
 /**
  * Get smart defaults for context parameters
@@ -25,16 +25,21 @@ export async function getSmartDefaults(organizationId: string, courseId?: string
   if (courseId) {
     // SECURITY: scope the course lookup to the caller's org so a foreign courseId
     // resolves to null (no cross-org student id / objective leak).
-    const course = await db.course.findFirst({
-      where: { id: courseId, organizationId },
-      include: {
-        students: {
+    const course = await withTenant(
+      (tx) =>
+        tx.course.findFirst({
+          where: { id: courseId, organizationId },
           include: {
-            student: true,
+            students: {
+              include: {
+                student: true,
+              },
+            },
           },
-        },
-      },
-    });
+        }),
+      undefined,
+      { organizationId, userId: null },
+    );
 
     if (course) {
       // Auto-select student if only one enrolled
@@ -81,10 +86,15 @@ export async function getSmartDefaults(organizationId: string, courseId?: string
     }
   } else {
     // If no course, check if there's only one student in organization
-    const students = await db.student.findMany({
-      where: { organizationId },
-      take: 2,
-    });
+    const students = await withTenant(
+      (tx) =>
+        tx.student.findMany({
+          where: { organizationId },
+          take: 2,
+        }),
+      undefined,
+      { organizationId, userId: null },
+    );
 
     if (students.length === 1) {
       defaults.suggestedStudentId = students[0].id;

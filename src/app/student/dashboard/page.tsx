@@ -2,7 +2,7 @@
 import { auth } from "@/auth";
 import { getCurrentUserOrg } from "@/lib/auth-helpers";
 import { getStudentDailySchedule } from "@/server/actions/scheduling";
-import { db } from "@/server/db";
+import { withTenant } from "@/server/db";
 import { redirect } from "next/navigation";
 import { DailyScheduleList } from "@/components/dashboard/DailyScheduleList";
 import { format } from "date-fns";
@@ -24,10 +24,10 @@ export default async function StudentDashboardPage({
     const { studentId, date } = await searchParams;
 
     // 1. Get Students
-    const students = await db.student.findMany({
+    const students = await withTenant((tx) => tx.student.findMany({
         where: { organizationId },
         select: { id: true, firstName: true, preferredName: true }
-    });
+    }), undefined, { organizationId, userId: null });
 
     if (students.length === 0) {
         return <div className="p-8">No students found. Please add students first.</div>;

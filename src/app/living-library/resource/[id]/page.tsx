@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { auth } from "@/auth";
 import { getCurrentUserOrg } from "@/lib/auth-helpers";
-import { db } from "@/server/db";
+import { withTenant } from "@/server/db";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { MarkdownContent } from "@/components/resources/MarkdownContent";
@@ -23,10 +23,15 @@ export default async function ResourceDetailPage({
 
     const { organizationId } = await getCurrentUserOrg();
 
-    const resource = await db.resource.findUnique({
-        where: { id },
-        include: { resourceKind: { select: { label: true } } },
-    });
+    const resource = await withTenant(
+        (tx) =>
+            tx.resource.findUnique({
+                where: { id },
+                include: { resourceKind: { select: { label: true } } },
+            }),
+        undefined,
+        { organizationId, userId: null },
+    );
 
     const notFound = !resource || resource.organizationId !== organizationId;
 

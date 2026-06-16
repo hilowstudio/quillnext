@@ -1,4 +1,4 @@
-import { db } from "@/server/db";
+import { db, withTenant } from "@/server/db";
 import { Prisma } from "@/generated/client";
 
 // -----------------------------------------------------------------------
@@ -264,51 +264,56 @@ export async function getMasterContext(
 export async function getFamilyContext(
   organizationId: string,
 ): Promise<FamilyContext | null> {
-  const organization = await db.organization.findUnique({
-    where: { id: organizationId },
-    select: {
-      id: true,
-      classrooms: {
+  const organization = await withTenant(
+    (tx) =>
+      tx.organization.findUnique({
+        where: { id: organizationId },
         select: {
           id: true,
-          name: true,
-          description: true,
-          educationalPhilosophy: true,
-          educationalPhilosophyOther: true,
-          faithBackground: true,
-          faithBackgroundOther: true,
-          schoolYearStartDate: true,
-          schoolYearEndDate: true,
-          schoolDaysOfWeek: true,
-          dailyStartTime: true,
-          dailyEndTime: true,
-          environmentPreferences: true,
-          instructors: {
+          classrooms: {
             select: {
-              firstName: true,
-              lastName: true,
-              role: true,
-              user: {
+              id: true,
+              name: true,
+              description: true,
+              educationalPhilosophy: true,
+              educationalPhilosophyOther: true,
+              faithBackground: true,
+              faithBackgroundOther: true,
+              schoolYearStartDate: true,
+              schoolYearEndDate: true,
+              schoolDaysOfWeek: true,
+              dailyStartTime: true,
+              dailyEndTime: true,
+              environmentPreferences: true,
+              instructors: {
+                select: {
+                  firstName: true,
+                  lastName: true,
+                  role: true,
+                  user: {
+                    select: {
+                      id: true,
+                      name: true,
+                    },
+                  },
+                },
+              },
+              holidays: {
                 select: {
                   id: true,
+                  holidayDate: true,
                   name: true,
                 },
               },
             },
-          },
-          holidays: {
-            select: {
-              id: true,
-              holidayDate: true,
-              name: true,
-            },
+            take: 1,
+            orderBy: { createdAt: "desc" as const },
           },
         },
-        take: 1,
-        orderBy: { createdAt: "desc" as const },
-      },
-    },
-  });
+      }),
+    undefined,
+    { organizationId, userId: null },
+  );
 
   if (!organization || !organization.classrooms || organization.classrooms.length === 0) {
     return null;
@@ -437,10 +442,15 @@ export async function getStudentContext(
     },
   } satisfies Prisma.StudentSelect;
 
-  const student = await db.student.findUnique({
-    where: { id: studentId },
-    select: studentSelect,
-  });
+  const student = await withTenant(
+    (tx) =>
+      tx.student.findUnique({
+        where: { id: studentId },
+        select: studentSelect,
+      }),
+    undefined,
+    { organizationId, userId: null },
+  );
 
   if (!student || student.organizationId !== organizationId) {
     return null;
@@ -495,18 +505,23 @@ export async function getStudentContext(
   });
 
   // Get books associated with student's courses
-  const bookIds = await db.book.findMany({
-    where: {
-      organizationId,
-      subjectId: {
-        in: student.courseEnrollments
-          .map((ce) => ce.course.subjectId)
-          .filter((id): id is string => id !== null),
-      },
-    },
-    select: { id: true },
-    take: 10,
-  });
+  const bookIds = await withTenant(
+    (tx) =>
+      tx.book.findMany({
+        where: {
+          organizationId,
+          subjectId: {
+            in: student.courseEnrollments
+              .map((ce) => ce.course.subjectId)
+              .filter((id): id is string => id !== null),
+          },
+        },
+        select: { id: true },
+        take: 10,
+      }),
+    undefined,
+    { organizationId, userId: null },
+  );
 
   return {
     student: {
@@ -689,129 +704,154 @@ export async function getLibraryContext(
 
     if (objective) {
       const obj = objective as any;
-      relevantBooks = await db.book.findMany({
-        where: {
-          organizationId,
-          OR: [
-            { subjectId: obj.subtopic.topic.strand.subjectId },
-            { strandId: obj.subtopic.topic.strandId },
-          ],
-          extractionStatus: "EXTRACTED",
-        },
-        select: {
-          id: true,
-          title: true,
-          authors: true,
-          summary: true,
-          tableOfContents: true,
-          subject: {
-            select: {
-              name: true,
+      relevantBooks = await withTenant(
+        (tx) =>
+          tx.book.findMany({
+            where: {
+              organizationId,
+              OR: [
+                { subjectId: obj.subtopic.topic.strand.subjectId },
+                { strandId: obj.subtopic.topic.strandId },
+              ],
+              extractionStatus: "EXTRACTED",
             },
-          },
-          strand: {
             select: {
-              name: true,
+              id: true,
+              title: true,
+              authors: true,
+              summary: true,
+              tableOfContents: true,
+              subject: {
+                select: {
+                  name: true,
+                },
+              },
+              strand: {
+                select: {
+                  name: true,
+                },
+              },
             },
-          },
-        },
-        take: 5,
-        orderBy: { createdAt: "desc" },
-      });
+            take: 5,
+            orderBy: { createdAt: "desc" },
+          }),
+        undefined,
+        { organizationId, userId: null },
+      );
     }
   } else if (courseId) {
-    const course = await db.course.findUnique({
-      where: { id: courseId },
-      select: {
-        subjectId: true,
-        strandId: true,
-        subject: {
+    const course = await withTenant(
+      (tx) =>
+        tx.course.findUnique({
+          where: { id: courseId },
           select: {
-            name: true,
+            subjectId: true,
+            strandId: true,
+            subject: {
+              select: {
+                name: true,
+              },
+            },
+            strand: {
+              select: {
+                name: true,
+              },
+            },
           },
-        },
-        strand: {
-          select: {
-            name: true,
-          },
-        },
-      },
-    });
+        }),
+      undefined,
+      { organizationId, userId: null },
+    );
 
     if (course) {
-      relevantBooks = await db.book.findMany({
-        where: {
-          organizationId,
-          OR: [
-            { subjectId: course.subjectId },
-            course.strandId ? { strandId: course.strandId } : {},
-          ],
-          extractionStatus: "EXTRACTED",
-        },
-        select: {
-          id: true,
-          title: true,
-          authors: true,
-          summary: true,
-          tableOfContents: true,
-          subject: {
-            select: {
-              name: true,
+      relevantBooks = await withTenant(
+        (tx) =>
+          tx.book.findMany({
+            where: {
+              organizationId,
+              OR: [
+                { subjectId: course.subjectId },
+                course.strandId ? { strandId: course.strandId } : {},
+              ],
+              extractionStatus: "EXTRACTED",
             },
-          },
-          strand: {
             select: {
-              name: true,
+              id: true,
+              title: true,
+              authors: true,
+              summary: true,
+              tableOfContents: true,
+              subject: {
+                select: {
+                  name: true,
+                },
+              },
+              strand: {
+                select: {
+                  name: true,
+                },
+              },
             },
-          },
-        },
-        take: 5,
-        orderBy: { createdAt: "desc" },
-      });
+            take: 5,
+            orderBy: { createdAt: "desc" },
+          }),
+        undefined,
+        { organizationId, userId: null },
+      );
     }
   }
 
   // Get relevant videos
-  const relevantVideos = await db.videoResource.findMany({
-    where: {
-      organizationId,
-      extractionStatus: "EXTRACTED",
-    },
-    select: {
-      id: true,
-      title: true,
-      youtubeVideoId: true,
-      extractedSummary: true,
-      extractedKeyPoints: true,
-    },
-    take: 5,
-    orderBy: { createdAt: "desc" },
-  });
+  const relevantVideos = await withTenant(
+    (tx) =>
+      tx.videoResource.findMany({
+        where: {
+          organizationId,
+          extractionStatus: "EXTRACTED",
+        },
+        select: {
+          id: true,
+          title: true,
+          youtubeVideoId: true,
+          extractedSummary: true,
+          extractedKeyPoints: true,
+        },
+        take: 5,
+        orderBy: { createdAt: "desc" },
+      }),
+    undefined,
+    { organizationId, userId: null },
+  );
 
   // Get course resources if courseId provided
   let courseResources: any[] = [];
   if (courseId) {
-    courseResources = await db.resource.findMany({
-      where: {
-        organizationId,
-        assignments: {
-          some: {
-            courseId,
+    courseResources = await withTenant(
+      (tx) =>
+        tx.resource.findMany({
+          where: {
+            organizationId,
+            assignments: {
+              some: {
+                courseId,
+              },
+            },
           },
-        },
-      },
-      select: {
-        id: true,
-        title: true,
-        resourceKind: {
           select: {
-            label: true,
+            id: true,
+            title: true,
+            resourceKind: {
+              select: {
+                label: true,
+              },
+            },
           },
-        },
-      },
-      take: 10,
-      orderBy: { createdAt: "desc" },
-    });
+          take: 10,
+          orderBy: { createdAt: "desc" },
+        }),
+      undefined,
+      { organizationId, userId: null },
+    );
   }
 
   return {
@@ -860,11 +900,16 @@ export async function getScheduleContext(
     },
   } satisfies Prisma.ClassroomSelect;
 
-  const classroom = await db.classroom.findFirst({
-    where: { organizationId },
-    orderBy: { createdAt: "desc" },
-    select: classroomSelect,
-  });
+  const classroom = await withTenant(
+    (tx) =>
+      tx.classroom.findFirst({
+        where: { organizationId },
+        orderBy: { createdAt: "desc" },
+        select: classroomSelect,
+      }),
+    undefined,
+    { organizationId, userId: null },
+  );
 
   if (!classroom) {
     return null;

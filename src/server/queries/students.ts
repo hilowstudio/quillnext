@@ -1,6 +1,6 @@
 import { cache } from "react";
 import { Prisma } from "@/generated/client";
-import { db } from "@/server/db";
+import { db, withTenant } from "@/server/db";
 import { getMasterContext } from "@/lib/context/master-context";
 
 /**
@@ -177,10 +177,15 @@ export type BookWithRelations = Prisma.BookGetPayload<{
  * Uses React cache() for request-level deduplication
  */
 export const getStudentById = cache(async (studentId: string, organizationId: string) => {
-    const student = await db.student.findUnique({
-        where: { id: studentId },
-        select: studentSelect,
-    });
+    const student = await withTenant(
+        (tx) =>
+            tx.student.findUnique({
+                where: { id: studentId },
+                select: studentSelect,
+            }),
+        undefined,
+        { organizationId, userId: null }
+    );
 
     // Verify student belongs to the organization
     if (!student || student.organizationId !== organizationId) {
@@ -251,18 +256,23 @@ export const getRelevantBooks = cache(async (
         return [];
     }
 
-    const books = await db.book.findMany({
-        where: {
-            organizationId,
-            OR: [
-                { subjectId: { in: subjectIds } },
-                { strandId: { in: strandIds } },
-            ],
-        },
-        select: bookSelect,
-        take: 10,
-        orderBy: { createdAt: "desc" },
-    });
+    const books = await withTenant(
+        (tx) =>
+            tx.book.findMany({
+                where: {
+                    organizationId,
+                    OR: [
+                        { subjectId: { in: subjectIds } },
+                        { strandId: { in: strandIds } },
+                    ],
+                },
+                select: bookSelect,
+                take: 10,
+                orderBy: { createdAt: "desc" },
+            }),
+        undefined,
+        { organizationId, userId: null }
+    );
 
     return books as unknown as BookWithRelations[];
 });

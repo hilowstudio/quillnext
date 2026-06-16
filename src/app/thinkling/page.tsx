@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { getCurrentUserOrg } from "@/lib/auth-helpers";
-import { db } from "@/server/db";
+import { withTenant } from "@/server/db";
 import { ThinklingClient } from "@/components/thinkling/ThinklingClient";
 
 export const metadata = {
@@ -21,7 +21,7 @@ export default async function ThinklingPage() {
         return redirect("/onboarding");
     }
 
-    const students = await db.student.findMany({
+    const students = await withTenant((tx) => tx.student.findMany({
         where: { organizationId },
         select: {
             id: true,
@@ -30,7 +30,7 @@ export default async function ThinklingPage() {
             lastName: true,
         },
         orderBy: { createdAt: "asc" }
-    });
+    }), undefined, { organizationId, userId: null });
 
     return <ThinklingClient students={students} />;
 }

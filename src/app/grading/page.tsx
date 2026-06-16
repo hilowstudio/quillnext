@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { auth } from "@/auth";
 import { getCurrentUserOrg } from "@/lib/auth-helpers";
-import { db } from "@/server/db";
+import { withTenant } from "@/server/db";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { NewAttemptForm } from "@/components/grading/NewAttemptForm";
@@ -17,7 +17,7 @@ export default async function GradingIndexPage() {
     if (!organizationId) redirect("/onboarding");
 
     const [attempts, assessments, students] = await Promise.all([
-        db.assessmentAttempt.findMany({
+        withTenant((tx) => tx.assessmentAttempt.findMany({
             where: { assessment: { course: { organizationId } } },
             select: {
                 id: true,
@@ -29,17 +29,17 @@ export default async function GradingIndexPage() {
             },
             orderBy: { createdAt: "desc" },
             take: 100,
-        }),
-        db.assessment.findMany({
+        }), undefined, { organizationId, userId: null }),
+        withTenant((tx) => tx.assessment.findMany({
             where: { course: { organizationId } },
             select: { id: true, title: true, course: { select: { title: true } } },
             orderBy: { createdAt: "desc" },
-        }),
-        db.student.findMany({
+        }), undefined, { organizationId, userId: null }),
+        withTenant((tx) => tx.student.findMany({
             where: { organizationId },
             select: { id: true, firstName: true, lastName: true, preferredName: true },
             orderBy: { firstName: "asc" },
-        }),
+        }), undefined, { organizationId, userId: null }),
     ]);
 
     const assessmentOpts = assessments.map((a) => ({ id: a.id, label: `${a.title} — ${a.course.title}` }));

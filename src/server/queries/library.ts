@@ -1,9 +1,9 @@
 import "server-only";
-import { db } from "@/server/db";
+import { db, withTenant } from "@/server/db";
 
 
 export async function getLibraryVideos(organizationId: string) {
-    const videos = await db.videoResource.findMany({
+    const videos = await withTenant((tx) => tx.videoResource.findMany({
         where: { organizationId },
         select: {
             id: true,
@@ -29,7 +29,7 @@ export async function getLibraryVideos(organizationId: string) {
         },
         orderBy: { createdAt: "desc" },
         take: 100, // Explicit bound - pagination can be added later if needed
-    });
+    }), undefined, { organizationId, userId: null });
 
     return videos;
 }

@@ -1,4 +1,4 @@
-import { db } from "@/server/db";
+import { withTenant } from "@/server/db";
 import { getMasterContext } from "./master-context";
 import type { MasterContext } from "./master-context";
 import { ContextSuggestion } from "./context-types";
@@ -95,7 +95,11 @@ export async function analyzeContextCompleteness(
     }
   } else {
     // Check if any students exist for the organization
-    const studentCount = await db.student.count({ where: { organizationId } });
+    const studentCount = await withTenant(
+      (tx) => tx.student.count({ where: { organizationId } }),
+      undefined,
+      { organizationId, userId: null },
+    );
 
     if (studentCount > 0) {
       completenessScore += 1;
@@ -131,7 +135,11 @@ export async function analyzeContextCompleteness(
     }
   } else {
     // Check if any courses exist
-    const courseCount = await db.course.count({ where: { organizationId } });
+    const courseCount = await withTenant(
+      (tx) => tx.course.count({ where: { organizationId } }),
+      undefined,
+      { organizationId, userId: null },
+    );
 
     if (courseCount > 0) {
       completenessScore += 1;
@@ -150,31 +158,43 @@ export async function analyzeContextCompleteness(
   }
 
   // Check library context
-  const bookCount = await db.book.count({
-    where: { organizationId },
-  });
+  const bookCount = await withTenant(
+    (tx) => tx.book.count({
+      where: { organizationId },
+    }),
+    undefined,
+    { organizationId, userId: null },
+  );
 
   if (bookCount > 0) {
     completenessScore += 1;
     if (options?.courseId) {
-      const course = await db.course.findUnique({
-        where: { id: options.courseId },
-        include: {
-          subject: true,
-          strand: true,
-        },
-      });
+      const course = await withTenant(
+        (tx) => tx.course.findUnique({
+          where: { id: options.courseId },
+          include: {
+            subject: true,
+            strand: true,
+          },
+        }),
+        undefined,
+        { organizationId, userId: null },
+      );
 
       if (course) {
-        const relevantBooks = await db.book.count({
-          where: {
-            organizationId,
-            OR: [
-              { subjectId: course.subjectId },
-              { strandId: course.strandId || undefined },
-            ],
-          },
-        });
+        const relevantBooks = await withTenant(
+          (tx) => tx.book.count({
+            where: {
+              organizationId,
+              OR: [
+                { subjectId: course.subjectId },
+                { strandId: course.strandId || undefined },
+              ],
+            },
+          }),
+          undefined,
+          { organizationId, userId: null },
+        );
 
         if (relevantBooks === 0) {
           suggestions.push({

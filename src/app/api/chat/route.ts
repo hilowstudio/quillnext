@@ -53,7 +53,7 @@ export async function POST(req: Request) {
             return new Response("Forbidden", { status: 403 });
         }
 
-        const { systemPrompt } = await getContextForThinkling(studentId, mode as ThinklingMode);
+        const { systemPrompt } = await getContextForThinkling(studentId, mode as ThinklingMode, organizationId);
 
         // Convert messages manually to ensure cleaner payload for Google provider
         // Handle cases where 'content' is missing but 'parts' exist (from UIMessage state)

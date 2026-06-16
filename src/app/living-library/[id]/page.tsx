@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { getCurrentUserOrg } from "@/lib/auth-helpers";
 import { type Prisma } from "@/generated/client";
-import { db } from "@/server/db";
+import { withTenant } from "@/server/db";
 import { findSimilarBooks } from "@/lib/utils/vector";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -22,7 +22,7 @@ export default async function BookDetailPage({
 
   const { organizationId } = await getCurrentUserOrg();
 
-  const book = await db.book.findUnique({
+  const book = await withTenant((tx) => tx.book.findUnique({
     where: { id },
     include: {
       subject: true,
@@ -36,7 +36,7 @@ export default async function BookDetailPage({
         orderBy: { createdAt: "desc" },
       },
     },
-  }) as Prisma.BookGetPayload<{
+  }), undefined, { organizationId, userId: null }) as Prisma.BookGetPayload<{
     include: {
       subject: true;
       strand: true;

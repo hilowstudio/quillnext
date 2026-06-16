@@ -1,6 +1,6 @@
 import { auth } from "@/auth";
 import { getCurrentUserOrg } from "@/lib/auth-helpers";
-import { db } from "@/server/db";
+import { withTenant } from "@/server/db";
 import { Student, Transcript } from "@/generated/client";
 import { format } from "date-fns";
 import Link from "next/link";
@@ -28,15 +28,19 @@ export default async function TranscriptsPage() {
             );
         }
 
-        const students = await (db as any).student.findMany({
-            where: { organizationId },
-            include: {
-                transcripts: {
-                    orderBy: { updatedAt: "desc" },
-                    take: 1
+        const students = await withTenant(
+            (tx) => (tx as any).student.findMany({
+                where: { organizationId },
+                include: {
+                    transcripts: {
+                        orderBy: { updatedAt: "desc" },
+                        take: 1
+                    }
                 }
-            }
-        }) as (Student & { transcripts: Transcript[] })[];
+            }),
+            undefined,
+            { organizationId, userId: null }
+        ) as (Student & { transcripts: Transcript[] })[];
 
         return (
             <div className="container mx-auto py-8 max-w-5xl">

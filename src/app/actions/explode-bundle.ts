@@ -2,7 +2,7 @@
 
 import { auth } from "@/auth";
 import { getCurrentUserOrg } from "@/lib/auth-helpers";
-import { db, withTenant } from "@/server/db";
+import { withTenant } from "@/server/db";
 import { revalidatePath } from "next/cache";
 import { CURRICULUM_KIND_CODES } from "@/lib/constants/curriculum-kinds";
 import { clampDurationDays } from "@/lib/validation/curriculum-spec";
@@ -45,19 +45,26 @@ export async function explodeCurriculumBundle(bundleId: string, courseId: string
     if (!organizationId) throw new Error("No organization found");
 
     // 1. Load the bundle (spec + generated artifacts) and the target course.
-    const [bundle, course] = await Promise.all([
-        db.curriculumBundle.findUnique({
-            where: { id: bundleId },
-            include: {
-                spec: true,
-                resources: { include: { resourceKind: true } },
-            },
-        }),
-        db.course.findUnique({
-            where: { id: courseId },
-            select: { id: true, organizationId: true },
-        }),
-    ]);
+    //    curriculumBundle/course/courseBlock are org-scoped, so the guard reads
+    //    must run on a tenant-stamped tx (plain db fails closed under RLS).
+    const [bundle, course] = await withTenant(
+        async (tx) =>
+            Promise.all([
+                tx.curriculumBundle.findUnique({
+                    where: { id: bundleId },
+                    include: {
+                        spec: true,
+                        resources: { include: { resourceKind: true } },
+                    },
+                }),
+                tx.course.findUnique({
+                    where: { id: courseId },
+                    select: { id: true, organizationId: true },
+                }),
+            ]),
+        undefined,
+        { organizationId, userId: null },
+    );
 
     if (!bundle) throw new Error("Bundle not found");
     if (!course) throw new Error("Course not found");
@@ -74,10 +81,15 @@ export async function explodeCurriculumBundle(bundleId: string, courseId: string
     }
 
     // Idempotency: never add the same compiled unit to a course twice.
-    const existingUnit = await db.courseBlock.findFirst({
-        where: { courseId, sourceBundleId: bundle.id, kind: "UNIT" },
-        select: { id: true },
-    });
+    const existingUnit = await withTenant(
+        async (tx) =>
+            tx.courseBlock.findFirst({
+                where: { courseId, sourceBundleId: bundle.id, kind: "UNIT" },
+                select: { id: true },
+            }),
+        undefined,
+        { organizationId, userId: null },
+    );
     if (existingUnit) {
         throw new Error("This curriculum unit has already been added to this course.");
     }
@@ -104,11 +116,16 @@ export async function explodeCurriculumBundle(bundleId: string, courseId: string
     //    list ordered by `position` (indentation derives from `kind`), and drag
     //    reordering reindexes positions globally — so positions must be globally
     //    sequential, not per-parent.
-    const lastBlock = await db.courseBlock.findFirst({
-        where: { courseId },
-        orderBy: { position: "desc" },
-        select: { position: true },
-    });
+    const lastBlock = await withTenant(
+        async (tx) =>
+            tx.courseBlock.findFirst({
+                where: { courseId },
+                orderBy: { position: "desc" },
+                select: { position: true },
+            }),
+        undefined,
+        { organizationId, userId: null },
+    );
     const base = (lastBlock?.position ?? -1) + 1;
 
     // Lay out in render order: UNIT, [Materials module + its lessons], [Daily module + day lessons].
@@ -181,7 +198,7 @@ export async function explodeCurriculumBundle(bundleId: string, courseId: string
         });
 
         return unit.id;
-    });
+    }, undefined, { organizationId, userId: null });
 
     revalidatePath(`/courses/${courseId}`);
     revalidatePath(`/courses/${courseId}/builder`);

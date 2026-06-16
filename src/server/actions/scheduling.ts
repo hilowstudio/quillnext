@@ -1,6 +1,6 @@
 "use server";
 
-import { db } from "@/server/db";
+import { withTenant } from "@/server/db";
 import { addDays, isSameDay, startOfDay } from "date-fns";
 import { revalidateTag, unstable_cache } from "next/cache";
 import { getCurrentUserOrg } from "@/lib/auth-helpers";
@@ -17,7 +17,11 @@ async function requireOrg() {
 }
 
 async function assertStudentInOrg(studentId: string, organizationId: string) {
-    const s = await db.student.findUnique({ where: { id: studentId }, select: { organizationId: true } });
+    const s = await withTenant(
+        (tx) => tx.student.findUnique({ where: { id: studentId }, select: { organizationId: true } }),
+        undefined,
+        { organizationId, userId: null }
+    );
     if (!s || s.organizationId !== organizationId) throw new Error("Unauthorized");
 }
 
@@ -78,33 +82,41 @@ export async function distributeCourse(
         }
 
         // 1. Fetch Course Structure (scoped to the caller's org)
-        const course = await db.course.findUnique({
-            where: { id: courseId },
-            include: {
-                blocks: {
-                    orderBy: { position: 'asc' },
-                    where: {
-                        kind: 'LESSON'
+        const course = await withTenant(
+            (tx) => tx.course.findUnique({
+                where: { id: courseId },
+                include: {
+                    blocks: {
+                        orderBy: { position: 'asc' },
+                        where: {
+                            kind: 'LESSON'
+                        }
                     }
                 }
-            }
-        }) as any;
+            }),
+            undefined,
+            { organizationId, userId: null }
+        ) as any;
 
         if (!course || course.organizationId !== organizationId) return { success: false, error: "Course not found" };
 
         if (course.blocks.length === 0) return { success: false, error: "No lessons to schedule" };
 
         // 2. Fetch Student Classroom Settings
-        const enrollment = await db.classroomStudent.findFirst({
-            where: { studentId },
-            include: {
-                classroom: {
-                    include: {
-                        holidays: true
+        const enrollment = await withTenant(
+            (tx) => tx.classroomStudent.findFirst({
+                where: { studentId },
+                include: {
+                    classroom: {
+                        include: {
+                            holidays: true
+                        }
                     }
                 }
-            }
-        });
+            }),
+            undefined,
+            { organizationId, userId: null }
+        );
 
         if (!enrollment) {
             return { success: false, error: "Student is not enrolled in a classroom. Please add them to a classroom first." };
@@ -127,9 +139,13 @@ export async function distributeCourse(
             status: 'PENDING'
         }));
 
-        await (db as any).studentScheduleItem.createMany({
-            data: scheduleItems as any
-        });
+        await withTenant(
+            (tx) => (tx as any).studentScheduleItem.createMany({
+                data: scheduleItems as any
+            }),
+            undefined,
+            { organizationId, userId: null }
+        );
 
         return {
             success: true,
@@ -151,45 +167,51 @@ export async function getWeeklySchedule(
 
     const getCached = unstable_cache(
         async () => {
-            const students = await db.student.findMany({
-                where: { organizationId },
-                select: { id: true, firstName: true, preferredName: true }
-            });
+            return withTenant(
+                async (tx) => {
+                    const students = await tx.student.findMany({
+                        where: { organizationId },
+                        select: { id: true, firstName: true, preferredName: true }
+                    });
 
-            const scheduleItems = await (db as any).studentScheduleItem.findMany({
-                where: {
-                    organizationId,
-                    date: {
-                        gte: startDate,
-                        lte: endDate
-                    },
-                    status: { not: 'SKIPPED' }
+                    const scheduleItems = await (tx as any).studentScheduleItem.findMany({
+                        where: {
+                            organizationId,
+                            date: {
+                                gte: startDate,
+                                lte: endDate
+                            },
+                            status: { not: 'SKIPPED' }
+                        },
+                        include: {
+                            courseBlock: {
+                                select: { title: true, course: { select: { title: true } } }
+                            },
+                            activity: {
+                                select: { title: true }
+                            }
+                        }
+                    });
+
+                    const customEvents = await (tx as any).customEvent.findMany({
+                        where: {
+                            organizationId,
+                            date: {
+                                gte: startDate,
+                                lte: endDate
+                            }
+                        }
+                    });
+
+                    return {
+                        students,
+                        items: scheduleItems,
+                        events: customEvents
+                    };
                 },
-                include: {
-                    courseBlock: {
-                        select: { title: true, course: { select: { title: true } } }
-                    },
-                    activity: {
-                        select: { title: true }
-                    }
-                }
-            });
-
-            const customEvents = await (db as any).customEvent.findMany({
-                where: {
-                    organizationId,
-                    date: {
-                        gte: startDate,
-                        lte: endDate
-                    }
-                }
-            });
-
-            return {
-                students,
-                items: scheduleItems,
-                events: customEvents
-            };
+                undefined,
+                { organizationId, userId: null }
+            );
         },
         [`schedule-${organizationId}-${startDate.toISOString()}-${endDate.toISOString()}`],
         {
@@ -210,36 +232,42 @@ export async function getStudentDailySchedule(
 
     const start = startOfDay(date);
 
-    const items = await (db as any).studentScheduleItem.findMany({
-        where: {
-            studentId,
-            date: {
-                gte: start,
-                lt: addDays(start, 1)
-            }
-        },
-        include: {
-            courseBlock: {
-                select: { title: true, course: { select: { title: true } } }
-            },
-            activity: {
-                select: { title: true }
-            }
-        },
-        orderBy: { sequenceOrder: 'asc' }
-    });
+    return withTenant(
+        async (tx) => {
+            const items = await (tx as any).studentScheduleItem.findMany({
+                where: {
+                    studentId,
+                    date: {
+                        gte: start,
+                        lt: addDays(start, 1)
+                    }
+                },
+                include: {
+                    courseBlock: {
+                        select: { title: true, course: { select: { title: true } } }
+                    },
+                    activity: {
+                        select: { title: true }
+                    }
+                },
+                orderBy: { sequenceOrder: 'asc' }
+            });
 
-    const events = await (db as any).customEvent.findMany({
-        where: {
-            studentId,
-            date: {
-                gte: start,
-                lt: addDays(start, 1)
-            }
-        }
-    });
+            const events = await (tx as any).customEvent.findMany({
+                where: {
+                    studentId,
+                    date: {
+                        gte: start,
+                        lt: addDays(start, 1)
+                    }
+                }
+            });
 
-    return { items, events };
+            return { items, events };
+        },
+        undefined,
+        { organizationId, userId: null }
+    );
 }
 
 export async function toggleItemStatus(
@@ -247,16 +275,22 @@ export async function toggleItemStatus(
     status: 'PENDING' | 'COMPLETED' | 'SKIPPED'
 ) {
     const organizationId = await requireOrg();
-    const existing = await (db as any).studentScheduleItem.findUnique({
-        where: { id: itemId },
-        select: { organizationId: true },
-    });
-    if (!existing || existing.organizationId !== organizationId) throw new Error("Unauthorized");
+    const item = await withTenant(
+        async (tx) => {
+            const existing = await (tx as any).studentScheduleItem.findUnique({
+                where: { id: itemId },
+                select: { organizationId: true },
+            });
+            if (!existing || existing.organizationId !== organizationId) throw new Error("Unauthorized");
 
-    const item = await (db as any).studentScheduleItem.update({
-        where: { id: itemId },
-        data: { status }
-    });
+            return (tx as any).studentScheduleItem.update({
+                where: { id: itemId },
+                data: { status }
+            });
+        },
+        undefined,
+        { organizationId, userId: null }
+    );
 
     if (item?.organizationId) {
         revalidateTag(`schedule-${item.organizationId}`, {});
@@ -267,16 +301,22 @@ export async function toggleItemStatus(
 export async function moveScheduleItem(itemId: string, newDate: Date) {
     try {
         const organizationId = await requireOrg();
-        const existing = await (db as any).studentScheduleItem.findUnique({
-            where: { id: itemId },
-            select: { organizationId: true },
-        });
-        if (!existing || existing.organizationId !== organizationId) throw new Error("Unauthorized");
+        const item = await withTenant(
+            async (tx) => {
+                const existing = await (tx as any).studentScheduleItem.findUnique({
+                    where: { id: itemId },
+                    select: { organizationId: true },
+                });
+                if (!existing || existing.organizationId !== organizationId) throw new Error("Unauthorized");
 
-        const item = await (db as any).studentScheduleItem.update({
-            where: { id: itemId },
-            data: { date: newDate }
-        });
+                return (tx as any).studentScheduleItem.update({
+                    where: { id: itemId },
+                    data: { date: newDate }
+                });
+            },
+            undefined,
+            { organizationId, userId: null }
+        );
 
         if (item?.organizationId) {
             revalidateTag(`schedule-${item.organizationId}`, {});
@@ -298,16 +338,20 @@ export async function addAdHocEvent(
         const organizationId = await requireOrg();
         await assertStudentInOrg(studentId, organizationId);
 
-        await (db as any).customEvent.create({
-            data: {
-                organizationId,
-                studentId,
-                date,
-                title,
-                description,
-                isAllDay: true,
-            }
-        });
+        await withTenant(
+            (tx) => (tx as any).customEvent.create({
+                data: {
+                    organizationId,
+                    studentId,
+                    date,
+                    title,
+                    description,
+                    isAllDay: true,
+                }
+            }),
+            undefined,
+            { organizationId, userId: null }
+        );
 
         revalidateTag(`schedule-${organizationId}`, {});
         return { success: true };
