@@ -415,7 +415,7 @@ export default function GeneratorsClient({ organizationId }: { organizationId: s
                     <span className="font-bold text-sm">Generation Complete!</span>
                   </div>
                   <Button variant="outline" size="sm" asChild className="border-qc-success/30 hover:bg-qc-success/10 hover:text-qc-success">
-                    <Link href={`/resources/${generatedResourceId}`}>View Resource</Link>
+                    <Link href={`/living-library/resource/${generatedResourceId}`}>View Resource</Link>
                   </Button>
                 </div>
               )}

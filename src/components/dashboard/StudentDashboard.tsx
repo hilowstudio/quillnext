@@ -160,7 +160,7 @@ export function StudentDashboard({ student }: StudentDashboardProps) {
                                             </div>
                                             <div className="mt-4 flex justify-end">
                                                 <Button size="sm" variant="outline" asChild>
-                                                    <Link href={`/resources/${assignment.resourceId}`}>Open Resource</Link>
+                                                    <Link href={`/living-library/resource/${assignment.resourceId}`}>Open Resource</Link>
                                                 </Button>
                                             </div>
                                         </CardContent>

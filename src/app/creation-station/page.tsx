@@ -7,7 +7,7 @@ import { db } from "@/server/db";
 export default async function GeneratorsPage() {
   const session = await auth();
   if (!session?.user) {
-    redirect("/auth/signin");
+    redirect("/login");
   }
 
   const { organizationId } = await getCurrentUserOrg();

@@ -11,7 +11,7 @@ interface PageProps {
 
 export default async function TranscriptBuilderPage({ params }: PageProps) {
     const session = await auth();
-    if (!session?.user?.id) redirect("/api/auth/signin");
+    if (!session?.user?.id) redirect("/login");
 
     const resolvedParams = await params;
 

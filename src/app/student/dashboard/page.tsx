@@ -19,7 +19,7 @@ export default async function StudentDashboardPage({
     if (!session?.user) redirect("/login");
 
     const { organizationId } = await getCurrentUserOrg();
-    if (!organizationId) redirect("/dashboard");
+    if (!organizationId) redirect("/onboarding");
 
     const { studentId, date } = await searchParams;
 

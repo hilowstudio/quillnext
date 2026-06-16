@@ -11,7 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 
 export default async function TranscriptsPage() {
     const session = await auth();
-    if (!session?.user?.id) redirect("/api/auth/signin");
+    if (!session?.user?.id) redirect("/login");
 
     try {
         const { organizationId } = await getCurrentUserOrg(session);

@@ -7,7 +7,7 @@ export default async function BibleStudyPage() {
     const session = await auth();
 
     if (!session?.user) {
-        redirect("/api/auth/signin?callbackUrl=/family-discipleship/bible-study");
+        redirect("/login?callbackUrl=/family-discipleship/bible-study");
     }
 
     return (

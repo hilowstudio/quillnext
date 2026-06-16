@@ -16,7 +16,7 @@ export default async function HomePage(
   // ... (auth checks) ...
 
   if (!session?.user) {
-    redirect("/api/auth/signin");
+    redirect("/login");
   }
 
   const { organizationId } = await getCurrentUserOrg(session);

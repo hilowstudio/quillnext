@@ -30,15 +30,15 @@ export function StudentDiscipleshipCard({ studentId, studentName, className }: S
                         <span className="font-display font-bold text-qc-primary block mb-1">Catechism</span>
                         <span className="text-xs text-qc-text-muted">Study Now</span>
                     </Link>
-                    <Link href={`/students/${studentId}/family-discipleship/scripture-memory`} className="block p-3 bg-qc-parchment rounded-qc-md border border-qc-border-subtle hover:border-qc-primary/50 transition-colors text-center">
+                    <Link href={`/family-discipleship/bible-memory`} className="block p-3 bg-qc-parchment rounded-qc-md border border-qc-border-subtle hover:border-qc-primary/50 transition-colors text-center">
                         <span className="font-display font-bold text-qc-primary block mb-1">Memory</span>
                         <span className="text-xs text-qc-text-muted">Review Verses</span>
                     </Link>
-                    <Link href={`/students/${studentId}/family-discipleship/prayer`} className="block p-3 bg-qc-parchment rounded-qc-md border border-qc-border-subtle hover:border-qc-primary/50 transition-colors text-center">
+                    <Link href={`/family-discipleship/prayer`} className="block p-3 bg-qc-parchment rounded-qc-md border border-qc-border-subtle hover:border-qc-primary/50 transition-colors text-center">
                         <span className="font-display font-bold text-qc-primary block mb-1">Prayer</span>
                         <span className="text-xs text-qc-text-muted">Journal</span>
                     </Link>
-                    <Link href={`/students/${studentId}/family-discipleship/devotionals`} className="block p-3 bg-qc-parchment rounded-qc-md border border-qc-border-subtle hover:border-qc-primary/50 transition-colors text-center">
+                    <Link href={`/family-discipleship/devotionals`} className="block p-3 bg-qc-parchment rounded-qc-md border border-qc-border-subtle hover:border-qc-primary/50 transition-colors text-center">
                         <span className="font-display font-bold text-qc-primary block mb-1">Devotionals</span>
                         <span className="text-xs text-qc-text-muted">Read Today</span>
                     </Link>

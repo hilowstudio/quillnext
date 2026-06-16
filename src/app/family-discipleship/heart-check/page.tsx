@@ -7,7 +7,7 @@ export default async function HeartCheckPage() {
     const session = await auth();
 
     if (!session?.user) {
-        redirect("/api/auth/signin?callbackUrl=/family-discipleship/heart-check");
+        redirect("/login?callbackUrl=/family-discipleship/heart-check");
     }
 
     return (

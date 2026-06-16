@@ -71,7 +71,7 @@ export function GeneratedResourceCard({ resource }: GeneratedResourceCardProps) 
                     </div>
                     <div className="flex gap-2 items-center">
                         <Button variant="outline" size="sm" asChild>
-                            <Link href={`/resources/${resource.id}`}>View</Link>
+                            <Link href={`/living-library/resource/${resource.id}`}>View</Link>
                         </Button>
                         <AlertDialog>
                             <AlertDialogTrigger asChild>
