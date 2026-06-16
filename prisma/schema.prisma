@@ -732,7 +732,7 @@ model VideoResource {
   organizationId      String                 @map("account_id")
   addedByUserId       String                 @map("added_by_user_id")
   youtubeUrl          String                 @map("youtube_url")
-  youtubeVideoId      String                 @unique @map("youtube_video_id")
+  youtubeVideoId      String                 @map("youtube_video_id")
   title               String?
   description         String?
   thumbnailUrl        String?                @map("thumbnail_url")
@@ -748,14 +748,65 @@ model VideoResource {
   createdAt           DateTime               @default(now()) @map("created_at")
   updatedAt           DateTime               @updatedAt @map("updated_at")
   embedding           Unsupported("vector")?
+  videoExtractionId   String?                @map("video_extraction_id")
   resources           Resource[]
   organization        Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   addedByUser         User                   @relation("AddedVideos", fields: [addedByUserId], references: [id])
   strand              Strand?                @relation(fields: [strandId], references: [id])
   subject             Subject?               @relation(fields: [subjectId], references: [id])
   courseBlocks        CourseBlock[]
+  videoExtraction     VideoExtraction?       @relation(fields: [videoExtractionId], references: [id])
 
+  // youtubeVideoId is unique PER ORG (was a global @unique, which wrongly let only one org own
+  // any given video). The shared AI extraction now lives in the global video_extractions catalog.
+  @@unique([organizationId, youtubeVideoId])
   @@map("video_resources")
+}
+
+/// Global, cross-org shared AI extraction for a YouTube video (deduped on youtubeVideoId — the
+/// stable 11-char video id). First org to ingest a video populates this; every other org's
+/// VideoResource links to it and reuses the transcript/summary/metadata for free. NOT org-scoped;
+/// readable by all orgs via a USING(true) RLS policy; in CONTEXT_FREE_MODELS (plain db, no GUC).
+model VideoExtraction {
+  id                String                 @id @default(uuid())
+  youtubeVideoId    String                 @unique @map("youtube_video_id")
+  youtubeUrl        String                 @map("youtube_url")
+  status            ExtractionStatus       @default(NOT_EXTRACTED)
+  stage             String? // "transcript" | "gemini-fallback" | "manual-needed"
+  title             String?
+  description       String?
+  thumbnailUrl      String?                @map("thumbnail_url")
+  channelName       String?                @map("channel_name")
+  durationSeconds   Int?                   @map("duration_seconds")
+  summary           String?
+  keyPoints         Json?                  @map("key_points")
+  chapters          Json? // [{ title, timestamp "[MM:SS]" }]
+  topics            String[]
+  transcript        String? // raw transcript text (null on Gemini-watch fallback)
+  captionsAvailable Boolean                @default(false) @map("captions_available")
+  extractedAt       DateTime?              @map("extracted_at")
+  createdAt         DateTime               @default(now()) @map("created_at")
+  updatedAt         DateTime               @updatedAt @map("updated_at")
+  videoResources    VideoResource[]
+  chunks            VideoExtractionChunk[]
+
+  @@map("video_extractions")
+}
+
+/// Global transcript chunks for semantic search over video content (pgvector). Cross-org shared
+/// (the embeddings are identical for everyone); CONTEXT_FREE_MODELS. The org filter for search
+/// comes from joining back to each org's VideoResource via videoExtractionId.
+model VideoExtractionChunk {
+  id                String                 @id @default(uuid())
+  videoExtractionId String                 @map("video_extraction_id")
+  videoExtraction   VideoExtraction        @relation(fields: [videoExtractionId], references: [id], onDelete: Cascade)
+  chunkIndex        Int                    @map("chunk_index")
+  content           String
+  embedding         Unsupported("vector")?
+  createdAt         DateTime               @default(now()) @map("created_at")
+
+  @@index([videoExtractionId])
+  @@map("video_extraction_chunks")
 }
 
 model Resource {

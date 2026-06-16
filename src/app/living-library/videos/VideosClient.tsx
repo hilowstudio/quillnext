@@ -42,6 +42,17 @@ interface VideosClientProps {
     initialSubjects: Subject[];
 }
 
+interface ExtractResponse {
+    status: "EXTRACTED" | "EXTRACTING" | "FAILED";
+    reused?: boolean;
+    started?: boolean;
+}
+
+const POLL_INTERVAL_MS = 4000;
+const MAX_POLLS = 30;
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 export default function VideosClient({ initialVideos, initialSubjects }: VideosClientProps) {
     const router = useRouter();
     const [videos, setVideos] = useState<Video[]>(initialVideos);
@@ -86,15 +97,18 @@ export default function VideosClient({ initialVideos, initialSubjects }: VideosC
             }
 
             const { video } = await response.json();
-            setVideos([video, ...videos]);
+            // Optimistically show the (possibly newly created) row; the extract poll below
+            // re-fetches the list once extraction settles. If the org already had this video,
+            // the create endpoint returns the existing row — avoid duplicating it in the list.
+            setVideos((prev) =>
+                prev.some((v) => v.id === video.id) ? prev : [video, ...prev],
+            );
             setYoutubeUrl("");
             setSelectedSubject("");
             setSelectedStrand("");
 
-            // Auto-extract if subject/strand provided
-            if (selectedSubject) {
-                handleExtract(video.id);
-            }
+            // Kick off the create -> trigger -> poll flow for every add.
+            await handleExtract(video.id);
 
             router.refresh(); // Refresh server data alignment
         } catch (error) {
@@ -105,35 +119,52 @@ export default function VideosClient({ initialVideos, initialSubjects }: VideosC
         }
     };
 
+    // POST the idempotent extract trigger/poll endpoint. Throws on a non-OK response.
+    const postExtract = async (videoId: string): Promise<ExtractResponse> => {
+        const res = await fetch(`/api/library/videos/${videoId}/extract`, {
+            method: "POST",
+        });
+        if (!res.ok) {
+            throw new Error(`Extraction request failed (${res.status})`);
+        }
+        return (await res.json()) as ExtractResponse;
+    };
+
+    // Re-fetch the org's video list (GET route) and sync local state to it.
+    const refreshList = async () => {
+        const listRes = await fetch("/api/library/videos");
+        if (listRes.ok) {
+            const data = await listRes.json();
+            setVideos(data.videos || []);
+        }
+        router.refresh();
+    };
+
     const handleExtract = async (videoId: string) => {
         setIsExtracting(videoId);
         try {
-            const response = await fetch(`/api/library/videos/${videoId}/extract`, {
-                method: "POST",
-            });
+            // Trigger extraction. The endpoint is idempotent; if a shared (cross-org)
+            // extraction already exists it returns EXTRACTED immediately (reused).
+            let result = await postExtract(videoId);
 
-            if (!response.ok) {
-                throw new Error("Failed to extract video content");
+            if (result.status === "EXTRACTED" || result.status === "FAILED") {
+                await refreshList();
+                return;
             }
 
-            // We need to refresh the list to see status updates.
-            // Ideally we would optimistically update or re-fetch.
-            // Re-fetching just one item or the whole list?
-            // For simplicity/robustness, we re-fetch the list (client-side) or force a router refresh.
-            // Let's force a router refresh but also update local state if possible.
-            // Actually, since the extraction is async/background, immediate refresh might show "EXTRACTING".
-            // Let's assume the API returns the updated video or we need to poll.
-            // For this refactor, I'll stick to router.refresh() + verifying local update logic.
-            // The original code re-called "loadVideos".
-
-            // Let's simulate the re-fetch logic for now to keep parity, but ideally this is a Server Action.
-            const listRes = await fetch("/api/library/videos");
-            if (listRes.ok) {
-                const data = await listRes.json();
-                setVideos(data.videos || []);
+            // status === "EXTRACTING" -> poll the same idempotent endpoint until it settles.
+            for (let attempt = 0; attempt < MAX_POLLS; attempt++) {
+                await sleep(POLL_INTERVAL_MS);
+                result = await postExtract(videoId);
+                if (result.status === "EXTRACTED" || result.status === "FAILED") {
+                    await refreshList();
+                    return;
+                }
             }
 
-            router.refresh();
+            // Still running after the poll budget — leave it to the background worker; the
+            // list will reflect the final status on the next manual extract/refresh.
+            await refreshList();
         } catch (error) {
             console.error("Failed to extract video:", error);
             alert("Failed to extract video content. Please try again.");

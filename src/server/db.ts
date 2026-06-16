@@ -42,6 +42,8 @@ const CONTEXT_FREE_MODELS = new Set([
   // Global cross-org shared book-extraction catalog: readable by all orgs (USING true) and
   // written by the producer as app_user — must skip the per-request org GUC like other globals.
   "BookExtraction",
+  // Global cross-org shared video-extraction catalog + transcript chunks (same pattern).
+  "VideoExtraction", "VideoExtractionChunk",
 ]);
 
 /**

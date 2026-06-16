@@ -1,38 +1,19 @@
-import { generateObject, generateText } from "ai";
+import { generateObject } from "ai";
 import { models } from "./config";
 import { z } from "zod";
 
 /**
  * Video Processing Utilities
- * 
+ *
  * ⚠️ IMPORTANT: Only Gemini 3 Pro can process YouTube videos.
  * All video processing functions MUST use models.pro3
  */
 
 /**
- * Extract and analyze YouTube video content
- * Uses Gemini 3 Pro (only model that supports YouTube video processing)
- */
-export async function processYouTubeVideo(youtubeUrl: string) {
-  const { text } = await generateText({
-    model: models.pro3, // REQUIRED: Only Gemini 3 Pro supports YouTube
-    prompt: `Analyze this YouTube video and extract key information:
-    
-URL: ${youtubeUrl}
-
-Provide:
-1. A detailed summary of the video content
-2. Key learning points
-3. Educational value assessment
-4. Suggested use cases in curriculum`,
-  });
-
-  return text;
-}
-
-/**
- * Generate structured content from YouTube video
- * Creates quizzes, worksheets, or lesson plans based on video content
+ * Generate structured content from YouTube video.
+ * This is the NO-CAPTIONS Gemini-watch fallback used by the transcript-first
+ * extraction pipeline (see extractVideoStructured in ./video-extraction): when a
+ * YouTube transcript is unavailable, Gemini 3 Pro "watches" the video directly.
  */
 const VideoContentSchema = z.object({
   summary: z.string().describe("Comprehensive summary of video content"),
@@ -56,23 +37,6 @@ Extract comprehensive information that can be used for curriculum planning and c
   });
 
   return object;
-}
-
-/**
- * Generate quiz questions based on YouTube video content
- * Automatically uses Gemini 3 Pro for video processing
- */
-export async function generateVideoQuiz(youtubeUrl: string, numQuestions = 5) {
-  const { text } = await generateText({
-    model: models.pro3, // REQUIRED: Only Gemini 3 Pro supports YouTube
-    prompt: `Create ${numQuestions} quiz questions based on this YouTube video:
-
-URL: ${youtubeUrl}
-
-Generate questions that test understanding of the key concepts presented in the video.`,
-  });
-
-  return text;
 }
 
 /**

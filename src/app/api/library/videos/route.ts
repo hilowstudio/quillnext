@@ -3,7 +3,7 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { getCurrentUserOrg } from "@/lib/auth-helpers";
-import { db } from "@/server/db";
+import { db, withTenant } from "@/server/db";
 import { extractYouTubeVideoId, isYouTubeUrl } from "@/lib/ai/video-processing";
 
 export async function GET() {
@@ -55,16 +55,26 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Could not extract video ID" }, { status: 400 });
   }
 
-  // Check if video already exists
-  const existing = await db.videoResource.findUnique({
-    where: { youtubeVideoId: videoId },
-  });
+  // Dedupe WITHIN this org only (youtubeVideoId is unique per (organizationId, youtubeVideoId),
+  // NOT globally — other orgs are allowed to add the same video). If this org already has it,
+  // return the existing row instead of erroring, so the add is idempotent.
+  const existing = await withTenant(
+    (tx) =>
+      tx.videoResource.findUnique({
+        where: {
+          organizationId_youtubeVideoId: { organizationId, youtubeVideoId: videoId },
+        },
+        include: {
+          subject: true,
+          strand: true,
+        },
+      }),
+    undefined,
+    { organizationId, userId },
+  );
 
   if (existing) {
-    return NextResponse.json(
-      { error: "Video already exists in library" },
-      { status: 400 },
-    );
+    return NextResponse.json({ video: existing });
   }
 
   // Verify subject if provided
@@ -92,22 +102,28 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  // Create video resource
-  const video = await db.videoResource.create({
-    data: {
-      organizationId,
-      addedByUserId: userId,
-      youtubeUrl: data.youtubeUrl,
-      youtubeVideoId: videoId,
-      subjectId: data.subjectId || null,
-      strandId: data.strandId || null,
-      extractionStatus: "NOT_EXTRACTED",
-    },
-    include: {
-      subject: true,
-      strand: true,
-    },
-  });
+  // Create the per-org VideoResource inside withTenant so the RLS WITH CHECK passes (account_id
+  // is stamped from the tenant context). No global dup-block — cross-org adds are allowed.
+  const video = await withTenant(
+    (tx) =>
+      tx.videoResource.create({
+        data: {
+          organizationId,
+          addedByUserId: userId,
+          youtubeUrl: data.youtubeUrl,
+          youtubeVideoId: videoId,
+          subjectId: data.subjectId || null,
+          strandId: data.strandId || null,
+          extractionStatus: "NOT_EXTRACTED",
+        },
+        include: {
+          subject: true,
+          strand: true,
+        },
+      }),
+    undefined,
+    { organizationId, userId },
+  );
 
   return NextResponse.json({ video });
 }
