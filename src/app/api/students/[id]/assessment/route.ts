@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db } from "@/server/db";
+import { getCurrentUserOrg } from "@/lib/auth-helpers";
 import {
   generateStudentProfile,
   generateLearningStyleProfile,
@@ -31,6 +32,12 @@ export async function POST(
     });
 
     if (!student) {
+      return NextResponse.json({ error: "Student not found" }, { status: 404 });
+    }
+
+    // Multi-tenant guard: the student must belong to the caller's organization.
+    const { organizationId } = await getCurrentUserOrg();
+    if (student.organizationId !== organizationId) {
       return NextResponse.json({ error: "Student not found" }, { status: 404 });
     }
 

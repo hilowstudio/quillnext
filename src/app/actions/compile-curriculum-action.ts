@@ -62,9 +62,13 @@ export async function patchCurriculumAction(parentBundleId: string, feedback: st
     const { organizationId } = await getCurrentUserOrg();
     if (!organizationId) throw new Error("No organization found");
 
-    // 1. Fetch Parent to verify & get Spec ID
-    const parent = await db.curriculumBundle.findUnique({ where: { id: parentBundleId } });
+    // 1. Fetch Parent to verify & get Spec ID — and confirm it belongs to the caller's org.
+    const parent = await db.curriculumBundle.findUnique({
+        where: { id: parentBundleId },
+        include: { spec: { select: { organizationId: true } } },
+    });
     if (!parent) throw new Error("Parent bundle not found");
+    if (parent.spec.organizationId !== organizationId) throw new Error("Unauthorized");
 
     // 2. Create Patch Bundle
     const bundle = await db.curriculumBundle.create({

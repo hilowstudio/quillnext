@@ -12,6 +12,7 @@ import {
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
+import { getCurrentUserOrg } from "@/lib/auth-helpers";
 
 // -----------------------------------------------------------------------
 // Family Blueprint Server Actions
@@ -27,6 +28,11 @@ export async function saveClassroomStep(
   userId: string,
   data: z.infer<typeof classroomStepSchema>,
 ) {
+  // Derive identity from the session — never trust caller-supplied org/userId.
+  const caller = await getCurrentUserOrg();
+  organizationId = caller.organizationId;
+  userId = caller.userId;
+
   const validated = classroomStepSchema.parse(data);
 
   // Hash the instructor PIN
@@ -146,6 +152,10 @@ export async function saveScheduleStep(
   organizationId: string,
   data: z.infer<typeof scheduleStepSchema>,
 ) {
+  const { organizationId: sessionOrg } = await getCurrentUserOrg();
+  if (!sessionOrg) throw new Error("Classroom not found. Please complete Step 1 first.");
+  organizationId = sessionOrg;
+
   const validated = scheduleStepSchema.parse(data);
 
   // Find the classroom for this organization
@@ -225,6 +235,10 @@ export async function saveEnvironmentStep(
   organizationId: string,
   data: z.infer<typeof environmentStepSchema>,
 ) {
+  const { organizationId: sessionOrg } = await getCurrentUserOrg();
+  if (!sessionOrg) throw new Error("Classroom not found. Please complete Step 1 first.");
+  organizationId = sessionOrg;
+
   const validated = environmentStepSchema.parse(data);
 
   const classroom = await db.classroom.findFirst({
@@ -264,6 +278,9 @@ export async function saveEnvironmentStep(
  * Used to restore wizard state
  */
 export async function getBlueprintProgress(organizationId: string | null) {
+  // Use the caller's own org, not whatever was passed in.
+  const { organizationId: sessionOrg } = await getCurrentUserOrg();
+  organizationId = sessionOrg;
   if (!organizationId) {
     return { step: 1, data: null };
   }

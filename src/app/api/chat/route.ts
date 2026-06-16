@@ -1,6 +1,8 @@
 import { streamText } from "ai";
 import { getContextForThinkling, ThinklingMode } from "@/lib/thinkling";
 import { auth } from "@/auth";
+import { getCurrentUserOrg } from "@/lib/auth-helpers";
+import { db } from "@/server/db";
 export const dynamic = "force-dynamic";
 import { models } from "@/lib/ai/config";
 import { inngest } from "@/inngest/client";
@@ -43,6 +45,14 @@ export async function POST(req: Request) {
     }
 
     try {
+        // Multi-tenant guard: the student (whose full learner profile drives the
+        // system prompt) must belong to the caller's organization.
+        const { organizationId } = await getCurrentUserOrg();
+        const student = await db.student.findUnique({ where: { id: studentId }, select: { organizationId: true } });
+        if (!student || student.organizationId !== organizationId) {
+            return new Response("Forbidden", { status: 403 });
+        }
+
         const { systemPrompt } = await getContextForThinkling(studentId, mode as ThinklingMode);
 
         // Convert messages manually to ensure cleaner payload for Google provider

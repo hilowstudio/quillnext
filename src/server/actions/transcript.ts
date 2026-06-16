@@ -25,6 +25,13 @@ type StudentWithDetails = Prisma.StudentGetPayload<{
     }
 }>;
 
+// The student must belong to the caller's organization (throws otherwise).
+async function assertStudentInOrg(studentId: string, organizationId: string | null) {
+    if (!organizationId) throw new Error("Organization not found for user");
+    const s = await db.student.findUnique({ where: { id: studentId }, select: { organizationId: true } });
+    if (!s || s.organizationId !== organizationId) throw new Error("Unauthorized");
+}
+
 /**
  * Generate initial transcript data for a student
  * Pulls from Student, Organization, and Course/CourseStudent tables
@@ -32,6 +39,7 @@ type StudentWithDetails = Prisma.StudentGetPayload<{
 export async function generateTranscriptData(studentId: string): Promise<TranscriptData> {
     const session = await auth();
     if (!session?.user?.id) throw new Error("Not authenticated");
+    const { organizationId } = await getCurrentUserOrg(session);
 
     const student = await db.student.findUnique({
         where: { id: studentId },
@@ -53,6 +61,8 @@ export async function generateTranscriptData(studentId: string): Promise<Transcr
     }) as unknown as StudentWithDetails | null;
 
     if (!student) throw new Error("Student not found");
+    // Multi-tenant guard.
+    if (!organizationId || student.organizationId !== organizationId) throw new Error("Student not found");
 
     // Determine grade level
     let gradeLevel = 9;
@@ -64,17 +74,13 @@ export async function generateTranscriptData(studentId: string): Promise<Transcr
 
     // Map courses
     const transcriptCourses: TranscriptCourse[] = student.courseEnrollments.map(enrollment => {
-        // Attempt to parse grade from status or other sources if available, else default
-        // We don't store numeric grades on CourseStudent usually, so we'll leave it empty/IP
-
-        // Check if course has a grade band to infer level
-        let level = gradeLevel; // Default to student's current level approx
+        let level = gradeLevel;
 
         return {
             id: `course-${enrollment.courseId}`,
             courseName: enrollment.course.title,
-            subject: "General", // TODO: Need to fetch Subject relation from Course if needed
-            grade: "", // User must enter this
+            subject: "General",
+            grade: "",
             credits: 1,
             courseType: "Regular",
             gradeLevel: level,
@@ -91,15 +97,13 @@ export async function generateTranscriptData(studentId: string): Promise<Transcr
         studentId: student.id,
     };
 
-    const currentOrg = await getCurrentUserOrg(session);
-
     // Prefer classroom name (from Blueprint), fallback to organization name
     const classroomName = student.classroomEnrollments[0]?.classroom?.name;
     const schoolName = classroomName || student.organization.name || "My School";
 
     const schoolInfo: SchoolInfo = {
         name: schoolName,
-        address: "", // TODO: Add address to Organization model if needed
+        address: "",
         administrator: session.user.name || "",
         email: session.user.email || "",
     };
@@ -126,8 +130,14 @@ export async function saveTranscript(studentId: string, data: TranscriptData, tr
     const session = await auth();
     if (!session?.user?.id) throw new Error("Not authenticated");
     const { organizationId } = await getCurrentUserOrg(session);
-
     if (!organizationId) throw new Error("Organization not found for user");
+
+    // The student must be in the caller's org, and (if updating) so must the transcript.
+    await assertStudentInOrg(studentId, organizationId);
+    if (transcriptId) {
+        const existing = await db.transcript.findUnique({ where: { id: transcriptId }, select: { organizationId: true } });
+        if (!existing || existing.organizationId !== organizationId) throw new Error("Unauthorized");
+    }
 
     const transcript = await db.transcript.upsert({
         where: { id: transcriptId || "new" },
@@ -153,9 +163,11 @@ export async function saveTranscript(studentId: string, data: TranscriptData, tr
 export async function getTranscripts(studentId: string) {
     const session = await auth();
     if (!session?.user?.id) throw new Error("Not authenticated");
+    const { organizationId } = await getCurrentUserOrg(session);
+    await assertStudentInOrg(studentId, organizationId);
 
     const transcripts = await db.transcript.findMany({
-        where: { studentId },
+        where: { studentId, organizationId: organizationId! },
         orderBy: { updatedAt: "desc" }
     });
 
@@ -171,6 +183,11 @@ export async function getTranscripts(studentId: string) {
 export async function deleteTranscript(transcriptId: string) {
     const session = await auth();
     if (!session?.user?.id) throw new Error("Not authenticated");
+    const { organizationId } = await getCurrentUserOrg(session);
+    if (!organizationId) throw new Error("Organization not found for user");
+
+    const existing = await db.transcript.findUnique({ where: { id: transcriptId }, select: { organizationId: true } });
+    if (!existing || existing.organizationId !== organizationId) throw new Error("Unauthorized");
 
     await db.transcript.delete({
         where: { id: transcriptId }

@@ -1,14 +1,21 @@
 "use server";
 
 import { db } from "@/server/db";
+import { getCurrentUserOrg } from "@/lib/auth-helpers";
+
+// The student must belong to the caller's organization (throws otherwise).
+async function assertStudentInOrg(studentId: string) {
+    const { organizationId } = await getCurrentUserOrg(); // throws if unauthenticated
+    const s = await db.student.findUnique({ where: { id: studentId }, select: { organizationId: true } });
+    if (!s || s.organizationId !== organizationId) throw new Error("Unauthorized");
+}
 
 export async function getStudentAssignments(studentId: string) {
     if (!studentId) {
         throw new Error("Student ID is required");
     }
+    await assertStudentInOrg(studentId);
 
-    // Removed defensive try/catch - let errors bubble up
-    // Converted include to select for precise field selection
     const assignments = await db.resourceAssignment.findMany({
         where: { studentId },
         select: {
@@ -81,8 +88,8 @@ export async function getStudentAssignments(studentId: string) {
 }
 
 export async function saveStudentAvatarConfig(studentId: string, config: any) {
-    // Removed defensive try/catch - let errors bubble up
-    // If student doesn't exist or update fails, throw explicitly
+    await assertStudentInOrg(studentId);
+
     await db.student.update({
         where: { id: studentId },
         data: { avatarConfig: config },

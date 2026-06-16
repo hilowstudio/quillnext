@@ -35,7 +35,6 @@ export async function generateLearningTool(
     userPrompt,
     studentId,
     objectiveId,
-    organizationId,
     courseId,
     courseBlockId,
     bookId,
@@ -45,8 +44,10 @@ export async function generateLearningTool(
     resourceKindId,
   } = params;
 
-  // Get user ID for saving resources
-  const { userId } = await getCurrentUserOrg();
+  // Identity comes from the session — never trust params.organizationId (IDOR:
+  // it was used directly for resource writes + master-context lookups).
+  const { userId, organizationId } = await getCurrentUserOrg();
+  if (!organizationId) throw new Error("No organization found");
 
   // Get master context for lineage tracking
   const masterContext = await getMasterContext({

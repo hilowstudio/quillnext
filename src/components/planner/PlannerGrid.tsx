@@ -113,7 +113,7 @@ export function PlannerGrid({
         }
 
         toast.promise(
-            addAdHocEvent(targetSlot.studentId, targetSlot.date, title, description, organizationId),
+            addAdHocEvent(targetSlot.studentId, targetSlot.date, title, description),
             {
                 loading: "Adding to schedule...",
                 success: "Added to schedule",
