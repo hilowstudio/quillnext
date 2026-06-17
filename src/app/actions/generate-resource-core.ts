@@ -57,7 +57,7 @@ export interface GenerateResourceCoreParams {
     organizationId: string;
     userId: string;
     sourceId: string;
-    sourceType: "BOOK" | "VIDEO" | "COURSE" | "TOPIC" | "URL" | "FILE" | "YOUTUBE_PLAYLIST";
+    sourceType: "BOOK" | "VIDEO" | "COURSE" | "TOPIC" | "URL" | "FILE" | "YOUTUBE_PLAYLIST" | "OBJECTIVE";
     resourceKindId: string;
     instructions?: string;
     additionalData?: {
@@ -69,6 +69,9 @@ export interface GenerateResourceCoreParams {
         // Phase-2 (grounded-generation): when targeting a specific chapter of a BOOK,
         // scope generation to that section's facts sheet (book_extraction_sections).
         sectionNumber?: number;
+        // OBJECTIVE source: an explicit subject override for textbook grounding (else derived
+        // from the objective's spine ancestry).
+        subject?: string;
     };
 }
 
@@ -380,6 +383,68 @@ export async function generateResourceCore(params: GenerateResourceCoreParams) {
         }
         sourceTitle = course.title;
         genContext = { source: "COURSE", courseId: sourceId };
+    } else if (sourceType === "OBJECTIVE") {
+        // Spine-driven generation: produce material FOR a specific learning objective, grounded in
+        // the open-textbook corpus via the objective's OWN TEXT (the precision the unit-level TOPIC
+        // path can't give). The granularity comes from the query, not a brittle stored mapping.
+        // Objective + spine are GLOBAL reference data (CONTEXT_FREE) → plain db, no withTenant.
+        const objective = await db.objective.findUnique({
+            where: { id: sourceId },
+            select: {
+                code: true,
+                text: true,
+                gradeLevel: true,
+                subtopic: {
+                    select: {
+                        name: true,
+                        topic: {
+                            select: {
+                                name: true,
+                                strand: {
+                                    select: { name: true, subject: { select: { name: true } } },
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+        });
+        if (!objective) throw new Error("Objective not found");
+
+        const subtopicName = objective.subtopic?.name ?? "";
+        const topicName = objective.subtopic?.topic?.name ?? "";
+        const strandName = objective.subtopic?.topic?.strand?.name ?? "";
+        const subjectName =
+            (additionalData as { subject?: string })?.subject?.trim() ||
+            objective.subtopic?.topic?.strand?.subject?.name ||
+            "";
+        const gradeLabel = objective.gradeLevel != null ? `Grade ${objective.gradeLevel}` : "";
+        const spinePath = [subjectName, strandName, topicName, subtopicName].filter(Boolean).join(" › ");
+
+        context =
+            `Learning objective${objective.code ? ` (${objective.code})` : ""}: ${objective.text}\n` +
+            (spinePath ? `Curriculum path: ${spinePath}\n` : "") +
+            (gradeLabel ? `Level: ${gradeLabel}` : "");
+        sourceTitle = objective.text.substring(0, 60);
+        genContext = { source: "OBJECTIVE", objectiveId: sourceId, subject: subjectName };
+
+        // Ground in the textbook corpus using the OBJECTIVE TEXT (+ topic/strand) as the query.
+        // GROUND-don't-echo (excerpts make facts accurate; the model teaches in its own words).
+        if (subjectName) {
+            const ragQuery = `${kind.label} ${objective.text} ${topicName} ${strandName}`.trim();
+            const tbChunks = await retrieveTextbookChunks(ragQuery, { subject: subjectName, limit: 6 });
+            const tbExcerpts = tbChunks
+                .map((c) => c.content?.trim())
+                .filter((c): c is string => !!c);
+            if (tbExcerpts.length > 0) {
+                excerptsBlock = [
+                    "VERIFIED SOURCE EXCERPTS (open textbook — for FACTUAL GROUNDING; teach in your own words, do NOT quote verbatim):",
+                    ...tbExcerpts.map((c, i) => `[Excerpt ${i + 1}]\n${c}`),
+                ].join("\n\n");
+                antiEchoSource = tbExcerpts.join("\n\n");
+                quoteRule = QUOTE_GROUNDING_RULE_TEXTBOOK;
+            }
+        }
     } else if (sourceType === "TOPIC") {
         // ... (existing topic logic) ...
         const topicText = additionalData?.topicText || sourceId;
