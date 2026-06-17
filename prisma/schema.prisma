@@ -703,14 +703,37 @@ model BookExtraction {
   readingLevel    String?          @map("reading_level")
   mainThemes      String[]         @map("main_themes")
   sources         Json? // web grounding citations: [{ title, url }]
-  confidence      String?
-  extractedAt     DateTime?        @map("extracted_at")
-  createdAt       DateTime         @default(now()) @map("created_at")
-  updatedAt       DateTime         @updatedAt @map("updated_at")
-  books           Book[]
-  sections        BookExtractionSection[]
+  confidence       String?
+  publicDomain     Boolean          @default(false) @map("public_domain")
+  fullTextSource   String?          @map("full_text_source") // gutenberg | standard-ebooks | wikisource | internet-archive
+  fullTextSourceId String?          @map("full_text_source_id")
+  fullTextStatus   String?          @map("full_text_status") // INGESTED | UNAVAILABLE | null
+  extractedAt      DateTime?        @map("extracted_at")
+  createdAt        DateTime         @default(now()) @map("created_at")
+  updatedAt        DateTime         @updatedAt @map("updated_at")
+  books            Book[]
+  sections         BookExtractionSection[]
+  textChunks       BookTextChunk[]
 
   @@map("book_extractions")
+}
+
+/// Full-text chunks for public-domain / open works (Phase 3 of grounded generation). Global,
+/// cross-org shared (CONTEXT_FREE_MODELS); pgvector embeddings for RAG retrieval at generation
+/// time so generated material can include verbatim, source-grounded quotes. Mirrors
+/// video_extraction_chunks. Only populated when an open source (Gutenberg etc.) has the text.
+model BookTextChunk {
+  id               String                 @id @default(uuid())
+  bookExtractionId String                 @map("book_extraction_id")
+  bookExtraction   BookExtraction         @relation(fields: [bookExtractionId], references: [id], onDelete: Cascade)
+  sectionNumber    Int?                   @map("section_number")
+  chunkIndex       Int                    @map("chunk_index")
+  content          String
+  embedding        Unsupported("vector")?
+  createdAt        DateTime               @default(now()) @map("created_at")
+
+  @@index([bookExtractionId])
+  @@map("book_text_chunks")
 }
 
 /// Chapter/section-level facts sheet for a book (Phase 2 of docs/specs/grounded-generation.md).
