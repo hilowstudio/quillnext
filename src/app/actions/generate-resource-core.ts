@@ -9,6 +9,12 @@ import { z } from "zod";
 import { generateNanoBananaImage } from "@/lib/services/image-generation";
 import { generateObject } from "ai";
 import { QuizSchema, WorksheetSchema } from "@/lib/ai/schemas";
+import {
+    QUOTE_GROUNDING_RULE,
+    buildCanonicalFactsBlock,
+    verifyAndReviseMarkdown,
+    verifyAndReviseObject,
+} from "@/lib/ai/generation-guards";
 
 // Helper to determine ingestion tier (deprecated, using DB flag)
 
@@ -82,13 +88,26 @@ export async function generateResourceCore(params: GenerateResourceCoreParams) {
     let genContext: any = undefined;
     let modelToUse = models.flash;
     let tools: any = {};
+    // Authoritative "canonical facts" block injected into the prompt + used by the
+    // post-generation verify/revise pass (grounded-generation spec, Phase 1).
+    let factsBlock = "";
 
     if (sourceType === "BOOK") {
         // ... (existing book logic) ...
+        // Extend the book select to also read the linked extraction (mainThemes /
+        // readingLevel). BookExtraction is a global, context-free table, so including
+        // it here is RLS-safe and does not introduce a nested/extra transaction.
         const book = await withTenant(
             (tx) => tx.book.findUnique({
                 where: { id: sourceId },
-                select: { title: true, summary: true, tableOfContents: true, organizationId: true },
+                select: {
+                    title: true,
+                    authors: true,
+                    summary: true,
+                    tableOfContents: true,
+                    organizationId: true,
+                    bookExtraction: { select: { mainThemes: true, readingLevel: true } },
+                },
             }),
             undefined,
             { organizationId, userId },
@@ -101,6 +120,22 @@ export async function generateResourceCore(params: GenerateResourceCoreParams) {
         }
         sourceTitle = book.title || "Untitled Book";
         bookId = sourceId;
+
+        // Normalize authors (Json? — usually a string[]) defensively.
+        const authors = Array.isArray(book.authors)
+            ? (book.authors as unknown[]).map((a) => (a ?? "").toString().trim()).filter(Boolean)
+            : [];
+
+        factsBlock = buildCanonicalFactsBlock({
+            sourceKind: "BOOK",
+            title: book.title,
+            authors,
+            summary: book.summary,
+            tableOfContents: book.tableOfContents,
+            themes: book.bookExtraction?.mainThemes,
+            readingLevel: book.bookExtraction?.readingLevel,
+            extra: context,
+        });
     } else if (sourceType === "VIDEO") {
         // ... (existing video logic) ...
         const video = await withTenant(
@@ -195,6 +230,16 @@ export async function generateResourceCore(params: GenerateResourceCoreParams) {
         genContext = { source: "YOUTUBE_PLAYLIST", url: playlistUrl, ingestionTier };
     }
 
+    // For every non-BOOK source type, still build a canonical-facts block from the
+    // assembled context so those sources also get grounding + the quote rule.
+    if (!factsBlock) {
+        factsBlock = buildCanonicalFactsBlock({
+            sourceKind: sourceType,
+            title: sourceTitle,
+            extra: context,
+        });
+    }
+
     // 3. Generate Content
     // 3. Generate Content using PromptBuilder (Inkling 2.0)
     const builder = new PromptBuilder()
@@ -206,7 +251,9 @@ export async function generateResourceCore(params: GenerateResourceCoreParams) {
             kind.description || "No specific context provided."
         )
         .setSourceContent(context)
-        .setUserInstructions(instructions || "");
+        // Inject the canonical facts + quote-grounding rule into what the model sees.
+        // PromptBuilder stores these verbatim and build() interpolates them directly.
+        .setUserInstructions([instructions || "", factsBlock, QUOTE_GROUNDING_RULE].filter(Boolean).join("\n\n"));
 
     const prompt = builder.build();
 
@@ -259,6 +306,19 @@ export async function generateResourceCore(params: GenerateResourceCoreParams) {
         });
         textContent = text;
         storageType = "MARKDOWN";
+    }
+
+    // 3b. Verify & revise BEFORE storage (grounded-generation spec, Phase 1).
+    // Best-effort and OUTSIDE any withTenant DB write — these are pure AI calls that
+    // fix contradictions vs. the canonical facts, ungrounded verbatim quotes, and
+    // garbled questions. They never throw; on error the original draft is kept.
+    if (kind.contentType === "QUIZ") {
+        jsonContent = await verifyAndReviseObject(jsonContent as any, QuizSchema, factsBlock, models.pro3);
+    } else if (kind.contentType === "WORKSHEET") {
+        jsonContent = await verifyAndReviseObject(jsonContent as any, WorksheetSchema, factsBlock, models.pro3);
+    } else {
+        // Markdown verification uses the fast/cheap flash model.
+        textContent = await verifyAndReviseMarkdown(textContent, factsBlock, models.flash);
     }
 
     // 4. Save to DB (org-scoped write — stamp the explicit tenant).
