@@ -2,7 +2,7 @@
 
 import { db } from "@/server/db";
 
-export type SourceType = "BOOK" | "VIDEO" | "COURSE" | "TOPIC" | "URL" | "FILE" | "YOUTUBE_PLAYLIST";
+export type SourceType = "BOOK" | "VIDEO" | "COURSE" | "TOPIC" | "URL" | "FILE" | "YOUTUBE_PLAYLIST" | "SPINE";
 
 export async function getSourceMetadata(sourceId: string, sourceType: SourceType) {
     // Removed defensive try/catch - database errors should surface explicitly

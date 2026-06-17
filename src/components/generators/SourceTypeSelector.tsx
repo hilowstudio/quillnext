@@ -1,7 +1,7 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { Book, Video, PresentationChart, TextT, Link as LinkIcon, FileText, YoutubeLogo } from "@phosphor-icons/react";
+import { Book, Video, PresentationChart, TextT, Link as LinkIcon, FileText, YoutubeLogo, GraduationCap } from "@phosphor-icons/react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SourceType } from "@/app/actions/generator-actions";
 
@@ -13,7 +13,11 @@ interface SourceTypeSelectorProps {
 export function SourceTypeSelector({ value, onValueChange }: SourceTypeSelectorProps) {
     return (
         <Tabs value={value || ""} onValueChange={(val) => onValueChange(val as SourceType)} className="w-full">
-            <TabsList className="grid w-full grid-cols-3 lg:grid-cols-7 h-auto">
+            <TabsList className="grid w-full grid-cols-4 lg:grid-cols-8 h-auto">
+                <TabsTrigger value="SPINE" className="flex flex-col gap-1 py-3 h-auto">
+                    <GraduationCap size={20} />
+                    <span className="text-xs">Curriculum</span>
+                </TabsTrigger>
                 <TabsTrigger value="BOOK" className="flex flex-col gap-1 py-3 h-auto">
                     <Book size={20} />
                     <span className="text-xs">Book</span>

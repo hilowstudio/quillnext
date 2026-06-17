@@ -15,6 +15,7 @@ import { ResourcePicker } from "@/components/courses/ResourcePicker";
 import { getSourceMetadata, SourceType } from "@/app/actions/generator-actions";
 import { SourceTypeSelector } from "@/components/generators/SourceTypeSelector";
 import { TopicSelector } from "@/components/generators/TopicSelector";
+import { SpineBrowser, type SpineSelection } from "@/components/generators/SpineBrowser";
 import { UrlInput, FileUpload } from "@/components/generators/SimpleInputs";
 import { YouTubeImport } from "@/components/creation/YouTubeImport";
 import { YouTubePlaylist } from "@/lib/api/youtube";
@@ -54,6 +55,7 @@ export default function GeneratorsClient({ organizationId }: { organizationId: s
 
   // Specific Data for new types
   const [topicText, setTopicText] = useState("");
+  const [spineSelection, setSpineSelection] = useState<SpineSelection | null>(null);
   const [url, setUrl] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [fileContent, setFileContent] = useState("");
@@ -143,28 +145,35 @@ export default function GeneratorsClient({ organizationId }: { organizationId: s
     if (sourceType === "TOPIC" && !topicText) return toast.error("Please enter a topic.");
     if (sourceType === "URL" && !url) return toast.error("Please enter a URL.");
     if (sourceType === "FILE" && !fileContent) return toast.error("Please upload a file.");
+    if (sourceType === "SPINE" && !spineSelection) return toast.error("Please select a curriculum level.");
     if (sourceType && ["BOOK", "VIDEO", "COURSE"].includes(sourceType) && !sourceId) return toast.error("Please select a source.");
 
     setIsGenerating(true);
     try {
       toast.success("Spinning up the generator...");
 
-      const additionalData = {
-        topicText: sourceType === "TOPIC" ? topicText : undefined,
-        url: sourceType === "URL" ? url : undefined,
-        fileContent: sourceType === "FILE" ? fileContent : undefined,
-        fileName: file?.name
-      };
-
-      const effectiveSourceId = sourceId || (sourceType === "URL" ? url : sourceType === "TOPIC" ? "topic" : "file");
-
-      const result = await generateResource(
-        effectiveSourceId,
-        sourceType,
-        selectedKindId,
-        instructions,
-        additionalData
-      );
+      // SPINE generates at the selected spine level: the level IS the generation sourceType, the
+      // node id is the sourceId, and the subject rides through for textbook grounding.
+      const result = sourceType === "SPINE"
+        ? await generateResource(
+            spineSelection!.id,
+            spineSelection!.level,
+            selectedKindId,
+            instructions,
+            { subject: spineSelection!.subjectName },
+          )
+        : await generateResource(
+            sourceId || (sourceType === "URL" ? url : sourceType === "TOPIC" ? "topic" : "file"),
+            sourceType,
+            selectedKindId,
+            instructions,
+            {
+              topicText: sourceType === "TOPIC" ? topicText : undefined,
+              url: sourceType === "URL" ? url : undefined,
+              fileContent: sourceType === "FILE" ? fileContent : undefined,
+              fileName: file?.name,
+            },
+          );
 
       if (result.success) {
         toast.success("Content generated successfully!");
@@ -197,7 +206,8 @@ export default function GeneratorsClient({ organizationId }: { organizationId: s
     (sourceType === "COURSE" && sourceId) ||
     (sourceType === "TOPIC") ||
     (sourceType === "URL") ||
-    (sourceType === "FILE");
+    (sourceType === "FILE") ||
+    (sourceType === "SPINE" && !!spineSelection);
 
   return (
     <div className="container mx-auto max-w-5xl px-4 py-8">
@@ -315,6 +325,11 @@ export default function GeneratorsClient({ organizationId }: { organizationId: s
               {sourceType === "YOUTUBE_PLAYLIST" && (
                 <YouTubeImport onImport={handlePlaylistImport} />
               )}
+
+              {/* SPINE — generate at ANY level of the academic spine */}
+              {sourceType === "SPINE" && (
+                <SpineBrowser onSelect={setSpineSelection} />
+              )}
             </CardContent>
           </Card>
 
@@ -367,7 +382,8 @@ export default function GeneratorsClient({ organizationId }: { organizationId: s
                       sourceType === "TOPIC" ? topicText || "-" :
                         sourceType === "URL" ? url || "-" :
                           sourceType === "FILE" ? file?.name || "-" :
-                            sourceTitle || "-"
+                            sourceType === "SPINE" ? (spineSelection ? `${spineSelection.level}: ${spineSelection.name}` : "-") :
+                              sourceTitle || "-"
                     }
                   </span></li>
                   <li className="flex gap-2"><span className="w-16 font-medium text-qc-text-muted/70">Template:</span> <span className="text-qc-charcoal">{kinds.find(k => k.id === selectedKindId)?.label || "-"}</span></li>
