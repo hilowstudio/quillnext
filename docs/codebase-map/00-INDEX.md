@@ -48,7 +48,7 @@ Verified from `package.json`, configs, and source (see `01-build-config-infra.md
 | ORM | **Prisma 7** (`prisma-client` generator → `src/generated/client`, git-ignored) | client = `src/server/db.ts` singleton |
 | DB | **Postgres** (Supabase-hosted) via **`@prisma/adapter-pg`** (pg driver adapter) + **pgvector** | NOT Accelerate (despite `/api/health` saying `provider:"accelerate"`) |
 | Auth | **Auth.js / NextAuth v5**, **Google OAuth only**, JWT strategy, PrismaAdapter | `allowDangerousEmailAccountLinking:true` |
-| AI | **Google Gemini** via **Vercel AI SDK v5** (`ai`, `@ai-sdk/google`, `@ai-sdk/rsc`, `@ai-sdk/react`) | default `flash` = **`gemini-3.5-flash`**; `pro`/`pro3` = **`gemini-3.1-pro-preview`** (preview → **auto-falls-back to stable `gemini-2.5-pro`** on a retirement 404, via `withRetirementFallback`); `flashLite` = **`gemini-3.1-flash-lite`** (stable). All set 2026-06-16, live-verified. |
+| AI | **Google Gemini** via **Vercel AI SDK v5** (`ai`, `@ai-sdk/google`, `@ai-sdk/rsc`, `@ai-sdk/react`) | default `flash` = **`gemini-3.5-flash`**; `pro`/`pro3` = **`gemini-2.5-pro`** (stable; was `gemini-3.1-pro-preview`, replaced 2026-06-17 — the preview model intermittently returned empty content-filtered responses); `flashLite` = **`gemini-3.1-flash-lite`** (stable). |
 | Background jobs | **Inngest** (served at `/api/inngest`) | compileCurriculum, processDocument, scanMessage |
 | Storage | **Firebase Storage** (firebase-admin) for documents; **Supabase** JS SDK provisioned but **dead** | |
 | Email | **Resend** (safety alerts only) | |

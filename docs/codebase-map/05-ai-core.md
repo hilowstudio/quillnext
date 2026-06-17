@@ -44,8 +44,8 @@ provides the building blocks only; it does not itself call auth or Prisma except
 - **`models`** (`config.ts:9-15`) — the registry:
   | key | Gemini model id | notes |
   |---|---|---|
-  | `pro3` | **`gemini-3.1-pro-preview`** | structured / high-complexity tier (`getStructuredModel`, `COMPLEX_CONTENT_GENERATION`, `COURSE_STRUCTURE_DESIGN`, video tasks). ⚠️ **PREVIEW-only — no stable channel**, but **wrapped in `withRetirementFallback` → auto-retries the same call against stable `gemini-2.5-pro` on a retirement-shaped error (404/"not found"/`NoSuchModelError`)**, so a silent retirement degrades instead of breaking `generateObject`. Set 2026-06-16; live-verified incl. the fallback path. |
-  | `pro` | **`gemini-3.1-pro-preview`** | identical to `pro3` — both resolve to the same model. |
+  | `pro3` | **`gemini-2.5-pro`** | structured / high-complexity tier (`getStructuredModel`, `COMPLEX_CONTENT_GENERATION`, `COURSE_STRUCTURE_DESIGN`, video tasks). Stable. (Was `gemini-3.1-pro-preview`, a preview model that intermittently returned empty, content-filtered responses — silently breaking grounded/structured generation; replaced with stable `gemini-2.5-pro` 2026-06-17.) |
+  | `pro` | **`gemini-2.5-pro`** | identical to `pro3` — both resolve to the same model. |
   | `flash` | **`gemini-3.5-flash`** | workhorse / **default** (`getDefaultModel()` + `getModelForTask` fallback + most task mappings). Bumped from `gemini-2.5-flash` on 2026-06-16; live-verified for text + structured outputs. |
   | `flashLite` | **`gemini-3.1-flash-lite`** | cheap/fast low-complexity tier + the **safety-scan `generateObject`** (`lib/safety/guard.ts`). Stable channel. Bumped from `gemini-2.5-flash-lite` on 2026-06-16; live-verified for text + structured outputs. |
   | `imageGen` | **`gemini-3-pro-image`** | "Nano Banana Pro" image generation. ⚠️ NOT Imagen — it's a Gemini image-output model driven via `generateText` + `providerOptions.google.responseModalities:["IMAGE"]` (image returned in `result.files`), not `experimental_generateImage`. Stable. Renamed from `imagen` / `imagen-3.0-generate-001` on 2026-06-16; live-verified (produces real JPEG). |
@@ -310,7 +310,7 @@ There are **two distinct generation paths** in this codebase, both built on AI-S
 ## Risks, drift, dead-code & half-built
 
 **Model / config drift**
-- `models.pro3`/`pro` are now **`gemini-3.1-pro-preview`** (set 2026-06-16; both identical).
+- `models.pro3`/`pro` are now **`gemini-2.5-pro`** (set 2026-06-17; both identical).
   ⚠️ **PREVIEW-only, no stable channel** — but now guarded by **`withRetirementFallback`** (`config.ts`),
   which auto-retries the same call against stable `gemini-2.5-pro` on a retirement 404, neutralizing the
   exact footgun that killed the old `gemini-3-pro-preview`. The legacy `AITaskType`
@@ -387,7 +387,7 @@ There are **two distinct generation paths** in this codebase, both built on AI-S
 
 1. Should `pro3`/`pro` aliases and all "Gemini 3 Pro" comments be renamed to reflect 2.5-pro,
    or is a re-upgrade to Gemini 3 planned (in which case keep `pro3` as the upgrade slot)?
-2. Does `gemini-3.1-pro-preview` actually process a bare YouTube URL string passed in a text prompt?
+2. Does `gemini-2.5-pro` actually process a bare YouTube URL string passed in a text prompt?
    (It supports native Video/PDF input per Google docs, but a URL-in-text is a different path.)
    If not, `extractVideoContent` is silently broken and needs the SDK's video/file part API.
 3. ~~Is `text-embedding-004` the intended embedding model?~~ RESOLVED 2026-06-16: swapped to

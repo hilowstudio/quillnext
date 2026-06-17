@@ -29,7 +29,7 @@
 ## Already done (2026-06-16)
 
 - **AI model-stack refresh** is complete and live-verified. `flash=gemini-3.5-flash`,
-  `pro`/`pro3=gemini-3.1-pro-preview` wrapped in `withRetirementFallback` → stable `gemini-2.5-pro`,
+  `pro`/`pro3=gemini-2.5-pro` (stable),
   `flashLite=gemini-3.1-flash-lite`, `imageGen=gemini-3-pro-image` (off the broken Imagen cast),
   embeddings `gemini-embedding-2` @1536 dims with `RETRIEVAL_DOCUMENT`/`RETRIEVAL_QUERY` taskTypes
   (`src/lib/ai/config.ts`). The only remaining model work is **comment/copy drift** ("Gemini 3 Pro" /

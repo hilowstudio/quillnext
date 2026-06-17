@@ -154,12 +154,9 @@ export async function extractBookGrounded(meta: BookMeta): Promise<BookExtractio
 
   try {
     // ---- STEP 1: GROUND — research this specific book on the public web (with retry). ----
-    // Must use models.flash (gemini-3.5-flash), NOT models.pro: the pro tier
-    // (gemini-3.1-pro-preview) almost always returns finishReason="content-filter" with empty
-    // text and no grounding for these prompts, which silently produced ungrounded extractions (a
-    // reworded publisher blurb, sources:[]). flash grounds well (~25 sources w/ targeted queries),
-    // but it ALSO intermittently content-filters and returns empty — so retry until we get real
-    // grounded output. (Verified empirically 2026-06-17.)
+    // Use models.flash (gemini-3.5-flash) for grounding: it grounds reliably with ~25 targeted-
+    // query sources and is cheap. flash still intermittently returns an empty, content-filtered
+    // response, so retry until we get real grounded output. (Verified empirically 2026-06-17.)
     const groundingPrompt =
       `Research this specific book on the public web and report what you find. ` +
       `Use authoritative sources: the publisher's page, Wikipedia, Google Books, library ` +

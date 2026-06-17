@@ -427,7 +427,7 @@ which is where these resources actually feed AI generation.
 - **YouTube Data API v3** — `lib/api/youtube.ts`; **reuses `GOOGLE_BOOKS_API_KEY`**
   (no dedicated `YOUTUBE_API_KEY`).
 - **Google Gemini (via Vercel AI SDK `@ai-sdk/google`)** — `lib/ai/config.ts`:
-  `models.pro3`/`pro` = `gemini-3.1-pro-preview` (preview, auto-falls-back to `gemini-2.5-pro`),
+  `models.pro3`/`pro` = `gemini-2.5-pro` (stable),
   `flash` = `gemini-3.5-flash`, `flashLite` = `gemini-3.1-flash-lite`,
   `imageGen` = `gemini-3-pro-image` (all set 2026-06-16). Embeddings: `gemini-embedding-2` @ 1536. Key shim:
   `GEMINI_API_KEY`→`GOOGLE_GENERATIVE_AI_API_KEY`.

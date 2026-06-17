@@ -62,18 +62,16 @@ export function withRetirementFallback(primary: GoogleModel, fallback: GoogleMod
   });
 }
 
-// gemini-3.1-pro-preview is PREVIEW-only (no stable channel). If Google retires it, every
-// generateObject path would silently break — as gemini-3-pro-preview did ~2026-06 — so we
-// auto-fall-back to STABLE gemini-2.5-pro on a retirement-shaped error (see withRetirementFallback).
-const proWithFallback = withRetirementFallback(
-  google("gemini-3.1-pro-preview"),
-  google("gemini-2.5-pro"),
-);
+// pro/pro3 use the STABLE gemini-2.5-pro. (Was gemini-3.1-pro-preview — a preview model that
+// intermittently returned empty, content-filtered responses, silently breaking grounded and
+// structured generation. Replaced with stable gemini-2.5-pro 2026-06-17.) The
+// withRetirementFallback helper remains available but is no longer needed for a stable model.
+const proModel = google("gemini-2.5-pro");
 
 // Model instances
 export const models = {
-  pro3: proWithFallback, // structured / high-complexity tier (getStructuredModel, COMPLEX_CONTENT_GENERATION, COURSE_STRUCTURE_DESIGN, video tasks). Preview + auto-fallback to gemini-2.5-pro.
-  pro: proWithFallback, // identical to pro3 (same wrapped instance)
+  pro3: proModel, // structured / high-complexity tier (getStructuredModel, COMPLEX_CONTENT_GENERATION, COURSE_STRUCTURE_DESIGN, video tasks). Stable gemini-2.5-pro.
+  pro: proModel, // identical to pro3 (same instance)
   flash: google("gemini-3.5-flash"), // DEFAULT model — getDefaultModel() + getModelForTask fallback + most task mappings. Stable. Live-verified 2026-06-16.
   flashLite: google("gemini-3.1-flash-lite"), // low-complexity tier + safety-scan generateObject (lib/safety/guard.ts). Stable. Live-verified 2026-06-16.
   imageGen: google("gemini-3-pro-image"), // "Nano Banana Pro" — Gemini image-output model. Invoked via generateText + providerOptions.google.responseModalities:["IMAGE"] (see lib/services/image-generation.ts), NOT the Imagen generateImage API. Stable channel. Live-verified 2026-06-16. (Was imagen-3.0-generate-001.)
