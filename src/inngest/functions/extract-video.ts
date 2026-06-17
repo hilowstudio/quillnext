@@ -3,7 +3,11 @@ import { inngest } from "@/inngest/client";
 import { db, withTenant } from "@/server/db";
 import { fetchVideoMetadata } from "@/lib/api/youtube";
 import { fetchYouTubeTranscript, chunkTranscript } from "@/lib/youtube/transcript";
-import { extractVideoStructured } from "@/lib/ai/video-extraction";
+import {
+    summarizeVideoTranscript,
+    watchVideoFallback,
+    type VideoExtractionResult,
+} from "@/lib/ai/video-extraction";
 import { embedVideoChunks } from "@/lib/utils/vector";
 
 export const extractVideo = inngest.createFunction(
@@ -103,15 +107,31 @@ export const extractVideo = inngest.createFunction(
             return fetchYouTubeTranscript(loaded.youtubeVideoId);
         });
 
-        // 4. Structured analysis (the shared AI contract). Prefers the transcript; falls back to
-        //    Gemini-watch when captions are unavailable. Never throws.
-        const result = await step.run("analyze", async () => {
-            return extractVideoStructured({
-                url: loaded.youtubeUrl,
-                title: metadata.title ?? loaded.existingTitle,
-                transcript,
-            });
-        });
+        // 4. Structured analysis, split so each Inngest step is ONE AI call (Vercel Hobby's 60s
+        //    per-invocation ceiling). 4a TRANSCRIPT summarize (the common path) is its own step; if
+        //    there is no usable transcript — or it fails — 4b the Gemini-WATCH fallback runs in a
+        //    SEPARATE step, never stacked behind a failed transcript attempt in one invocation.
+        //    NOTE: the watch fallback is a single, irreducible video-understanding call that can
+        //    itself exceed 60s for long no-caption videos; it only runs when captions are absent.
+        let result: VideoExtractionResult | null = null;
+        if (transcript.available && transcript.timestamped.trim().length > 0) {
+            try {
+                result = await step.run("analyze-transcript", async () =>
+                    summarizeVideoTranscript({
+                        title: metadata.title ?? loaded.existingTitle,
+                        transcript,
+                    }),
+                );
+            } catch (e) {
+                console.error("[extract-video] transcript analysis failed — trying watch", e);
+                result = null;
+            }
+        }
+        if (!result) {
+            result = await step.run("analyze-watch", async () =>
+                watchVideoFallback(loaded.youtubeUrl),
+            );
+        }
 
         // 5. Persist to the GLOBAL extraction row — plain db (context-free global table).
         await step.run("persist-global", async () => {

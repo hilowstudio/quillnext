@@ -156,9 +156,10 @@ export async function generateResourceCore(params: GenerateResourceCoreParams) {
                         select: {
                             mainThemes: true,
                             readingLevel: true,
-                            // Phase-3: provenance for full-text RAG grounding.
+                            // Phase-3: full-text RAG readiness. INGESTED is the single authority
+                            // (set only after every chunk is embedded); publicDomain is provenance
+                            // set earlier at stage time, so it must NOT gate retrieval.
                             fullTextStatus: true,
-                            publicDomain: true,
                         },
                     },
                 },
@@ -270,9 +271,12 @@ export async function generateResourceCore(params: GenerateResourceCoreParams) {
         // nest tenant transactions). Best-effort: retrieveBookChunks never throws, and an
         // empty result simply leaves the Phase-1 (no-excerpt) behavior in place.
         const ext = book.bookExtraction;
-        const hasFullText =
-            !!book.bookExtractionId &&
-            (ext?.fullTextStatus === "INGESTED" || !!ext?.publicDomain);
+        // INGESTED is the SINGLE authority that full text is RAG-ready: the worker flips it only
+        // after EVERY chunk is embedded (guarded by a COUNT(embedding IS NULL)=0 check). We must
+        // NOT also accept `publicDomain` here — it's stamped at stage time, before embedding, so
+        // honoring it would open RAG against a half-/un-embedded book (status still INGESTING) and
+        // silently retrieve fewer/no excerpts.
+        const hasFullText = !!book.bookExtractionId && ext?.fullTextStatus === "INGESTED";
         if (hasFullText && book.bookExtractionId) {
             // Query = resource kind label + the targeted section title (when scoped to a
             // chapter), else the book title plus its themes.

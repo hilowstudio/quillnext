@@ -8,14 +8,16 @@ import { models } from "@/lib/ai/config";
  * shared BOOK EXTRACTION feature.
  *
  * Grounding tools (google_search) CANNOT be combined with generateObject, so this
- * runs a deliberate TWO-STEP pipeline:
- *   1) generateText + google.tools.googleSearch  -> research THIS book on the public web,
- *      collect a free-text research dump and the grounding `sources`.
- *   2) generateObject (no tools)                  -> structure that research into JSON.
+ * runs a deliberate TWO-STEP pipeline, exposed as two separately-callable producers:
+ *   1) GROUND   (groundBook / groundBookSections) — generateText + google.tools.googleSearch
+ *      research THIS book on the public web, returning a free-text dump + grounding `sources`.
+ *      These THROW on a content-filtered empty response, so the retry happens at the INNGEST
+ *      STEP level (one bounded call per Vercel invocation) instead of an in-process loop.
+ *   2) STRUCTURE (structureBookResearch / structureBookSections) — generateObject (no tools)
+ *      structure that research into JSON. These NEVER throw — they degrade gracefully.
  *
- * This function is the producer half of the feature: it NEVER throws. On any failure it
- * degrades gracefully so the worker can still record a status (EXTRACTED/FAILED) and so a
- * `BookExtractionResult` is always returned.
+ * The worker runs ground + structure as separate Inngest steps; on a persistent grounding
+ * failure it falls back to degradedBookResult (book) / [] (sections).
  */
 
 export type BookExtractionStage = "perfect-parse" | "chapter-parse" | "manual-needed";
@@ -144,77 +146,101 @@ function buildFallback(
   return base;
 }
 
-/**
- * Extract structured book information grounded in real, public web sources.
- * NEVER throws — always resolves to a BookExtractionResult (possibly a degraded fallback).
- */
-export async function extractBookGrounded(meta: BookMeta): Promise<BookExtractionResult> {
-  const bookDescription = describeBook(meta);
-  let sources: Array<{ title?: string; url: string }> = [];
-
-  try {
-    // ---- STEP 1: GROUND — research this specific book on the public web (with retry). ----
-    // Use models.flash (gemini-3.5-flash) for grounding: it grounds reliably with ~25 targeted-
-    // query sources and is cheap. flash still intermittently returns an empty, content-filtered
-    // response, so retry until we get real grounded output. (Verified empirically 2026-06-17.)
-    const groundingPrompt =
-      `Research this specific book on the public web and report what you find. ` +
-      `Use authoritative sources: the publisher's page, Wikipedia, Google Books, library ` +
-      `catalogs, and reputable reviews. Use the metadata below to make sure you are looking ` +
-      `at the correct edition (match the ISBN, publisher and year when possible).\n\n` +
-      `${bookDescription}\n\n` +
-      `Report, as plainly and factually as you can:\n` +
-      `1. The REAL table of contents — the actual chapter list, in order, with chapter ` +
-      `numbers and titles exactly as published. If you can only find a partial or inferred ` +
-      `structure, say so explicitly.\n` +
-      `2. A factual summary of what the book is about (2-4 paragraphs).\n` +
-      `3. The reading level / target grade or audience (e.g. "Grade 5-6", "Young Adult", ` +
-      `"College", "General adult").\n` +
-      `4. The main themes or topics the book covers.\n` +
-      `Cite the specific pages you used. Do not invent chapters; if the real table of ` +
-      `contents is not available, clearly state that it had to be inferred.`;
-
-    let researchNotes = "";
-    for (let attempt = 1; attempt <= 3; attempt++) {
-      const groundingRes = await generateText({
-        model: models.flash,
-        // Provider-defined Google Search grounding tool. MUST be keyed "google_search".
-        tools: { google_search: google.tools.googleSearch({}) },
-        prompt: groundingPrompt,
-      });
-
-      // `res.sources` carries the grounding citations on this AI SDK version; fall back to the
-      // raw grounding metadata chunks if it's empty.
-      let attemptSources = mapSources((groundingRes as { sources?: unknown }).sources ?? []);
-      if (attemptSources.length === 0) {
-        const chunks = (
-          groundingRes.providerMetadata as
-            | { google?: { groundingMetadata?: { groundingChunks?: unknown } } }
-            | undefined
-        )?.google?.groundingMetadata?.groundingChunks;
-        if (Array.isArray(chunks)) {
-          attemptSources = chunks
-            .map((c) => {
-              const web = (c as { web?: { uri?: unknown; title?: unknown } })?.web;
-              const url = typeof web?.uri === "string" ? web.uri : undefined;
-              const title = typeof web?.title === "string" ? web.title : undefined;
-              return url ? (title ? { title, url } : { url }) : null;
-            })
-            .filter((s): s is { title?: string; url: string } => s !== null);
-        }
-      }
-
-      const text = groundingRes.text ?? "";
-      // Success = we got real research text and/or citations. Empty (content-filtered) → retry.
-      if (text.length > 0 || attemptSources.length > 0) {
-        researchNotes = text;
-        sources = attemptSources;
-        break;
-      }
+/** Map an AI-SDK grounding response to its citation list (res.sources, else groundingMetadata). */
+function extractGroundingSources(groundingRes: {
+  sources?: unknown;
+  providerMetadata?: unknown;
+}): Array<{ title?: string; url: string }> {
+  // `res.sources` carries the grounding citations on this AI SDK version; fall back to the raw
+  // grounding metadata chunks if it's empty.
+  let sources = mapSources((groundingRes as { sources?: unknown }).sources ?? []);
+  if (sources.length === 0) {
+    const chunks = (
+      groundingRes.providerMetadata as
+        | { google?: { groundingMetadata?: { groundingChunks?: unknown } } }
+        | undefined
+    )?.google?.groundingMetadata?.groundingChunks;
+    if (Array.isArray(chunks)) {
+      sources = chunks
+        .map((c) => {
+          const web = (c as { web?: { uri?: unknown; title?: unknown } })?.web;
+          const url = typeof web?.uri === "string" ? web.uri : undefined;
+          const title = typeof web?.title === "string" ? web.title : undefined;
+          return url ? (title ? { title, url } : { url }) : null;
+        })
+        .filter((s): s is { title?: string; url: string } => s !== null);
     }
+  }
+  return sources;
+}
 
-    // ---- STEP 2: STRUCTURE — convert the research notes into JSON (no tools). ----
-    // Also flash, for the same reliability reason (pro preview over-filters).
+/**
+ * ONE web-search-grounded research pass (generateText + google_search on flash).
+ *
+ * Returns the research notes + grounding citations, or THROWS when the model returns an empty,
+ * content-filtered response (no text AND no sources) — flash does this intermittently. The retry
+ * was deliberately moved OUT of an in-process loop and up to the INNGEST STEP level: on Vercel
+ * Hobby each step is one ≤60s invocation, so three sequential grounded calls in a single step
+ * could blow the ceiling. Throwing lets Inngest re-run the one failing step on a fresh invocation.
+ */
+async function runBookGrounding(
+  prompt: string,
+): Promise<{ notes: string; sources: Array<{ title?: string; url: string }> }> {
+  const groundingRes = await generateText({
+    model: models.flash,
+    // Provider-defined Google Search grounding tool. MUST be keyed "google_search".
+    tools: { google_search: google.tools.googleSearch({}) },
+    prompt,
+  });
+  const sources = extractGroundingSources(groundingRes);
+  const notes = groundingRes.text ?? "";
+  // Success = real research text and/or citations. Empty (content-filtered) → signal a retry.
+  if (notes.length === 0 && sources.length === 0) {
+    throw new Error("book grounding produced no content (likely content-filtered)");
+  }
+  return { notes, sources };
+}
+
+/**
+ * GROUND a specific book on the public web (ONE attempt). Throws on a content-filtered empty
+ * response so the caller (the Inngest worker step) retries it. Pairs with structureBookResearch.
+ * Uses models.flash (gemini-3.5-flash): grounds reliably with ~25 targeted-query sources and is cheap.
+ */
+export async function groundBook(
+  meta: BookMeta,
+): Promise<{ notes: string; sources: Array<{ title?: string; url: string }> }> {
+  const bookDescription = describeBook(meta);
+  const groundingPrompt =
+    `Research this specific book on the public web and report what you find. ` +
+    `Use authoritative sources: the publisher's page, Wikipedia, Google Books, library ` +
+    `catalogs, and reputable reviews. Use the metadata below to make sure you are looking ` +
+    `at the correct edition (match the ISBN, publisher and year when possible).\n\n` +
+    `${bookDescription}\n\n` +
+    `Report, as plainly and factually as you can:\n` +
+    `1. The REAL table of contents — the actual chapter list, in order, with chapter ` +
+    `numbers and titles exactly as published. If you can only find a partial or inferred ` +
+    `structure, say so explicitly.\n` +
+    `2. A factual summary of what the book is about (2-4 paragraphs).\n` +
+    `3. The reading level / target grade or audience (e.g. "Grade 5-6", "Young Adult", ` +
+    `"College", "General adult").\n` +
+    `4. The main themes or topics the book covers.\n` +
+    `Cite the specific pages you used. Do not invent chapters; if the real table of ` +
+    `contents is not available, clearly state that it had to be inferred.`;
+  return runBookGrounding(groundingPrompt);
+}
+
+/**
+ * STRUCTURE grounded research notes into the BookExtractionResult (generateObject, no tools — also
+ * flash, since the pro preview over-filters). NEVER throws — degrades to buildFallback(meta, sources)
+ * on failure. Pairs with groundBook.
+ */
+export async function structureBookResearch(
+  notes: string,
+  sources: Array<{ title?: string; url: string }>,
+  meta: BookMeta,
+): Promise<BookExtractionResult> {
+  const bookDescription = describeBook(meta);
+  try {
     const structuredRes = await generateObject({
       model: models.flash,
       schema: structuredSchema,
@@ -229,11 +255,10 @@ export async function extractBookGrounded(meta: BookMeta): Promise<BookExtractio
         `Set "confidence" (high/medium/low) based on how authoritative and complete the ` +
         `source notes are. Keep the summary factual and grounded in the notes.\n\n` +
         `Book metadata (for context only):\n${bookDescription}\n\n` +
-        `Researched notes:\n${researchNotes}`,
+        `Researched notes:\n${notes}`,
     });
 
     const obj = structuredRes.object;
-
     return {
       summary: obj.summary ?? null,
       tableOfContents: obj.tableOfContents ?? [],
@@ -244,25 +269,27 @@ export async function extractBookGrounded(meta: BookMeta): Promise<BookExtractio
       stage: obj.stage,
     };
   } catch (error) {
-    // Graceful degradation: never throw out of the producer. Keep whatever sources we
-    // already gathered in step 1 (if step 2 was the part that failed).
     console.error(
-      `[book-extraction] extractBookGrounded failed for "${meta.title}" — returning degraded fallback.`,
+      `[book-extraction] structureBookResearch failed for "${meta.title}" — returning degraded fallback.`,
       error,
     );
     return buildFallback(meta, sources);
   }
 }
 
+/** Degraded result when grounding can't be obtained at all (e.g. persistent content-filter). */
+export function degradedBookResult(meta: BookMeta): BookExtractionResult {
+  return buildFallback(meta, []);
+}
+
 // ============================================================================
 // Phase 2 — per-section ("spine") grounded extraction + objective classification.
 //
-// These mirror extractBookGrounded's posture exactly:
-//   - the two-step ground(generateText + google_search on flash, retry-on-empty)
-//     -> structure(generateObject) pipeline, and
-//   - the never-throw / degrade-to-[] producer contract.
-// They are pure AI producers: no DB access, no withTenant — the worker persists the
-// results into the GLOBAL Phase-2 tables.
+// Same shape as the book-level producers above: a GROUND producer (groundBookSections,
+// generateText + google_search on flash) that THROWS on a content-filtered empty so the
+// Inngest step retries, plus a never-throws STRUCTURE producer (structureBookSections,
+// generateObject). They are pure AI producers: no DB access, no withTenant — the worker
+// persists the results into the GLOBAL Phase-2 tables.
 // ============================================================================
 
 /** Per-chapter/section facts grounded in real public sources. */
@@ -283,7 +310,7 @@ interface SectionMeta {
   tableOfContents?: unknown;
 }
 
-/** Zod schema for STEP 2 of extractBookSectionsGrounded — the per-section array. */
+/** Zod schema for the per-section array produced by structureBookSections. */
 const sectionFactsSchema = z.object({
   sections: z.array(
     z.object({
@@ -340,93 +367,61 @@ function describeSectionBook(meta: SectionMeta): string {
   return lines.join("\n");
 }
 
-/**
- * Research a book chapter-by-chapter on the public web and return per-section facts.
- *
- * STEP 1 grounds (generateText + google_search on flash, with the same retry-on-empty loop
- * the file already uses) to gather, for each chapter: a 2-3 sentence summary, key events/
- * points, characters/figures present, and 3-5 vocabulary or key terms — anchored to
- * meta.tableOfContents when present so it does not invent chapters beyond the TOC.
- * STEP 2 structures that research into the per-section array via generateObject.
- *
- * NEVER throws — resolves to [] on any failure.
- */
-export async function extractBookSectionsGrounded(meta: {
+/** Metadata anchor accepted by the section producers (title/authors/isbn + the TOC to pin to). */
+type SectionGroundMeta = {
   title: string;
   authors?: string[] | null;
   isbn?: string | null;
   tableOfContents?: unknown;
-}): Promise<SectionFacts[]> {
+};
+
+/**
+ * GROUND a book chapter-by-chapter on the public web (ONE attempt). Throws on a content-filtered
+ * empty response so the caller (the Inngest worker step) retries it. Pairs with structureBookSections.
+ * Anchored to meta.tableOfContents when present so it does not invent chapters beyond the TOC.
+ */
+export async function groundBookSections(
+  meta: SectionGroundMeta,
+): Promise<{ notes: string; sources: Array<{ title?: string; url: string }> }> {
+  const bookDescription = describeSectionBook(meta);
+  const tocBlock = describeTableOfContents(meta.tableOfContents);
+  const groundingPrompt =
+    `Research this specific book on the public web, CHAPTER BY CHAPTER, and report what ` +
+    `you find. Use authoritative sources: the publisher's page, Wikipedia, chapter ` +
+    `summaries, study guides (e.g. SparkNotes/LitCharts/CliffsNotes), library catalogs, ` +
+    `and reputable reviews. Use the metadata to make sure you are looking at the correct ` +
+    `book and edition (match the ISBN when possible).\n\n` +
+    `${bookDescription}\n\n` +
+    (tocBlock
+      ? `Use EXACTLY this published table of contents as the authoritative section list. ` +
+        `Report on each of these sections, keeping these section numbers and titles. Do NOT ` +
+        `add, drop, renumber, or invent chapters beyond this list:\n${tocBlock}\n\n`
+      : `If you can find the real, published table of contents, use it as the authoritative ` +
+        `section list (keep the published chapter numbers and titles in order). Do NOT invent ` +
+        `chapters; if the structure had to be inferred, say so explicitly.\n\n`) +
+    `For EACH chapter/section, report, as plainly and factually as you can:\n` +
+    `1. The chapter number and title (exactly as published).\n` +
+    `2. A 2-3 sentence factual summary of what happens / what it covers.\n` +
+    `3. The key events or key points (a short list).\n` +
+    `4. The characters or real figures present in that chapter.\n` +
+    `5. 3-5 vocabulary words or key terms introduced or central to that chapter.\n` +
+    `Cite the specific pages you used. Ground every claim in the sources.`;
+  return runBookGrounding(groundingPrompt);
+}
+
+/**
+ * STRUCTURE chapter-by-chapter research notes into the per-section facts array (generateObject, no
+ * tools). NEVER throws — degrades to [] on failure. Pairs with groundBookSections; re-derives the
+ * TOC anchor from meta so the structured list stays pinned to the published sections.
+ */
+export async function structureBookSections(
+  notes: string,
+  meta: SectionGroundMeta,
+): Promise<SectionFacts[]> {
   try {
     const bookDescription = describeSectionBook(meta);
     const tocBlock = describeTableOfContents(meta.tableOfContents);
 
-    // ---- STEP 1: GROUND — research the book chapter-by-chapter on the public web. ----
-    const groundingPrompt =
-      `Research this specific book on the public web, CHAPTER BY CHAPTER, and report what ` +
-      `you find. Use authoritative sources: the publisher's page, Wikipedia, chapter ` +
-      `summaries, study guides (e.g. SparkNotes/LitCharts/CliffsNotes), library catalogs, ` +
-      `and reputable reviews. Use the metadata to make sure you are looking at the correct ` +
-      `book and edition (match the ISBN when possible).\n\n` +
-      `${bookDescription}\n\n` +
-      (tocBlock
-        ? `Use EXACTLY this published table of contents as the authoritative section list. ` +
-          `Report on each of these sections, keeping these section numbers and titles. Do NOT ` +
-          `add, drop, renumber, or invent chapters beyond this list:\n${tocBlock}\n\n`
-        : `If you can find the real, published table of contents, use it as the authoritative ` +
-          `section list (keep the published chapter numbers and titles in order). Do NOT invent ` +
-          `chapters; if the structure had to be inferred, say so explicitly.\n\n`) +
-      `For EACH chapter/section, report, as plainly and factually as you can:\n` +
-      `1. The chapter number and title (exactly as published).\n` +
-      `2. A 2-3 sentence factual summary of what happens / what it covers.\n` +
-      `3. The key events or key points (a short list).\n` +
-      `4. The characters or real figures present in that chapter.\n` +
-      `5. 3-5 vocabulary words or key terms introduced or central to that chapter.\n` +
-      `Cite the specific pages you used. Ground every claim in the sources.`;
-
-    let researchNotes = "";
-    for (let attempt = 1; attempt <= 3; attempt++) {
-      const groundingRes = await generateText({
-        model: models.flash,
-        // Provider-defined Google Search grounding tool. MUST be keyed "google_search".
-        tools: { google_search: google.tools.googleSearch({}) },
-        prompt: groundingPrompt,
-      });
-
-      // `res.sources` carries the grounding citations on this AI SDK version; fall back to the
-      // raw grounding metadata chunks if it's empty. (We only use them to detect success here —
-      // sections facts come from the structured pass, not the citation list.)
-      let attemptSources = mapSources((groundingRes as { sources?: unknown }).sources ?? []);
-      if (attemptSources.length === 0) {
-        const chunks = (
-          groundingRes.providerMetadata as
-            | { google?: { groundingMetadata?: { groundingChunks?: unknown } } }
-            | undefined
-        )?.google?.groundingMetadata?.groundingChunks;
-        if (Array.isArray(chunks)) {
-          attemptSources = chunks
-            .map((c) => {
-              const web = (c as { web?: { uri?: unknown; title?: unknown } })?.web;
-              const url = typeof web?.uri === "string" ? web.uri : undefined;
-              const title = typeof web?.title === "string" ? web.title : undefined;
-              return url ? (title ? { title, url } : { url }) : null;
-            })
-            .filter((s): s is { title?: string; url: string } => s !== null);
-        }
-      }
-
-      const text = groundingRes.text ?? "";
-      // Success = we got real research text and/or citations. Empty (content-filtered) → retry.
-      if (text.length > 0 || attemptSources.length > 0) {
-        researchNotes = text;
-        break;
-      }
-    }
-
-    // No usable research → degrade to []. (Producer contract: never throw.)
-    if (researchNotes.length === 0) return [];
-
-    // ---- STEP 2: STRUCTURE — convert the research notes into the per-section array. ----
     const structuredRes = await generateObject({
       model: models.flash,
       schema: sectionFactsSchema,
@@ -448,14 +443,13 @@ export async function extractBookSectionsGrounded(meta: {
         `- "vocabulary": 3-5 vocabulary words or key terms for that section.\n` +
         `Use empty arrays when a field is genuinely unknown; do not fabricate.\n\n` +
         `Book metadata (for context only):\n${bookDescription}\n\n` +
-        `Researched notes:\n${researchNotes}`,
+        `Researched notes:\n${notes}`,
     });
 
     return structuredRes.object.sections ?? [];
   } catch (error) {
-    // Graceful degradation: never throw out of the producer.
     console.error(
-      `[book-extraction] extractBookSectionsGrounded failed for "${meta.title}" — returning [].`,
+      `[book-extraction] structureBookSections failed for "${meta.title}" — returning [].`,
       error,
     );
     return [];

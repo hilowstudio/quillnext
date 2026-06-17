@@ -12,8 +12,8 @@ import { z } from "zod";
 /**
  * Generate structured content from YouTube video.
  * This is the NO-CAPTIONS Gemini-watch fallback used by the transcript-first
- * extraction pipeline (see extractVideoStructured in ./video-extraction): when a
- * YouTube transcript is unavailable, Gemini 3 Pro "watches" the video directly.
+ * extraction pipeline (see watchVideoFallback in ./video-extraction): when a
+ * YouTube transcript is unavailable, Gemini "watches" the video directly.
  */
 const VideoContentSchema = z.object({
   summary: z.string().describe("Comprehensive summary of video content"),

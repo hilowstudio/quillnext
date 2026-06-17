@@ -3,9 +3,9 @@
  *
  * `fetchYouTubeTranscript` pulls a YouTube video's caption track (when one is publicly
  * available) and returns both a flat `raw` string and a `[MM:SS]`-prefixed `timestamped`
- * string. It is the transcript-first input to `extractVideoStructured`: when a transcript
+ * string. It is the transcript-first input to `summarizeVideoTranscript`: when a transcript
  * is available we structure the real captions; otherwise the caller falls back to a
- * Gemini watch-the-video extraction.
+ * Gemini watch-the-video extraction (`watchVideoFallback`).
  *
  * Like the book-extraction producer, the transcript fetch NEVER throws. Many videos have no
  * captions, are region-blocked, or the scraper trips on YouTube markup — in every such case

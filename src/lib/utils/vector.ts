@@ -208,70 +208,119 @@ export async function searchVideos(query: string, organizationId: string, limit 
 }
 
 /**
- * Embed full-text chunks for a GLOBAL book extraction and store them in the cross-org shared
- * `book_text_chunks` table (pgvector). Phase-3 full-text RAG counterpart to embedVideoChunks.
+ * STAGE full-text chunks for a GLOBAL book extraction: persist the chunk bodies into the cross-org
+ * shared `book_text_chunks` table WITHOUT embeddings (the `embedding` column stays NULL). Phase-3
+ * full-text RAG, split out from embedding so the Inngest worker can embed in small, individually-
+ * memoized batches (see embedPendingBookTextChunks) instead of one monolithic step that re-does all
+ * the work whenever a long-running invocation is killed/retried.
  *
- * - Embeds with `embeddingModel` + RETRIEVAL_DOCUMENT task type, in batches of <=100 so a very
- *   long book never blows the provider's per-request input cap.
- * - The chunk table is CONTEXT_FREE / GLOBAL (no account_id; USING(true)/WITH CHECK(true) RLS for
- *   app_user), so it is written on the PLAIN `db` with NO withTenant — exactly like embedVideoChunks
- *   and the Inngest worker write the rest of the global catalog.
- * - Idempotent: DELETEs any existing chunks for this extraction, then INSERTs the fresh set, so a
- *   re-run (or a retry) replaces rather than duplicates.
- * - Carries each chunk's nullable `section_number` (book_text_chunks has the same shape as
- *   video_extraction_chunks plus that one extra column) so retrieval can filter to a single chapter.
- * - Best-effort / never throws: chunk search is an enhancement, so an embedding failure must not
- *   fail the extraction. We log and swallow.
+ * - Fast + bounded: a single batched INSERT path, no AI calls — so even a 2000-chunk book stages
+ *   well under any Vercel function ceiling.
+ * - The table is CONTEXT_FREE / GLOBAL (no account_id; USING(true)/WITH CHECK(true) RLS for
+ *   app_user), so it is written on the PLAIN `db` with NO withTenant — like the rest of the catalog.
+ * - Idempotent: DELETEs any existing chunks for this extraction first, so a re-run replaces rather
+ *   than duplicates. `chunk_index` is the global 0..n-1 order; `section_number` (nullable) lets
+ *   retrieval filter to a single chapter. The Unsupported("vector") `embedding` column is omitted
+ *   from createMany (Prisma excludes it from the type) and so defaults to NULL — exactly what the
+ *   embed pass drains on.
+ * - Best-effort / never throws: returns the number of rows staged (0 on any failure).
  */
-export async function embedBookTextChunks(
+export async function stageBookTextChunks(
   bookExtractionId: string,
   chunks: { sectionNumber: number | null; content: string }[],
-): Promise<void> {
+): Promise<number> {
   try {
     const cleaned = chunks
       .map((c) => ({ sectionNumber: c.sectionNumber, content: c.content?.trim() }))
       .filter((c): c is { sectionNumber: number | null; content: string } => !!c.content);
 
-    // Always clear stale chunks first so a re-embed (or an empty input) is idempotent and never
-    // leaves a mix of old + new chunks. Global table → plain db, no withTenant.
+    // Clear stale chunks first so staging is idempotent (a re-run/retry replaces cleanly).
     await db.$executeRaw`
       DELETE FROM "book_text_chunks" WHERE book_extraction_id = ${bookExtractionId};
     `;
 
-    if (cleaned.length === 0) return;
+    if (cleaned.length === 0) return 0;
 
-    // Embed in batches of <=100 (provider input-count cap), preserving global chunk order.
-    const BATCH = 100;
-    const embeddings: number[][] = [];
-    for (let i = 0; i < cleaned.length; i += BATCH) {
-      const batch = cleaned.slice(i, i + BATCH).map((c) => c.content);
-      const { embeddings: batchEmbeddings } = await embedMany({
-        model: embeddingModel,
-        values: batch,
-        providerOptions: embeddingProviderOptions("RETRIEVAL_DOCUMENT"),
-      });
-      embeddings.push(...batchEmbeddings);
-    }
-
-    // INSERT each chunk via raw SQL so the pgvector `::vector` cast applies (Prisma can't bind the
-    // Unsupported("vector") column directly). Mirrors the embedVideoChunks [v.join(",")]::vector
-    // idiom, with the extra nullable section_number column. Plain db (global table).
-    for (let i = 0; i < cleaned.length; i++) {
-      const vectorString = `[${embeddings[i].join(",")}]`;
-      await db.$executeRawUnsafe(
-        `INSERT INTO "book_text_chunks" (id, book_extraction_id, section_number, chunk_index, content, embedding)
-         VALUES ($1, $2, $3, $4, $5, $6::vector)`,
-        randomUUID(),
+    // Insert content-only rows (embedding left NULL) in sub-batches so a single statement never
+    // gets unwieldy. Prisma's generated type omits the Unsupported vector column, so createMany
+    // simply doesn't set it → NULL. Global table → plain db, no withTenant.
+    const INSERT_BATCH = 500;
+    let staged = 0;
+    for (let i = 0; i < cleaned.length; i += INSERT_BATCH) {
+      const slice = cleaned.slice(i, i + INSERT_BATCH).map((c, j) => ({
         bookExtractionId,
-        cleaned[i].sectionNumber,
-        i,
-        cleaned[i].content,
-        vectorString,
-      );
+        sectionNumber: c.sectionNumber,
+        chunkIndex: i + j,
+        content: c.content,
+      }));
+      const res = await db.bookTextChunk.createMany({ data: slice });
+      staged += res.count;
     }
+    return staged;
   } catch (e) {
-    console.error("[embedBookTextChunks] non-fatal chunk embedding failure", e);
+    console.error("[stageBookTextChunks] non-fatal chunk staging failure", e);
+    return 0;
   }
+}
+
+/**
+ * EMBED the next batch of not-yet-embedded chunks for a GLOBAL book extraction (Phase-3 full-text
+ * RAG). Pairs with stageBookTextChunks: each call drains up to `limit` rows whose `embedding IS NULL`
+ * (in chunk order), embeds them with gemini-embedding-2 (RETRIEVAL_DOCUMENT, batches of <=100 for
+ * the provider input-count cap), and writes the vectors back. Returns how many it embedded.
+ *
+ * The worker calls this once per memoized Inngest step, so a killed/retried invocation re-does at
+ * most ONE small batch, and the `embedding IS NULL` predicate means a replay naturally resumes
+ * where it left off (already-embedded rows are skipped) — no offset bookkeeping, no re-embedding.
+ *
+ * GLOBAL/CONTEXT_FREE table → PLAIN db, no withTenant. Returns the number embedded, or 0 ONLY when
+ * there are genuinely no pending rows. It THROWS on a real embed/DB failure (it does NOT swallow) so
+ * the Inngest step retries — the `embedding IS NULL` drain makes that retry idempotent and
+ * non-duplicating. Swallowing here would let the worker stamp the book INGESTED with missing vectors.
+ */
+export async function embedPendingBookTextChunks(
+  bookExtractionId: string,
+  limit: number,
+): Promise<number> {
+  // Pull the next slice of unembedded chunks in stable chunk order. Raw SQL because the
+  // Unsupported("vector") column isn't queryable (`embedding IS NULL`) through the Prisma API.
+  const pending = await db.$queryRaw<Array<{ id: string; content: string }>>`
+    SELECT id, content
+    FROM "book_text_chunks"
+    WHERE book_extraction_id = ${bookExtractionId}
+      AND embedding IS NULL
+    ORDER BY chunk_index ASC
+    LIMIT ${limit};
+  `;
+  if (pending.length === 0) return 0;
+
+  // Embed in sub-batches of <=100 (gemini-embedding-2 per-request input cap). Any failure here
+  // propagates so the caller's step retries (and resumes via the IS NULL drain) rather than
+  // silently leaving these rows un-embedded.
+  const BATCH = 100;
+  const embeddings: number[][] = [];
+  for (let i = 0; i < pending.length; i += BATCH) {
+    const batch = pending.slice(i, i + BATCH).map((c) => c.content);
+    const { embeddings: batchEmbeddings } = await embedMany({
+      model: embeddingModel,
+      values: batch,
+      providerOptions: embeddingProviderOptions("RETRIEVAL_DOCUMENT"),
+    });
+    embeddings.push(...batchEmbeddings);
+  }
+
+  // Write each vector back by id via raw SQL so the pgvector `::vector` cast applies.
+  let embedded = 0;
+  for (let i = 0; i < pending.length; i++) {
+    const vectorString = `[${embeddings[i].join(",")}]`;
+    await db.$executeRawUnsafe(
+      `UPDATE "book_text_chunks" SET embedding = $1::vector WHERE id = $2`,
+      vectorString,
+      pending[i].id,
+    );
+    embedded++;
+  }
+  return embedded;
 }
 
 /**
