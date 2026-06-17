@@ -38,6 +38,23 @@ export const extractBook = inngest.createFunction(
             const organizationId = orig?.organizationId;
             const userId = orig?.userId ?? null;
 
+            // A run can fail AFTER the core extraction already succeeded (status EXTRACTED, persisted at
+            // step 3): a post-EXTRACTED best-effort step — sections-ground, cross-walk — can time out on
+            // Hobby and exhaust retries even though summary/TOC are saved and full-text ingests via its
+            // own decoupled function. In that case the result is GOOD, so we must NOT clobber it to
+            // FAILED. Only mark FAILED when the core extraction had NOT completed (a genuine failure).
+            if (bookExtractionId) {
+                const ext = await db.bookExtraction
+                    .findUnique({ where: { id: bookExtractionId }, select: { status: true } })
+                    .catch(() => null);
+                if (ext?.status === "EXTRACTED") {
+                    // Core extraction is intact — leave the extraction AND the book as-is. (If the run
+                    // died between persist-global and copy-down, the book may still read EXTRACTING; the
+                    // extract route's "completed extraction → copy down" path reconciles it on next poll.)
+                    return;
+                }
+            }
+
             // Global, context-free table — plain db, USING(true)/WITH CHECK(true) for app_user.
             if (bookExtractionId) {
                 await db.bookExtraction
