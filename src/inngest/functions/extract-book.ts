@@ -1,7 +1,11 @@
 import { revalidateTag } from "next/cache";
 import { inngest } from "@/inngest/client";
 import { db, withTenant } from "@/server/db";
-import { extractBookGrounded } from "@/lib/ai/book-extraction";
+import {
+    extractBookGrounded,
+    extractBookSectionsGrounded,
+    classifySectionsToObjectives,
+} from "@/lib/ai/book-extraction";
 import { generateBookEmbedding } from "@/lib/utils/vector";
 
 export const extractBook = inngest.createFunction(
@@ -170,6 +174,150 @@ export const extractBook = inngest.createFunction(
             }
             return { embedded: true };
         });
+
+        // 6. Best-effort Phase-2 section facts sheet. Web-grounded chapter-by-chapter research
+        //    structured into per-section facts. GLOBAL/context-free table → PLAIN db (no
+        //    withTenant). Non-fatal: a failure here must NOT fail the whole compile.
+        // Derive the gate from the step's RETURN value (not a closure-mutated flag) so it
+        // stays correct across Inngest replays, where a memoized step does not re-run.
+        const sectionStep = await step.run("extract-sections", async () => {
+            try {
+                const extraction = await db.bookExtraction.findUnique({
+                    where: { id: bookExtractionId },
+                    select: {
+                        title: true,
+                        authors: true,
+                        isbn13: true,
+                        tableOfContents: true,
+                    },
+                });
+                if (!extraction) return { sectionsWritten: false };
+
+                const sections = await extractBookSectionsGrounded({
+                    title: extraction.title,
+                    authors: extraction.authors,
+                    isbn: extraction.isbn13,
+                    tableOfContents: extraction.tableOfContents,
+                });
+
+                if (sections.length === 0) return { sectionsWritten: false };
+
+                // Idempotent replace: deleteMany cascades old objectives + spine gaps.
+                await db.bookExtractionSection.deleteMany({ where: { bookExtractionId } });
+                await db.bookExtractionSection.createMany({
+                    data: sections.map((s) => ({
+                        bookExtractionId,
+                        sectionNumber: s.sectionNumber,
+                        title: s.title,
+                        kind: "CHAPTER",
+                        summary: s.summary,
+                        keyPoints: s.keyPoints as any,
+                        charactersPresent: s.charactersPresent as any,
+                        vocabulary: s.vocabulary as any,
+                        factsSource: "WEB",
+                    })),
+                });
+
+                return { sectionsWritten: true, count: sections.length };
+            } catch (e) {
+                console.error("[extract-book extract-sections] non-fatal section failure", e);
+                return { sectionsWritten: false };
+            }
+        });
+        const sectionsWritten = sectionStep.sectionsWritten === true;
+
+        // 7. Best-effort cross-walk: map each freshly-stored section to academic-spine
+        //    Objectives; record SpineGaps for sections that map to nothing. Only runs if
+        //    sections were actually written. GLOBAL tables → PLAIN db; the ONLY org-scoped
+        //    read (the book's subjectId) goes through withTenant and completes BEFORE any
+        //    plain-db work — withTenant is never nested and never wraps plain-db calls.
+        if (sectionsWritten) {
+            await step.run("cross-walk", async () => {
+                try {
+                    // Org-scoped read FIRST, fully resolved before plain-db work begins.
+                    const book = await withTenant(
+                        (tx) =>
+                            tx.book.findUnique({
+                                where: { id: triggeringBookId },
+                                select: { subjectId: true },
+                            }),
+                        undefined,
+                        { organizationId, userId },
+                    );
+                    const subjectId = book?.subjectId ?? null;
+                    if (!subjectId) return { crossWalked: false, reason: "no-subject" };
+
+                    // Candidate objectives for this subject — global reference data, plain db.
+                    const objectives = await db.objective.findMany({
+                        where: { subtopic: { topic: { strand: { subjectId } } } },
+                        select: { id: true, code: true, text: true },
+                        take: 120,
+                    });
+                    if (objectives.length === 0) {
+                        return { crossWalked: false, reason: "no-objectives" };
+                    }
+
+                    // Re-read the freshly-stored sections to get their stable ids.
+                    const storedSections = await db.bookExtractionSection.findMany({
+                        where: { bookExtractionId },
+                        select: { id: true, sectionNumber: true, title: true, summary: true },
+                    });
+                    if (storedSections.length === 0) {
+                        return { crossWalked: false, reason: "no-sections" };
+                    }
+
+                    const codeToObjectiveId = new Map(objectives.map((o) => [o.code, o.id]));
+
+                    const classified = await classifySectionsToObjectives({
+                        sections: storedSections.map((s) => ({
+                            sectionNumber: s.sectionNumber,
+                            title: s.title,
+                            summary: s.summary,
+                        })),
+                        objectives: objectives.map((o) => ({ code: o.code, text: o.text })),
+                    });
+                    const matchesBySection = new Map(
+                        classified.map((c) => [c.sectionNumber, c.matches]),
+                    );
+
+                    let linked = 0;
+                    let gaps = 0;
+                    for (const section of storedSections) {
+                        const matches = matchesBySection.get(section.sectionNumber) ?? [];
+                        const qualifying = matches
+                            .filter((m) => m.confidence >= 0.6 && codeToObjectiveId.has(m.code))
+                            .map((m) => ({
+                                sectionId: section.id,
+                                objectiveId: codeToObjectiveId.get(m.code)!,
+                                confidence: m.confidence,
+                            }));
+
+                        if (qualifying.length > 0) {
+                            const res = await db.bookSectionObjective.createMany({
+                                data: qualifying,
+                                skipDuplicates: true,
+                            });
+                            linked += res.count;
+                        } else {
+                            // Zero qualifying matches → spine-expansion backlog entry.
+                            await db.spineGap.create({
+                                data: {
+                                    bookExtractionId,
+                                    sectionId: section.id,
+                                    topicGuess: section.title,
+                                },
+                            });
+                            gaps += 1;
+                        }
+                    }
+
+                    return { crossWalked: true, linked, gaps };
+                } catch (e) {
+                    console.error("[extract-book cross-walk] non-fatal cross-walk failure", e);
+                    return { crossWalked: false, reason: "error" };
+                }
+            });
+        }
 
         return { success: true, bookExtractionId, triggeringBookId };
     },

@@ -18,6 +18,37 @@ import {
 
 // Helper to determine ingestion tier (deprecated, using DB flag)
 
+/**
+ * Coerce a Prisma Json? value (usually a string[]) into a clean string[] defensively.
+ * Section facts (keyPoints/charactersPresent/vocabulary) are stored as Json.
+ */
+function toStringList(value: unknown): string[] {
+    if (!Array.isArray(value)) return [];
+    return value.map((v) => (v ?? "").toString().trim()).filter(Boolean);
+}
+
+/**
+ * Compactly render a book section's facts sheet (key points, characters, vocabulary)
+ * for use as grounding context when generation is scoped to that chapter.
+ */
+function renderSectionFacts(section: {
+    summary: string | null;
+    keyPoints: unknown;
+    charactersPresent: unknown;
+    vocabulary: unknown;
+}): string {
+    const keyPoints = toStringList(section.keyPoints);
+    const characters = toStringList(section.charactersPresent);
+    const vocabulary = toStringList(section.vocabulary);
+
+    const lines: string[] = [];
+    if (section.summary?.trim()) lines.push(`Section summary: ${section.summary.trim()}`);
+    if (keyPoints.length > 0) lines.push(`Key points:\n${keyPoints.map((p) => `- ${p}`).join("\n")}`);
+    if (characters.length > 0) lines.push(`Characters present: ${characters.join(", ")}`);
+    if (vocabulary.length > 0) lines.push(`Vocabulary: ${vocabulary.join(", ")}`);
+    return lines.join("\n");
+}
+
 export interface GenerateResourceCoreParams {
     organizationId: string;
     userId: string;
@@ -31,6 +62,9 @@ export interface GenerateResourceCoreParams {
         fileContent?: string;
         fileName?: string;
         studentId?: string;
+        // Phase-2 (grounded-generation): when targeting a specific chapter of a BOOK,
+        // scope generation to that section's facts sheet (book_extraction_sections).
+        sectionNumber?: number;
     };
 }
 
@@ -106,6 +140,7 @@ export async function generateResourceCore(params: GenerateResourceCoreParams) {
                     summary: true,
                     tableOfContents: true,
                     organizationId: true,
+                    bookExtractionId: true,
                     bookExtraction: { select: { mainThemes: true, readingLevel: true } },
                 },
             }),
@@ -126,16 +161,88 @@ export async function generateResourceCore(params: GenerateResourceCoreParams) {
             ? (book.authors as unknown[]).map((a) => (a ?? "").toString().trim()).filter(Boolean)
             : [];
 
-        factsBlock = buildCanonicalFactsBlock({
-            sourceKind: "BOOK",
-            title: book.title,
-            authors,
-            summary: book.summary,
-            tableOfContents: book.tableOfContents,
-            themes: book.bookExtraction?.mainThemes,
-            readingLevel: book.bookExtraction?.readingLevel,
-            extra: context,
-        });
+        // Phase-2 section scoping (grounded-generation): when the parent targets a
+        // specific chapter AND this book has an extraction, load that section's facts
+        // sheet and anchor generation to it. The section table is GLOBAL / context-free,
+        // so it is read with PLAIN db (NOT withTenant — never nest tenant transactions).
+        const sectionNumber = additionalData?.sectionNumber;
+        let section: {
+            sectionNumber: number;
+            title: string;
+            summary: string | null;
+            keyPoints: unknown;
+            charactersPresent: unknown;
+            vocabulary: unknown;
+        } | null = null;
+        if (typeof sectionNumber === "number" && book.bookExtractionId) {
+            section = await db.bookExtractionSection.findUnique({
+                where: {
+                    bookExtractionId_sectionNumber: {
+                        bookExtractionId: book.bookExtractionId,
+                        sectionNumber,
+                    },
+                },
+                select: {
+                    sectionNumber: true,
+                    title: true,
+                    summary: true,
+                    keyPoints: true,
+                    charactersPresent: true,
+                    vocabulary: true,
+                },
+            });
+        }
+
+        if (section) {
+            // Scope the canonical facts to THIS chapter: lead with the target section,
+            // then carry the book-level title + themes as background context.
+            const n = section.sectionNumber;
+            sourceTitle = `${book.title || "Untitled Book"} — Chapter ${n}: ${section.title}`;
+
+            const sectionFacts = renderSectionFacts(section);
+            const bookContextLines = [
+                `Book: ${book.title || "Untitled Book"}`,
+                authors.length > 0 ? `Author(s): ${authors.join(", ")}` : "",
+                book.bookExtraction?.readingLevel ? `Reading level: ${book.bookExtraction.readingLevel}` : "",
+                (book.bookExtraction?.mainThemes && book.bookExtraction.mainThemes.length > 0)
+                    ? `Book themes: ${book.bookExtraction.mainThemes.join(", ")}`
+                    : "",
+                book.summary ? `Book summary (background): ${book.summary}` : "",
+            ].filter(Boolean);
+
+            const sectionExtra = [
+                `TARGET SECTION FOR THIS MATERIAL: Chapter ${n}: ${section.title}`,
+                sectionFacts,
+                "",
+                "BACKGROUND CONTEXT (the book this chapter belongs to):",
+                bookContextLines.join("\n"),
+            ].filter(Boolean).join("\n");
+
+            // Drive generation from this chapter: the model sees the section as the
+            // primary content (via context) and the canonical facts lead with it too.
+            context = sectionExtra;
+
+            factsBlock = buildCanonicalFactsBlock({
+                sourceKind: "BOOK",
+                title: `Chapter ${n}: ${section.title}`,
+                authors,
+                summary: section.summary,
+                themes: book.bookExtraction?.mainThemes,
+                readingLevel: book.bookExtraction?.readingLevel,
+                extra: sectionExtra,
+            });
+        } else {
+            factsBlock = buildCanonicalFactsBlock({
+                sourceKind: "BOOK",
+                title: book.title,
+                authors,
+                summary: book.summary,
+                tableOfContents: book.tableOfContents,
+                themes: book.bookExtraction?.mainThemes,
+                readingLevel: book.bookExtraction?.readingLevel,
+                extra: context,
+            });
+        }
     } else if (sourceType === "VIDEO") {
         // ... (existing video logic) ...
         const video = await withTenant(

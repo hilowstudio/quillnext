@@ -12,7 +12,9 @@ import { generateResourceCore, type GenerateResourceCoreParams } from "./generat
  * directly with an org/user that was already verified when the job was enqueued.
  *
  * Signature is unchanged from the original positional form so existing callers
- * (Creation Station, etc.) work without modification.
+ * (Creation Station, etc.) work without modification. `additionalData` is forwarded
+ * whole, so the Phase-2 `additionalData.sectionNumber` (book-chapter scoping) threads
+ * straight through to `generateResourceCore`.
  */
 export async function generateResource(
     sourceId: string,
