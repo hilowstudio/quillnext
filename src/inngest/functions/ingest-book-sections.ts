@@ -67,8 +67,11 @@ export const ingestBookSections = inngest.createFunction(
         // no usable TOC → one call, let the model find the structure.) Every step catches internally
         // (incl. the 50s grounding abort inside runBookGrounding), so a slow/failed batch just yields
         // nothing — it never fails this function. The book itself is never touched.
-        const SECTION_BATCH_THRESHOLD = 20; // ≤ this many chapters → a single grounded call
-        const SECTION_BATCH_SIZE = 8; // chapters per grounded call when batching a big TOC
+        // ≤ 8 chapters → a single grounded call; more → groups of 8. Empirically an ~18-chapter
+        // single call still hit the 50s abort, so the "batch only big TOCs" line is 8, not 20: any
+        // book past one batch's worth is split so each grounded call covers ≤ 8 chapters and fits.
+        const SECTION_BATCH_THRESHOLD = 8;
+        const SECTION_BATCH_SIZE = 8;
         const toc = Array.isArray(sectionMeta.tableOfContents)
             ? (sectionMeta.tableOfContents as unknown[])
             : [];
