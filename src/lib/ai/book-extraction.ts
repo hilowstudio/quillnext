@@ -153,41 +153,73 @@ export async function extractBookGrounded(meta: BookMeta): Promise<BookExtractio
   let sources: Array<{ title?: string; url: string }> = [];
 
   try {
-    // ---- STEP 1: GROUND — research this specific book on the public web. ----
-    const groundingRes = await generateText({
-      model: models.pro,
-      tools: {
+    // ---- STEP 1: GROUND — research this specific book on the public web (with retry). ----
+    // Must use models.flash (gemini-3.5-flash), NOT models.pro: the pro tier
+    // (gemini-3.1-pro-preview) almost always returns finishReason="content-filter" with empty
+    // text and no grounding for these prompts, which silently produced ungrounded extractions (a
+    // reworded publisher blurb, sources:[]). flash grounds well (~25 sources w/ targeted queries),
+    // but it ALSO intermittently content-filters and returns empty — so retry until we get real
+    // grounded output. (Verified empirically 2026-06-17.)
+    const groundingPrompt =
+      `Research this specific book on the public web and report what you find. ` +
+      `Use authoritative sources: the publisher's page, Wikipedia, Google Books, library ` +
+      `catalogs, and reputable reviews. Use the metadata below to make sure you are looking ` +
+      `at the correct edition (match the ISBN, publisher and year when possible).\n\n` +
+      `${bookDescription}\n\n` +
+      `Report, as plainly and factually as you can:\n` +
+      `1. The REAL table of contents — the actual chapter list, in order, with chapter ` +
+      `numbers and titles exactly as published. If you can only find a partial or inferred ` +
+      `structure, say so explicitly.\n` +
+      `2. A factual summary of what the book is about (2-4 paragraphs).\n` +
+      `3. The reading level / target grade or audience (e.g. "Grade 5-6", "Young Adult", ` +
+      `"College", "General adult").\n` +
+      `4. The main themes or topics the book covers.\n` +
+      `Cite the specific pages you used. Do not invent chapters; if the real table of ` +
+      `contents is not available, clearly state that it had to be inferred.`;
+
+    let researchNotes = "";
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      const groundingRes = await generateText({
+        model: models.flash,
         // Provider-defined Google Search grounding tool. MUST be keyed "google_search".
-        google_search: google.tools.googleSearch({}),
-      },
-      prompt:
-        `Research this specific book on the public web and report what you find. ` +
-        `Use authoritative sources: the publisher's page, Wikipedia, Google Books, library ` +
-        `catalogs, and reputable reviews. Use the metadata below to make sure you are looking ` +
-        `at the correct edition (match the ISBN, publisher and year when possible).\n\n` +
-        `${bookDescription}\n\n` +
-        `Report, as plainly and factually as you can:\n` +
-        `1. The REAL table of contents — the actual chapter list, in order, with chapter ` +
-        `numbers and titles exactly as published. If you can only find a partial or inferred ` +
-        `structure, say so explicitly.\n` +
-        `2. A factual summary of what the book is about (2-4 paragraphs).\n` +
-        `3. The reading level / target grade or audience (e.g. "Grade 5-6", "Young Adult", ` +
-        `"College", "General adult").\n` +
-        `4. The main themes or topics the book covers.\n` +
-        `Cite the specific pages you used. Do not invent chapters; if the real table of ` +
-        `contents is not available, clearly state that it had to be inferred.`,
-    });
+        tools: { google_search: google.tools.googleSearch({}) },
+        prompt: groundingPrompt,
+      });
 
-    // `res.sources` is present on this AI SDK version; guard shape defensively anyway.
-    sources = mapSources(
-      (groundingRes as { sources?: unknown }).sources ?? [],
-    );
+      // `res.sources` carries the grounding citations on this AI SDK version; fall back to the
+      // raw grounding metadata chunks if it's empty.
+      let attemptSources = mapSources((groundingRes as { sources?: unknown }).sources ?? []);
+      if (attemptSources.length === 0) {
+        const chunks = (
+          groundingRes.providerMetadata as
+            | { google?: { groundingMetadata?: { groundingChunks?: unknown } } }
+            | undefined
+        )?.google?.groundingMetadata?.groundingChunks;
+        if (Array.isArray(chunks)) {
+          attemptSources = chunks
+            .map((c) => {
+              const web = (c as { web?: { uri?: unknown; title?: unknown } })?.web;
+              const url = typeof web?.uri === "string" ? web.uri : undefined;
+              const title = typeof web?.title === "string" ? web.title : undefined;
+              return url ? (title ? { title, url } : { url }) : null;
+            })
+            .filter((s): s is { title?: string; url: string } => s !== null);
+        }
+      }
 
-    const researchNotes = groundingRes.text ?? "";
+      const text = groundingRes.text ?? "";
+      // Success = we got real research text and/or citations. Empty (content-filtered) → retry.
+      if (text.length > 0 || attemptSources.length > 0) {
+        researchNotes = text;
+        sources = attemptSources;
+        break;
+      }
+    }
 
     // ---- STEP 2: STRUCTURE — convert the research notes into JSON (no tools). ----
+    // Also flash, for the same reliability reason (pro preview over-filters).
     const structuredRes = await generateObject({
-      model: models.pro,
+      model: models.flash,
       schema: structuredSchema,
       prompt:
         `Convert the following researched notes about a book into structured JSON that ` +
