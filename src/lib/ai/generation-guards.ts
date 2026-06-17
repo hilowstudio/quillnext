@@ -22,6 +22,15 @@ export const QUOTE_GROUNDING_RULE: string = `QUOTE GROUNDING RULE (mandatory):
 You do NOT have the full source text. Do NOT include any verbatim quotation presented as being from the work. If a quotation would help, insert a placeholder like "[Parent: insert a quote from <chapter/section> about <topic>]". Never present invented or paraphrased text inside quotation marks as a direct quote. Prefer paraphrase + citation of the chapter/section.`;
 
 /**
+ * Variant of the quote rule used when the prompt ALSO carries a "VERIFIED SOURCE EXCERPTS"
+ * block (Phase 3 RAG grounding). Here verbatim quotation IS allowed — but ONLY when copied
+ * EXACTLY from those excerpts, and always with a chapter/section attribution. Anything not
+ * present in the excerpts must be paraphrased + cited, never dressed up as a direct quote.
+ */
+export const QUOTE_GROUNDING_RULE_WITH_SOURCE: string = `QUOTE GROUNDING RULE (mandatory):
+Verbatim quotation is allowed ONLY when copied EXACTLY (word-for-word) from the "VERIFIED SOURCE EXCERPTS" provided in this prompt, and ONLY with a chapter/section attribution. You must NEVER quote anything that does not appear in those excerpts — do not quote from memory, and do not present invented or paraphrased text inside quotation marks as a direct quote. For any point not covered by the excerpts, paraphrase and cite the chapter/section instead of quoting. When in doubt, paraphrase.`;
+
+/**
  * Compactly render an unknown table-of-contents value (string, array, or object)
  * into a short human-readable string. Returns "" if there is nothing useful.
  */
@@ -107,12 +116,25 @@ export async function verifyAndReviseMarkdown(
     draft: string,
     factsBlock: string,
     model: unknown,
+    allowedQuoteSource?: string,
 ): Promise<string> {
     if (!draft || !draft.trim()) return draft;
     try {
         const factsSection = factsBlock?.trim()
             ? `${factsBlock}\n`
             : "(No canonical facts were supplied — still apply the contradiction, quote, and garbled-text checks.)\n";
+
+        // When verified source excerpts are supplied (Phase 3 RAG), KEEP verbatim quotes that
+        // appear in them and only flag/replace quotes NOT found there — instead of blanket-removing
+        // every quote (the no-source behavior below).
+        const allowed = allowedQuoteSource?.trim() || "";
+        const quoteRule = allowed
+            ? `(b) Verbatim quotations: a block of VERIFIED SOURCE EXCERPTS is provided below. KEEP any direct quote whose text appears EXACTLY (word-for-word) within those excerpts — ensure it has a chapter/section attribution. For any quotation whose text is NOT found verbatim in the excerpts, replace it with a brief paraphrase OR a placeholder like "[Parent: insert a quote from <chapter/section> about <topic>]". Never leave invented or paraphrased text presented as a direct quote inside quotation marks.
+
+=== VERIFIED SOURCE EXCERPTS (the ONLY text that may be quoted verbatim) ===
+${allowed}
+=== END VERIFIED SOURCE EXCERPTS ===`
+            : `(b) Verbatim quotations: the source text is NOT available, so any quotation cannot be verified. Replace each direct quote with a brief paraphrase OR a placeholder like "[Parent: insert a quote from <chapter/section> about <topic>]". Never leave invented or paraphrased text presented as a direct quote inside quotation marks.`;
 
         const prompt = `You are a careful editor verifying AI-generated educational material BEFORE it is shown to a parent for review.
 
@@ -123,7 +145,7 @@ ${draft}
 
 Return ONLY the corrected markdown — preserve the same structure, headings, formatting, and pedagogical intent. Fix the following:
 (a) Internal contradictions, and any claim that disagrees with the CANONICAL FACTS above. The canonical facts are ground truth; correct the draft to agree with them.
-(b) Verbatim quotations: the source text is NOT available, so any quotation cannot be verified. Replace each direct quote with a brief paraphrase OR a placeholder like "[Parent: insert a quote from <chapter/section> about <topic>]". Never leave invented or paraphrased text presented as a direct quote inside quotation marks.
+${quoteRule}
 (c) Garbled, malformed, or nonsensical questions or sentences: rewrite them clearly so they make sense.
 
 Do not add commentary, preamble, or explanations. Output ONLY the corrected markdown content.`;
@@ -148,6 +170,7 @@ export async function verifyAndReviseObject<T>(
     schema: import("zod").ZodType<T>,
     factsBlock: string,
     model: unknown,
+    allowedQuoteSource?: string,
 ): Promise<T> {
     if (draft == null) return draft;
     try {
@@ -156,6 +179,18 @@ export async function verifyAndReviseObject<T>(
             : "(No canonical facts were supplied — still apply the contradiction, quote, and garbled-text checks.)\n";
 
         const serialized = JSON.stringify(draft, null, 2);
+
+        // When verified source excerpts are supplied (Phase 3 RAG), KEEP verbatim quotes that
+        // appear in them and only flag/replace quotes NOT found there — instead of blanket-removing
+        // every quote (the no-source behavior below).
+        const allowed = allowedQuoteSource?.trim() || "";
+        const quoteRule = allowed
+            ? `(b) Verbatim quotations: a block of VERIFIED SOURCE EXCERPTS is provided below. KEEP any direct quote whose text appears EXACTLY (word-for-word) within those excerpts — ensure it carries a chapter/section attribution. For any quotation whose text is NOT found verbatim in the excerpts, replace it with a brief paraphrase OR a placeholder like "[Parent: insert a quote from <chapter/section> about <topic>]". Never present invented or paraphrased text as a direct quote.
+
+=== VERIFIED SOURCE EXCERPTS (the ONLY text that may be quoted verbatim) ===
+${allowed}
+=== END VERIFIED SOURCE EXCERPTS ===`
+            : `(b) Verbatim quotations: the source text is NOT available, so any quotation cannot be verified. Replace each direct quote with a brief paraphrase OR a placeholder like "[Parent: insert a quote from <chapter/section> about <topic>]". Never present invented or paraphrased text as a direct quote.`;
 
         const prompt = `You are a careful editor verifying AI-generated structured educational content (e.g. a quiz or worksheet) BEFORE it is shown to a parent for review.
 
@@ -166,7 +201,7 @@ ${serialized}
 
 Return a corrected version of this content that conforms to the required schema. Fix the following:
 (a) Internal contradictions, and any claim/question/answer that disagrees with the CANONICAL FACTS above. The canonical facts are ground truth; correct the content to agree with them.
-(b) Verbatim quotations: the source text is NOT available, so any quotation cannot be verified. Replace each direct quote with a brief paraphrase OR a placeholder like "[Parent: insert a quote from <chapter/section> about <topic>]". Never present invented or paraphrased text as a direct quote.
+${quoteRule}
 (c) Garbled, malformed, or nonsensical questions, answers, options, or sentences: rewrite them clearly so they make sense and remain internally consistent (e.g. the correct answer must still be among the options).
 
 Preserve the overall structure, intent, and number of items where possible. Do not add commentary — return only the corrected structured content.`;

@@ -6,7 +6,14 @@ import {
     extractBookSectionsGrounded,
     classifySectionsToObjectives,
 } from "@/lib/ai/book-extraction";
-import { generateBookEmbedding } from "@/lib/utils/vector";
+import { generateBookEmbedding, embedBookTextChunks } from "@/lib/utils/vector";
+import { findFullText } from "@/lib/sources/registry";
+import { segmentIntoChapters, chunkText } from "@/lib/sources/text-processing";
+
+// Hard cap on total full-text chunks embedded per book, so an unusually long public-domain
+// work (a multi-volume omnibus, the Bible, War and Peace, ...) can't trigger a runaway embed
+// loop that exhausts the provider quota or stalls the worker. ~4000 chunks ≈ ~1.2M words.
+const MAX_FULL_TEXT_CHUNKS = 4000;
 
 export const extractBook = inngest.createFunction(
     {
@@ -318,6 +325,90 @@ export const extractBook = inngest.createFunction(
                 }
             });
         }
+
+        // 8. Best-effort Phase-3 full-text ingestion. If the work is in the public domain and an
+        //    open source (Gutenberg, ...) carries its full text, fetch + chapter-segment + chunk +
+        //    embed it into the GLOBAL book_text_chunks catalog for source-grounded RAG at
+        //    generation time. book_extractions + book_text_chunks are GLOBAL/context-free →
+        //    PLAIN db (no withTenant). Non-fatal: a failure (or simply no open source) must NOT
+        //    fail the compile — the book still generates from its web-grounded facts sheet.
+        await step.run("ingest-full-text", async () => {
+            try {
+                const extraction = await db.bookExtraction.findUnique({
+                    where: { id: bookExtractionId },
+                    select: { title: true, authors: true },
+                });
+                if (!extraction) return { ingested: false, reason: "no-extraction" };
+
+                const ft = await findFullText({
+                    title: extraction.title,
+                    authors: extraction.authors,
+                });
+
+                // No open source carries this text → record UNAVAILABLE so we don't retry blindly
+                // and the UI can show "full-text quotes not available" rather than spinning.
+                if (!ft) {
+                    await db.bookExtraction.update({
+                        where: { id: bookExtractionId },
+                        data: { fullTextStatus: "UNAVAILABLE" },
+                    });
+                    return { ingested: false, reason: "unavailable" };
+                }
+
+                // Align full-text chapter segmentation to the stored Phase-2 section titles/order
+                // so each text chunk's sectionNumber lines up with its facts-sheet section.
+                const storedSections = await db.bookExtractionSection.findMany({
+                    where: { bookExtractionId },
+                    select: { sectionNumber: true, title: true },
+                    orderBy: { sectionNumber: "asc" },
+                });
+                const toc = storedSections.map((s) => ({
+                    sectionNumber: s.sectionNumber,
+                    title: s.title,
+                }));
+
+                const chapters = segmentIntoChapters(ft.text, toc);
+
+                // Flatten chapters → overlapping word-window chunks, tagging each with its
+                // section. Cap the total so a huge book can't trigger a runaway embed.
+                const allChunks: { sectionNumber: number | null; content: string }[] = [];
+                for (const chapter of chapters) {
+                    if (allChunks.length >= MAX_FULL_TEXT_CHUNKS) break;
+                    for (const content of chunkText(chapter.text)) {
+                        if (allChunks.length >= MAX_FULL_TEXT_CHUNKS) break;
+                        allChunks.push({ sectionNumber: chapter.sectionNumber, content });
+                    }
+                }
+
+                if (allChunks.length === 0) {
+                    await db.bookExtraction.update({
+                        where: { id: bookExtractionId },
+                        data: { fullTextStatus: "UNAVAILABLE" },
+                    });
+                    return { ingested: false, reason: "no-chunks" };
+                }
+
+                // Embed + store into the GLOBAL book_text_chunks catalog (plain db, best-effort,
+                // idempotent delete-then-insert). Then stamp the extraction row so generation knows
+                // verbatim, source-grounded quotes are available for this book.
+                await embedBookTextChunks(bookExtractionId, allChunks);
+
+                await db.bookExtraction.update({
+                    where: { id: bookExtractionId },
+                    data: {
+                        publicDomain: true,
+                        fullTextSource: ft.source,
+                        fullTextSourceId: ft.sourceId,
+                        fullTextStatus: "INGESTED",
+                    },
+                });
+
+                return { ingested: true, source: ft.source, chunks: allChunks.length };
+            } catch (e) {
+                console.error("[extract-book ingest-full-text] non-fatal full-text failure", e);
+                return { ingested: false, reason: "error" };
+            }
+        });
 
         return { success: true, bookExtractionId, triggeringBookId };
     },

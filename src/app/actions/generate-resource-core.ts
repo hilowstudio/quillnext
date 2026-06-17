@@ -11,10 +11,12 @@ import { generateObject } from "ai";
 import { QuizSchema, WorksheetSchema } from "@/lib/ai/schemas";
 import {
     QUOTE_GROUNDING_RULE,
+    QUOTE_GROUNDING_RULE_WITH_SOURCE,
     buildCanonicalFactsBlock,
     verifyAndReviseMarkdown,
     verifyAndReviseObject,
 } from "@/lib/ai/generation-guards";
+import { retrieveBookChunks } from "@/lib/utils/vector";
 
 // Helper to determine ingestion tier (deprecated, using DB flag)
 
@@ -126,6 +128,15 @@ export async function generateResourceCore(params: GenerateResourceCoreParams) {
     // post-generation verify/revise pass (grounded-generation spec, Phase 1).
     let factsBlock = "";
 
+    // Phase-3 RAG grounding (grounded-generation spec): when a BOOK has ingested full
+    // text (public domain → book_text_chunks), we retrieve verified excerpts the model
+    // MAY quote verbatim, switch to the source-aware quote rule, and let the verify pass
+    // keep quotes that appear in those excerpts. Defaults preserve Phase-1 behavior
+    // (no excerpts → blanket quote rule, nothing kept verbatim).
+    let quoteRule = QUOTE_GROUNDING_RULE;
+    let excerptsBlock = "";
+    let allowedQuoteSource = "";
+
     if (sourceType === "BOOK") {
         // ... (existing book logic) ...
         // Extend the book select to also read the linked extraction (mainThemes /
@@ -141,7 +152,15 @@ export async function generateResourceCore(params: GenerateResourceCoreParams) {
                     tableOfContents: true,
                     organizationId: true,
                     bookExtractionId: true,
-                    bookExtraction: { select: { mainThemes: true, readingLevel: true } },
+                    bookExtraction: {
+                        select: {
+                            mainThemes: true,
+                            readingLevel: true,
+                            // Phase-3: provenance for full-text RAG grounding.
+                            fullTextStatus: true,
+                            publicDomain: true,
+                        },
+                    },
                 },
             }),
             undefined,
@@ -242,6 +261,49 @@ export async function generateResourceCore(params: GenerateResourceCoreParams) {
                 readingLevel: book.bookExtraction?.readingLevel,
                 extra: context,
             });
+        }
+
+        // Phase-3 RAG (grounded-generation spec): if this book has INGESTED full text
+        // (public-domain works mirrored into the GLOBAL book_text_chunks catalog), pull
+        // verified excerpts the model MAY quote verbatim. book_text_chunks is GLOBAL /
+        // context-free, so retrieveBookChunks reads on PLAIN db (NOT withTenant — never
+        // nest tenant transactions). Best-effort: retrieveBookChunks never throws, and an
+        // empty result simply leaves the Phase-1 (no-excerpt) behavior in place.
+        const ext = book.bookExtraction;
+        const hasFullText =
+            !!book.bookExtractionId &&
+            (ext?.fullTextStatus === "INGESTED" || !!ext?.publicDomain);
+        if (hasFullText && book.bookExtractionId) {
+            // Query = resource kind label + the targeted section title (when scoped to a
+            // chapter), else the book title plus its themes.
+            const themeHint =
+                ext?.mainThemes && ext.mainThemes.length > 0
+                    ? ` ${ext.mainThemes.join(", ")}`
+                    : "";
+            const subject = section?.title
+                ? ` ${section.title}`
+                : ` ${book.title || ""}${themeHint}`;
+            const ragQuery = `${kind.label}${subject}`.trim();
+
+            const chunks = await retrieveBookChunks(book.bookExtractionId, ragQuery, {
+                sectionNumber: additionalData?.sectionNumber ?? null,
+                limit: 6,
+            });
+
+            const excerpts = chunks
+                .map((c) => c.content?.trim())
+                .filter((c): c is string => !!c);
+
+            if (excerpts.length > 0) {
+                excerptsBlock = [
+                    "VERIFIED SOURCE EXCERPTS (you MAY quote these verbatim, with attribution):",
+                    ...excerpts.map((c, i) => `[Excerpt ${i + 1}]\n${c}`),
+                ].join("\n\n");
+                // The verify pass keeps quotes found in these excerpts (instead of removing all).
+                allowedQuoteSource = excerpts.join("\n\n");
+                // The model is now allowed to quote — but ONLY from the excerpts above.
+                quoteRule = QUOTE_GROUNDING_RULE_WITH_SOURCE;
+            }
         }
     } else if (sourceType === "VIDEO") {
         // ... (existing video logic) ...
@@ -358,9 +420,14 @@ export async function generateResourceCore(params: GenerateResourceCoreParams) {
             kind.description || "No specific context provided."
         )
         .setSourceContent(context)
-        // Inject the canonical facts + quote-grounding rule into what the model sees.
-        // PromptBuilder stores these verbatim and build() interpolates them directly.
-        .setUserInstructions([instructions || "", factsBlock, QUOTE_GROUNDING_RULE].filter(Boolean).join("\n\n"));
+        // Inject the canonical facts + (optional) verified source excerpts + quote-grounding
+        // rule into what the model sees. The excerpts block is appended AFTER the canonical
+        // facts; when present, `quoteRule` is QUOTE_GROUNDING_RULE_WITH_SOURCE (verbatim quotes
+        // allowed, but only from those excerpts). PromptBuilder stores these verbatim and
+        // build() interpolates them directly.
+        .setUserInstructions(
+            [instructions || "", factsBlock, excerptsBlock, quoteRule].filter(Boolean).join("\n\n"),
+        );
 
     const prompt = builder.build();
 
@@ -420,12 +487,12 @@ export async function generateResourceCore(params: GenerateResourceCoreParams) {
     // fix contradictions vs. the canonical facts, ungrounded verbatim quotes, and
     // garbled questions. They never throw; on error the original draft is kept.
     if (kind.contentType === "QUIZ") {
-        jsonContent = await verifyAndReviseObject(jsonContent as any, QuizSchema, factsBlock, models.pro3);
+        jsonContent = await verifyAndReviseObject(jsonContent as any, QuizSchema, factsBlock, models.pro3, allowedQuoteSource);
     } else if (kind.contentType === "WORKSHEET") {
-        jsonContent = await verifyAndReviseObject(jsonContent as any, WorksheetSchema, factsBlock, models.pro3);
+        jsonContent = await verifyAndReviseObject(jsonContent as any, WorksheetSchema, factsBlock, models.pro3, allowedQuoteSource);
     } else {
         // Markdown verification uses the fast/cheap flash model.
-        textContent = await verifyAndReviseMarkdown(textContent, factsBlock, models.flash);
+        textContent = await verifyAndReviseMarkdown(textContent, factsBlock, models.flash, allowedQuoteSource);
     }
 
     // 4. Save to DB (org-scoped write — stamp the explicit tenant).

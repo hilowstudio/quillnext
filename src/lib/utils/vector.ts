@@ -208,6 +208,134 @@ export async function searchVideos(query: string, organizationId: string, limit 
 }
 
 /**
+ * Embed full-text chunks for a GLOBAL book extraction and store them in the cross-org shared
+ * `book_text_chunks` table (pgvector). Phase-3 full-text RAG counterpart to embedVideoChunks.
+ *
+ * - Embeds with `embeddingModel` + RETRIEVAL_DOCUMENT task type, in batches of <=100 so a very
+ *   long book never blows the provider's per-request input cap.
+ * - The chunk table is CONTEXT_FREE / GLOBAL (no account_id; USING(true)/WITH CHECK(true) RLS for
+ *   app_user), so it is written on the PLAIN `db` with NO withTenant — exactly like embedVideoChunks
+ *   and the Inngest worker write the rest of the global catalog.
+ * - Idempotent: DELETEs any existing chunks for this extraction, then INSERTs the fresh set, so a
+ *   re-run (or a retry) replaces rather than duplicates.
+ * - Carries each chunk's nullable `section_number` (book_text_chunks has the same shape as
+ *   video_extraction_chunks plus that one extra column) so retrieval can filter to a single chapter.
+ * - Best-effort / never throws: chunk search is an enhancement, so an embedding failure must not
+ *   fail the extraction. We log and swallow.
+ */
+export async function embedBookTextChunks(
+  bookExtractionId: string,
+  chunks: { sectionNumber: number | null; content: string }[],
+): Promise<void> {
+  try {
+    const cleaned = chunks
+      .map((c) => ({ sectionNumber: c.sectionNumber, content: c.content?.trim() }))
+      .filter((c): c is { sectionNumber: number | null; content: string } => !!c.content);
+
+    // Always clear stale chunks first so a re-embed (or an empty input) is idempotent and never
+    // leaves a mix of old + new chunks. Global table → plain db, no withTenant.
+    await db.$executeRaw`
+      DELETE FROM "book_text_chunks" WHERE book_extraction_id = ${bookExtractionId};
+    `;
+
+    if (cleaned.length === 0) return;
+
+    // Embed in batches of <=100 (provider input-count cap), preserving global chunk order.
+    const BATCH = 100;
+    const embeddings: number[][] = [];
+    for (let i = 0; i < cleaned.length; i += BATCH) {
+      const batch = cleaned.slice(i, i + BATCH).map((c) => c.content);
+      const { embeddings: batchEmbeddings } = await embedMany({
+        model: embeddingModel,
+        values: batch,
+        providerOptions: embeddingProviderOptions("RETRIEVAL_DOCUMENT"),
+      });
+      embeddings.push(...batchEmbeddings);
+    }
+
+    // INSERT each chunk via raw SQL so the pgvector `::vector` cast applies (Prisma can't bind the
+    // Unsupported("vector") column directly). Mirrors the embedVideoChunks [v.join(",")]::vector
+    // idiom, with the extra nullable section_number column. Plain db (global table).
+    for (let i = 0; i < cleaned.length; i++) {
+      const vectorString = `[${embeddings[i].join(",")}]`;
+      await db.$executeRawUnsafe(
+        `INSERT INTO "book_text_chunks" (id, book_extraction_id, section_number, chunk_index, content, embedding)
+         VALUES ($1, $2, $3, $4, $5, $6::vector)`,
+        randomUUID(),
+        bookExtractionId,
+        cleaned[i].sectionNumber,
+        i,
+        cleaned[i].content,
+        vectorString,
+      );
+    }
+  } catch (e) {
+    console.error("[embedBookTextChunks] non-fatal chunk embedding failure", e);
+  }
+}
+
+/**
+ * Retrieve the top full-text chunks for a GLOBAL book extraction by pgvector cosine similarity,
+ * optionally scoped to a single chapter/section. Phase-3 full-text RAG counterpart to searchVideos.
+ *
+ * - Embeds the query with RETRIEVAL_QUERY (asymmetric to the stored RETRIEVAL_DOCUMENT vectors).
+ * - The chunk table is GLOBAL / CONTEXT_FREE (USING(true) RLS for app_user), so the cosine search
+ *   runs on the PLAIN `db` with NO withTenant — these are public-domain chunks shared across orgs.
+ * - The section_number predicate is applied ONLY when a number is passed (so `null`/undefined search
+ *   the whole book); built with $executeRawUnsafe-style positional params so the filter is optional.
+ * - Best-effort / never throws: returns [] on any embedding or query failure so a retrieval miss
+ *   degrades grounded generation gracefully rather than crashing the caller.
+ */
+export async function retrieveBookChunks(
+  bookExtractionId: string,
+  query: string,
+  opts?: { sectionNumber?: number | null; limit?: number },
+): Promise<{ content: string; sectionNumber: number | null; similarity: number }[]> {
+  try {
+    const { embedding: queryEmbedding } = await embed({
+      model: embeddingModel,
+      value: query,
+      providerOptions: embeddingProviderOptions("RETRIEVAL_QUERY"),
+    });
+    const vectorQuery = `[${queryEmbedding.join(",")}]`;
+
+    const limit = opts?.limit ?? 6;
+    const hasSection = typeof opts?.sectionNumber === "number";
+
+    // Positional params: $1 extraction id, $2 query vector, then optionally $3 section number,
+    // with $limit always last. Global table → plain db, no withTenant.
+    const params: unknown[] = [bookExtractionId, vectorQuery];
+    let sectionClause = "";
+    if (hasSection) {
+      params.push(opts!.sectionNumber);
+      sectionClause = `AND section_number = $${params.length}`;
+    }
+    params.push(limit);
+    const limitParam = `$${params.length}`;
+
+    const rows = await db.$queryRawUnsafe<
+      Array<{ content: string; sectionNumber: number | null; similarity: number }>
+    >(
+      `SELECT content,
+              section_number as "sectionNumber",
+              1 - (embedding <=> $2::vector) as similarity
+       FROM "book_text_chunks"
+       WHERE book_extraction_id = $1
+         AND embedding IS NOT NULL
+         ${sectionClause}
+       ORDER BY similarity DESC
+       LIMIT ${limitParam}`,
+      ...params,
+    );
+
+    return rows;
+  } catch (e) {
+    console.error("[retrieveBookChunks] non-fatal chunk retrieval failure", e);
+    return [];
+  }
+}
+
+/**
  * Generate and store an embedding for a video (summary + key points).
  *
  * Like generateBookEmbedding, the org-scoped UPDATE runs inside withTenant. Pass `ctx`
