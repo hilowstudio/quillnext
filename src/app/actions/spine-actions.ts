@@ -2,6 +2,7 @@
 
 import { db } from "@/server/db";
 import { z } from "zod";
+import { getTextbooksForTopic } from "@/lib/textbook-coverage";
 
 const getStrandsSchema = z.object({
     subjectId: z.string().uuid(),
@@ -79,4 +80,19 @@ export async function getObjectives(rawData: unknown) {
         take: 200, // Explicit bound - objectives can be numerous
     });
     return { success: true, objectives };
+}
+
+const getTopicCoverageSchema = z.object({
+    topicId: z.string().uuid(),
+});
+
+/**
+ * Which ingested open textbooks ground a given spine Topic (coverage cross-walk (b)). Best-match
+ * first. Powers the "📚 grounded by N open textbook(s)" hint in the spine browser and spine-gap
+ * awareness (an empty result = no open textbook covers this topic yet). Best-effort.
+ */
+export async function getTopicTextbookCoverage(rawData: unknown) {
+    const data = getTopicCoverageSchema.parse(rawData);
+    const textbooks = await getTextbooksForTopic(data.topicId);
+    return { success: true, textbooks };
 }

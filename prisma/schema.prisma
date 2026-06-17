@@ -749,9 +749,10 @@ model TextbookDocument {
   category   String? // broad category, e.g. "Science"
   status     String          @default("PENDING") // PENDING | INGESTED | UNAVAILABLE
   chunkCount Int             @default(0) @map("chunk_count")
-  createdAt  DateTime        @default(now()) @map("created_at")
-  updatedAt  DateTime        @updatedAt @map("updated_at")
-  chunks     TextbookChunk[]
+  createdAt     DateTime                @default(now()) @map("created_at")
+  updatedAt     DateTime                @updatedAt @map("updated_at")
+  chunks        TextbookChunk[]
+  topicCoverage TextbookTopicCoverage[]
 
   @@index([subject])
   @@map("textbook_documents")
@@ -775,6 +776,24 @@ model TextbookChunk {
   @@index([subject])
   @@index([documentId])
   @@map("textbook_chunks")
+}
+
+/// Coarse TOC cross-walk (grounded-generation (b)): which spine TOPICS an open textbook covers, by
+/// semantic match (best cosine of any of the book's chunks to the topic). Mapped at the reliable
+/// TOPIC grain (not the improbable objective grain). Powers coverage ("textbooks that teach topic X")
+/// and spine-gap discovery. Global/shared (CONTEXT_FREE_MODELS). topicId references the stable spine
+/// Topic by id WITHOUT a FK (Topic is core reference data we don't want a cross-table constraint on).
+model TextbookTopicCoverage {
+  id         String           @id @default(uuid())
+  documentId String           @map("document_id")
+  document   TextbookDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  topicId    String           @map("topic_id")
+  similarity Float // best cosine similarity (0..1) of any of the book's chunks to the topic
+  createdAt  DateTime         @default(now()) @map("created_at")
+
+  @@unique([documentId, topicId])
+  @@index([topicId])
+  @@map("textbook_topic_coverage")
 }
 
 /// Chapter/section-level facts sheet for a book (Phase 2 of docs/specs/grounded-generation.md).

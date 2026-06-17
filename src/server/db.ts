@@ -50,6 +50,8 @@ const CONTEXT_FREE_MODELS = new Set([
   "BookTextChunk",
   // Global cross-org shared open-textbook corpus (subject-keyed RAG grounding).
   "TextbookDocument", "TextbookChunk",
+  // Global cross-org shared textbook↔spine-Topic coverage cross-walk.
+  "TextbookTopicCoverage",
 ]);
 
 /**

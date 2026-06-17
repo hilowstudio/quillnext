@@ -3,6 +3,7 @@ import { db } from "@/server/db";
 import { listOpenStaxBooks, assembleOpenStaxSections } from "@/lib/sources/openstax";
 import { chunkText } from "@/lib/sources/text-processing";
 import { stageTextbookChunks, embedPendingTextbookChunks } from "@/lib/utils/vector";
+import { crossWalkTextbookTopics } from "@/lib/textbook-coverage";
 
 // Per-book chunk cap so one large textbook can't run away with embedding cost. ~1500 chunks ≈ a
 // strong subject sample of even a big book; the per-section coverage is what matters for grounding.
@@ -181,8 +182,58 @@ export const ingestTextbook = inngest.createFunction(
                     return { ingested: false };
                 }
             });
+
+            // 4. CROSS-WALK: map this book to the spine TOPICS it covers (coarse coverage (b)). Its own
+            //    bounded step (embeds ≤250 topics + a per-topic cosine over the book's chunks). Fully
+            //    best-effort — crossWalkTextbookTopics never throws; a coverage gap must not fail the
+            //    (already-useful) ingest. Runs on the chunks embedded by step 2, partial book included.
+            await step.run("cross-walk", async () => {
+                const covered = await crossWalkTextbookTopics(doc.id);
+                return { coveredTopics: covered };
+            });
         }
 
         return { success: true, cnxId };
+    },
+);
+
+/**
+ * Recompute spine-Topic coverage (b) for the whole INGESTED corpus WITHOUT re-ingesting — run this
+ * after tuning the cross-walk threshold/logic or adding spine topics. Fans out one
+ * `textbook/crosswalk.requested` per ingested document. Global tables → PLAIN db.
+ */
+export const refreshTextbookCrosswalk = inngest.createFunction(
+    { id: "refresh-textbook-crosswalk", retries: 1, concurrency: { limit: 1 } },
+    { event: "textbook/crosswalk.refresh" },
+    async ({ step }) => {
+        const docs = await step.run("list-ingested", async () =>
+            db.textbookDocument.findMany({ where: { status: "INGESTED" }, select: { id: true } }),
+        );
+        if (docs.length > 0) {
+            await step.sendEvent(
+                "fan-out",
+                docs.map((d) => ({
+                    name: "textbook/crosswalk.requested" as const,
+                    data: { documentId: d.id },
+                })),
+            );
+        }
+        return { queued: docs.length };
+    },
+);
+
+/**
+ * Per-document coverage recompute. One bounded step (best-effort, never throws). Same idempotent
+ * delete-then-insert as the ingest-time cross-walk.
+ */
+export const recrosswalkTextbook = inngest.createFunction(
+    { id: "recrosswalk-textbook", retries: 2, concurrency: { limit: 3 } },
+    { event: "textbook/crosswalk.requested" },
+    async ({ event, step }) => {
+        const { documentId } = event.data;
+        const covered = await step.run("cross-walk", async () =>
+            crossWalkTextbookTopics(documentId),
+        );
+        return { documentId, coveredTopics: covered };
     },
 );

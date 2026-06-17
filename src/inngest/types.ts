@@ -59,6 +59,19 @@ type TextbookIngestRequestedEvent = {
     };
 };
 
+// Recompute textbook↔spine-Topic coverage (b) for the already-ingested corpus WITHOUT re-ingesting —
+// for when the coverage logic/threshold is tuned. `refresh` fans out one `crosswalk.requested` per
+// ingested book; the per-book worker recomputes that one document's coverage.
+type TextbookCrosswalkRefreshEvent = {
+    data: Record<string, never>;
+};
+
+type TextbookCrosswalkRequestedEvent = {
+    data: {
+        documentId: string;
+    };
+};
+
 type Events = {
     "resource/process.document": ProcessDocumentEvent;
     "chat/message.sent": ChatMessageSentEvent;
@@ -67,6 +80,8 @@ type Events = {
     "video/extract.requested": VideoExtractRequestedEvent;
     "textbook/corpus.ingest": TextbookCorpusIngestEvent;
     "textbook/ingest.requested": TextbookIngestRequestedEvent;
+    "textbook/crosswalk.refresh": TextbookCrosswalkRefreshEvent;
+    "textbook/crosswalk.requested": TextbookCrosswalkRequestedEvent;
 };
 
 export const schema = new EventSchemas().fromRecord<Events>();

@@ -8,6 +8,7 @@ import {
     getTopics,
     getSubtopics,
     getObjectives,
+    getTopicTextbookCoverage,
 } from "@/app/actions/spine-actions";
 
 /** The deepest spine node the parent has selected — what generation targets. */
@@ -66,6 +67,8 @@ export function SpineBrowser({ onSelect }: { onSelect: (sel: SpineSelection | nu
         subtopic?: Node;
         objective?: Node;
     }>({});
+    // Coverage (b): which open textbooks ground the selected Topic. null = not yet checked / N/A.
+    const [coverage, setCoverage] = useState<{ count: number; titles: string[] } | null>(null);
 
     useEffect(() => {
         getSubjects()
@@ -84,6 +87,7 @@ export function SpineBrowser({ onSelect }: { onSelect: (sel: SpineSelection | nu
         setTopics([]);
         setSubtopics([]);
         setObjectives([]);
+        setCoverage(null);
         update({ subject: node });
         if (node) {
             try {
@@ -100,6 +104,7 @@ export function SpineBrowser({ onSelect }: { onSelect: (sel: SpineSelection | nu
         setTopics([]);
         setSubtopics([]);
         setObjectives([]);
+        setCoverage(null);
         update({ subject: sel.subject, strand: node });
         if (node) {
             try {
@@ -115,6 +120,7 @@ export function SpineBrowser({ onSelect }: { onSelect: (sel: SpineSelection | nu
         const node = topics.find((n) => n.id === id);
         setSubtopics([]);
         setObjectives([]);
+        setCoverage(null);
         update({ subject: sel.subject, strand: sel.strand, topic: node });
         if (node) {
             try {
@@ -123,6 +129,15 @@ export function SpineBrowser({ onSelect }: { onSelect: (sel: SpineSelection | nu
             } catch {
                 /* ignore */
             }
+            // Coverage cross-walk (b): show which open textbooks ground this topic. Best-effort.
+            getTopicTextbookCoverage({ topicId: id })
+                .then((r) =>
+                    setCoverage({
+                        count: r.textbooks.length,
+                        titles: r.textbooks.slice(0, 3).map((t) => t.title),
+                    }),
+                )
+                .catch(() => setCoverage(null));
         }
     };
 
@@ -217,6 +232,22 @@ export function SpineBrowser({ onSelect }: { onSelect: (sel: SpineSelection | nu
                 <p className="font-body text-xs text-qc-text-muted pt-1">
                     Generating for <span className="font-semibold text-qc-charcoal">{LEVEL_LABEL[target.level]}</span>:{" "}
                     {target.name}
+                </p>
+            )}
+
+            {sel.topic && coverage && (
+                <p className="font-body text-xs text-qc-text-muted">
+                    {coverage.count > 0 ? (
+                        <>
+                            📚 Grounded by{" "}
+                            <span className="font-semibold text-qc-charcoal">
+                                {coverage.count} open textbook{coverage.count === 1 ? "" : "s"}
+                            </span>
+                            {coverage.titles.length > 0 && <> — {coverage.titles.join(", ")}</>}
+                        </>
+                    ) : (
+                        <>No open textbook covers this topic yet — generation uses its base knowledge.</>
+                    )}
                 </p>
             )}
         </div>
