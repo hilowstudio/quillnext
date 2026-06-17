@@ -53,6 +53,18 @@ type BookFullTextRequestedEvent = {
     };
 };
 
+// Phase-2 BOOK sections facts-sheet — fired by extract-book once the extraction row is persisted. Its
+// OWN function (ingest-book-sections), DECOUPLED so a web-grounded-AI timeout flips sectionsStatus,
+// never the book's extraction_status. Carries org/user for the cross-walk's org-scoped subjectId read.
+type BookSectionsRequestedEvent = {
+    data: {
+        bookExtractionId: string;
+        triggeringBookId: string;
+        organizationId: string;
+        userId: string | null;
+    };
+};
+
 // Open-textbook corpus (by-subject grounding). GLOBAL/shared — no organizationId needed (the worker
 // writes the context-free textbook_* tables with plain db). `corpus.ingest` is user-triggered and
 // fans out one `ingest.requested` per book.
@@ -88,6 +100,7 @@ type Events = {
     "curriculum/compile": CurriculumCompileEvent;
     "book/extract.requested": BookExtractRequestedEvent;
     "book/fulltext.requested": BookFullTextRequestedEvent;
+    "book/sections.requested": BookSectionsRequestedEvent;
     "video/extract.requested": VideoExtractRequestedEvent;
     "textbook/corpus.ingest": TextbookCorpusIngestEvent;
     "textbook/ingest.requested": TextbookIngestRequestedEvent;

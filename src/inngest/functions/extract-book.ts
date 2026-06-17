@@ -1,14 +1,7 @@
 import { revalidateTag } from "next/cache";
 import { inngest } from "@/inngest/client";
 import { db, withTenant } from "@/server/db";
-import {
-    groundBook,
-    structureBookResearch,
-    degradedBookResult,
-    groundBookSections,
-    structureBookSections,
-    classifySectionsToObjectives,
-} from "@/lib/ai/book-extraction";
+import { groundBook, structureBookResearch, degradedBookResult } from "@/lib/ai/book-extraction";
 import { generateBookEmbedding } from "@/lib/utils/vector";
 
 export const extractBook = inngest.createFunction(
@@ -174,13 +167,20 @@ export const extractBook = inngest.createFunction(
             });
         });
 
-        // 3b. KICK OFF full-text RAG ingestion as its OWN function (book/fulltext.requested) now the
-        //     extraction row (title/authors) is persisted. DECOUPLED on purpose: it runs independently
-        //     of the heavy sections/cross-walk steps below, so their Hobby-60s flakiness can never
-        //     block full-text (and vice-versa). Fire-and-forget; ingest-book-fulltext is best-effort.
+        // 3b. KICK OFF the two heavy best-effort artifacts as their OWN functions now the extraction
+        //     row (title/authors/TOC) is persisted: the full-text RAG and the SECTIONS facts-sheet.
+        //     Each is DECOUPLED on purpose — they are web-grounded AI steps that can TIME OUT on Vercel
+        //     Hobby, and a process-timeout is UNCATCHABLE in-process; isolating them means such a
+        //     failure flips only that feature's own status (fullTextStatus / sectionsStatus) via the
+        //     function's onFailure, NEVER the book's extraction_status. So from here on NOTHING
+        //     best-effort can mark the book FAILED. Fire-and-forget.
         await step.sendEvent("kickoff-fulltext", {
             name: "book/fulltext.requested",
             data: { bookExtractionId },
+        });
+        await step.sendEvent("kickoff-sections", {
+            name: "book/sections.requested",
+            data: { bookExtractionId, triggeringBookId, organizationId, userId },
         });
 
         // 4. Copy down to ONLY the triggering book (its org is known). Other orgs copy down
@@ -220,163 +220,6 @@ export const extractBook = inngest.createFunction(
             }
             return { embedded: true };
         });
-
-        // 6. Best-effort Phase-2 section facts sheet. Web-grounded chapter-by-chapter research
-        //    structured into per-section facts. GLOBAL/context-free table → PLAIN db (no
-        //    withTenant). Non-fatal: a failure here must NOT fail the whole compile.
-        //
-        //    Same one-AI-call-per-step split as the main extraction: GROUND (one attempt; Inngest
-        //    retries a fresh invocation on a content-filtered empty) then STRUCTURE+persist. The
-        //    section anchor reuses the already-loaded meta + the freshly-structured TOC (no re-read).
-        const sectionMeta = {
-            title: meta.title,
-            authors: meta.authors,
-            isbn: meta.isbn,
-            tableOfContents: result.tableOfContents,
-        };
-
-        // Catch INSIDE the step so a grounding failure can never throw-and-exhaust to Inngest. An
-        // OUTER try/catch is NOT enough: when a step exhausts its retries, Inngest fails the RUN
-        // (onFailure) rather than letting the surrounding catch resume — which would kill the whole
-        // extraction BEFORE the full-text step (8). Sections are best-effort; on any failure we skip
-        // them and keep going so full-text always runs. (Trade-off: no Inngest step-level retry for a
-        // content-filtered empty — acceptable, the main extraction already succeeded.)
-        const sectionsResearch: { notes: string; sources: Array<{ title?: string; url: string }> } | null =
-            await step.run("sections-ground", async () => {
-                try {
-                    return await groundBookSections(sectionMeta);
-                } catch (e) {
-                    console.error("[extract-book] section grounding failed — skipping sections", e);
-                    return null;
-                }
-            });
-
-        // Derive the gate from the step's RETURN value (not a closure-mutated flag) so it
-        // stays correct across Inngest replays, where a memoized step does not re-run.
-        const sectionStep = await step.run("extract-sections", async () => {
-            try {
-                if (!sectionsResearch) return { sectionsWritten: false };
-
-                const sections = await structureBookSections(sectionsResearch.notes, sectionMeta);
-
-                if (sections.length === 0) return { sectionsWritten: false };
-
-                // Idempotent replace: deleteMany cascades old objectives + spine gaps.
-                await db.bookExtractionSection.deleteMany({ where: { bookExtractionId } });
-                await db.bookExtractionSection.createMany({
-                    data: sections.map((s) => ({
-                        bookExtractionId,
-                        sectionNumber: s.sectionNumber,
-                        title: s.title,
-                        kind: "CHAPTER",
-                        summary: s.summary,
-                        keyPoints: s.keyPoints as any,
-                        charactersPresent: s.charactersPresent as any,
-                        vocabulary: s.vocabulary as any,
-                        factsSource: "WEB",
-                    })),
-                });
-
-                return { sectionsWritten: true, count: sections.length };
-            } catch (e) {
-                console.error("[extract-book extract-sections] non-fatal section failure", e);
-                return { sectionsWritten: false };
-            }
-        });
-        const sectionsWritten = sectionStep.sectionsWritten === true;
-
-        // 7. Best-effort cross-walk: map each freshly-stored section to academic-spine
-        //    Objectives; record SpineGaps for sections that map to nothing. Only runs if
-        //    sections were actually written. GLOBAL tables → PLAIN db; the ONLY org-scoped
-        //    read (the book's subjectId) goes through withTenant and completes BEFORE any
-        //    plain-db work — withTenant is never nested and never wraps plain-db calls.
-        if (sectionsWritten) {
-            await step.run("cross-walk", async () => {
-                try {
-                    // Org-scoped read FIRST, fully resolved before plain-db work begins.
-                    const book = await withTenant(
-                        (tx) =>
-                            tx.book.findUnique({
-                                where: { id: triggeringBookId },
-                                select: { subjectId: true },
-                            }),
-                        undefined,
-                        { organizationId, userId },
-                    );
-                    const subjectId = book?.subjectId ?? null;
-                    if (!subjectId) return { crossWalked: false, reason: "no-subject" };
-
-                    // Candidate objectives for this subject — global reference data, plain db.
-                    const objectives = await db.objective.findMany({
-                        where: { subtopic: { topic: { strand: { subjectId } } } },
-                        select: { id: true, code: true, text: true },
-                        take: 120,
-                    });
-                    if (objectives.length === 0) {
-                        return { crossWalked: false, reason: "no-objectives" };
-                    }
-
-                    // Re-read the freshly-stored sections to get their stable ids.
-                    const storedSections = await db.bookExtractionSection.findMany({
-                        where: { bookExtractionId },
-                        select: { id: true, sectionNumber: true, title: true, summary: true },
-                    });
-                    if (storedSections.length === 0) {
-                        return { crossWalked: false, reason: "no-sections" };
-                    }
-
-                    const codeToObjectiveId = new Map(objectives.map((o) => [o.code, o.id]));
-
-                    const classified = await classifySectionsToObjectives({
-                        sections: storedSections.map((s) => ({
-                            sectionNumber: s.sectionNumber,
-                            title: s.title,
-                            summary: s.summary,
-                        })),
-                        objectives: objectives.map((o) => ({ code: o.code, text: o.text })),
-                    });
-                    const matchesBySection = new Map(
-                        classified.map((c) => [c.sectionNumber, c.matches]),
-                    );
-
-                    let linked = 0;
-                    let gaps = 0;
-                    for (const section of storedSections) {
-                        const matches = matchesBySection.get(section.sectionNumber) ?? [];
-                        const qualifying = matches
-                            .filter((m) => m.confidence >= 0.6 && codeToObjectiveId.has(m.code))
-                            .map((m) => ({
-                                sectionId: section.id,
-                                objectiveId: codeToObjectiveId.get(m.code)!,
-                                confidence: m.confidence,
-                            }));
-
-                        if (qualifying.length > 0) {
-                            const res = await db.bookSectionObjective.createMany({
-                                data: qualifying,
-                                skipDuplicates: true,
-                            });
-                            linked += res.count;
-                        } else {
-                            // Zero qualifying matches → spine-expansion backlog entry.
-                            await db.spineGap.create({
-                                data: {
-                                    bookExtractionId,
-                                    sectionId: section.id,
-                                    topicGuess: section.title,
-                                },
-                            });
-                            gaps += 1;
-                        }
-                    }
-
-                    return { crossWalked: true, linked, gaps };
-                } catch (e) {
-                    console.error("[extract-book cross-walk] non-fatal cross-walk failure", e);
-                    return { crossWalked: false, reason: "error" };
-                }
-            });
-        }
 
         return { success: true, bookExtractionId, triggeringBookId };
     },

@@ -712,6 +712,10 @@ model BookExtraction {
   // stage step (segments + chunks it), so the multi-MB body never crosses an Inngest step boundary
   // (which has an output-size limit). Cleared to NULL once the chunks are staged.
   fullTextRaw      String?          @map("full_text_raw")
+  // Per-feature status for the SECTIONS facts-sheet, which ingests in its OWN function
+  // (ingest-book-sections) decoupled from the core extraction: EXTRACTED | UNAVAILABLE | null
+  // (pending). Lets a sections failure be recorded WITHOUT marking the book itself FAILED.
+  sectionsStatus   String?          @map("sections_status")
   extractedAt      DateTime?        @map("extracted_at")
   createdAt        DateTime         @default(now()) @map("created_at")
   updatedAt        DateTime         @updatedAt @map("updated_at")
