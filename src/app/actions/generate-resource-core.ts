@@ -53,11 +53,169 @@ function renderSectionFacts(section: {
     return lines.join("\n");
 }
 
+// Spine-driven generation source types (any level of the academic spine). sourceId = the node id.
+const SPINE_SOURCE_TYPES = new Set(["SUBJECT", "STRAND", "TOPIC_NODE", "SUBTOPIC", "OBJECTIVE"]);
+
+interface LoadedSpineNode {
+    label: string; // human label for the level, e.g. "Topic", "Learning objective"
+    name: string; // the node's name (or the objective's text)
+    code: string | null;
+    gradeLevel: number | null;
+    subject: string; // subject name — the textbook-corpus filter
+    path: string; // "Subject › Strand › Topic › Subtopic [› Objective]"
+    objectives: { text: string; code: string | null }[]; // descendant objectives it covers (capped)
+}
+
+/**
+ * Load a spine node at ANY level with its ancestor path, its subject (for textbook grounding), and
+ * the descendant OBJECTIVES it covers (capped — the substance for context + the retrieval query). The
+ * spine models are GLOBAL reference data (CONTEXT_FREE) → plain db, no withTenant. Returns null if the
+ * node is missing.
+ */
+async function loadSpineNode(level: string, id: string): Promise<LoadedSpineNode | null> {
+    const OBJ_CAP = 40;
+    // Descendant objectives by level (an objective is its own only "descendant").
+    const where =
+        level === "OBJECTIVE"
+            ? { id }
+            : level === "SUBTOPIC"
+              ? { subtopicId: id }
+              : level === "TOPIC_NODE"
+                ? { subtopic: { topicId: id } }
+                : level === "STRAND"
+                  ? { subtopic: { topic: { strandId: id } } }
+                  : level === "SUBJECT"
+                    ? { subtopic: { topic: { strand: { subjectId: id } } } }
+                    : null;
+    if (!where) return null;
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const objectives = await db.objective.findMany({
+        where: where as any,
+        select: { text: true, code: true },
+        take: OBJ_CAP,
+        orderBy: { code: "asc" },
+    });
+
+    let label = "",
+        name = "",
+        code: string | null = null,
+        gradeLevel: number | null = null,
+        subject = "";
+    const parts: string[] = [];
+
+    if (level === "OBJECTIVE") {
+        const o = await db.objective.findUnique({
+            where: { id },
+            select: {
+                text: true,
+                code: true,
+                gradeLevel: true,
+                subtopic: {
+                    select: {
+                        name: true,
+                        topic: {
+                            select: {
+                                name: true,
+                                strand: { select: { name: true, subject: { select: { name: true } } } },
+                            },
+                        },
+                    },
+                },
+            },
+        });
+        if (!o) return null;
+        label = "Learning objective";
+        name = o.text;
+        code = o.code;
+        gradeLevel = o.gradeLevel;
+        subject = o.subtopic?.topic?.strand?.subject?.name ?? "";
+        parts.push(
+            subject,
+            o.subtopic?.topic?.strand?.name ?? "",
+            o.subtopic?.topic?.name ?? "",
+            o.subtopic?.name ?? "",
+            o.text,
+        );
+    } else if (level === "SUBTOPIC") {
+        const s = await db.subtopic.findUnique({
+            where: { id },
+            select: {
+                name: true,
+                topic: {
+                    select: {
+                        name: true,
+                        strand: { select: { name: true, subject: { select: { name: true } } } },
+                    },
+                },
+            },
+        });
+        if (!s) return null;
+        label = "Subtopic";
+        name = s.name;
+        subject = s.topic?.strand?.subject?.name ?? "";
+        parts.push(subject, s.topic?.strand?.name ?? "", s.topic?.name ?? "", s.name);
+    } else if (level === "TOPIC_NODE") {
+        const t = await db.topic.findUnique({
+            where: { id },
+            select: {
+                name: true,
+                strand: { select: { name: true, subject: { select: { name: true } } } },
+            },
+        });
+        if (!t) return null;
+        label = "Topic";
+        name = t.name;
+        subject = t.strand?.subject?.name ?? "";
+        parts.push(subject, t.strand?.name ?? "", t.name);
+    } else if (level === "STRAND") {
+        const st = await db.strand.findUnique({
+            where: { id },
+            select: { name: true, subject: { select: { name: true } } },
+        });
+        if (!st) return null;
+        label = "Strand";
+        name = st.name;
+        subject = st.subject?.name ?? "";
+        parts.push(subject, st.name);
+    } else {
+        const sub = await db.subject.findUnique({ where: { id }, select: { name: true } });
+        if (!sub) return null;
+        label = "Subject";
+        name = sub.name;
+        subject = sub.name;
+        parts.push(subject);
+    }
+
+    return {
+        label,
+        name,
+        code,
+        gradeLevel,
+        subject,
+        path: parts.filter(Boolean).join(" › "),
+        objectives,
+    };
+}
+
 export interface GenerateResourceCoreParams {
     organizationId: string;
     userId: string;
     sourceId: string;
-    sourceType: "BOOK" | "VIDEO" | "COURSE" | "TOPIC" | "URL" | "FILE" | "YOUTUBE_PLAYLIST" | "OBJECTIVE";
+    sourceType:
+        | "BOOK"
+        | "VIDEO"
+        | "COURSE"
+        | "TOPIC"
+        | "URL"
+        | "FILE"
+        | "YOUTUBE_PLAYLIST"
+        // Spine-driven generation at ANY level of the academic spine. sourceId = the node id.
+        | "SUBJECT"
+        | "STRAND"
+        | "TOPIC_NODE"
+        | "SUBTOPIC"
+        | "OBJECTIVE";
     resourceKindId: string;
     instructions?: string;
     additionalData?: {
@@ -383,55 +541,36 @@ export async function generateResourceCore(params: GenerateResourceCoreParams) {
         }
         sourceTitle = course.title;
         genContext = { source: "COURSE", courseId: sourceId };
-    } else if (sourceType === "OBJECTIVE") {
-        // Spine-driven generation: produce material FOR a specific learning objective, grounded in
-        // the open-textbook corpus via the objective's OWN TEXT (the precision the unit-level TOPIC
-        // path can't give). The granularity comes from the query, not a brittle stored mapping.
-        // Objective + spine are GLOBAL reference data (CONTEXT_FREE) → plain db, no withTenant.
-        const objective = await db.objective.findUnique({
-            where: { id: sourceId },
-            select: {
-                code: true,
-                text: true,
-                gradeLevel: true,
-                subtopic: {
-                    select: {
-                        name: true,
-                        topic: {
-                            select: {
-                                name: true,
-                                strand: {
-                                    select: { name: true, subject: { select: { name: true } } },
-                                },
-                            },
-                        },
-                    },
-                },
-            },
-        });
-        if (!objective) throw new Error("Objective not found");
+    } else if (SPINE_SOURCE_TYPES.has(sourceType)) {
+        // Spine-driven generation at ANY level (subject/strand/topic/subtopic/objective). sourceId =
+        // the node id. Load the node + ancestor path + the descendant OBJECTIVES it covers, and ground
+        // in the open-textbook corpus via the node's text + those objectives — objective-level
+        // precision from the QUERY, not a brittle stored cross-walk (per the agreed design).
+        const node = await loadSpineNode(sourceType, sourceId);
+        if (!node) throw new Error(`Spine node not found: ${sourceType} ${sourceId}`);
 
-        const subtopicName = objective.subtopic?.name ?? "";
-        const topicName = objective.subtopic?.topic?.name ?? "";
-        const strandName = objective.subtopic?.topic?.strand?.name ?? "";
         const subjectName =
-            (additionalData as { subject?: string })?.subject?.trim() ||
-            objective.subtopic?.topic?.strand?.subject?.name ||
-            "";
-        const gradeLabel = objective.gradeLevel != null ? `Grade ${objective.gradeLevel}` : "";
-        const spinePath = [subjectName, strandName, topicName, subtopicName].filter(Boolean).join(" › ");
+            (additionalData as { subject?: string })?.subject?.trim() || node.subject;
+        const gradeLabel = node.gradeLevel != null ? `Grade ${node.gradeLevel}` : "";
+        const objList = node.objectives
+            .map((o) => `- ${o.code ? o.code + " " : ""}${o.text}`)
+            .join("\n");
 
         context =
-            `Learning objective${objective.code ? ` (${objective.code})` : ""}: ${objective.text}\n` +
-            (spinePath ? `Curriculum path: ${spinePath}\n` : "") +
-            (gradeLabel ? `Level: ${gradeLabel}` : "");
-        sourceTitle = objective.text.substring(0, 60);
-        genContext = { source: "OBJECTIVE", objectiveId: sourceId, subject: subjectName };
+            `${node.label}: ${node.name}${node.code ? ` (${node.code})` : ""}\n` +
+            (node.path ? `Curriculum path: ${node.path}\n` : "") +
+            (gradeLabel ? `${gradeLabel}\n` : "") +
+            (node.objectives.length > 0
+                ? `Learning objectives covered${node.objectives.length >= 40 ? " (sample)" : ""}:\n${objList}`
+                : "");
+        sourceTitle = node.name.substring(0, 60);
+        genContext = { source: "SPINE", level: sourceType, nodeId: sourceId, subject: subjectName };
 
-        // Ground in the textbook corpus using the OBJECTIVE TEXT (+ topic/strand) as the query.
-        // GROUND-don't-echo (excerpts make facts accurate; the model teaches in its own words).
+        // Ground in the textbook corpus using the node's text + the objectives it covers as the query.
+        // GROUND-don't-echo. No-ops gracefully when the corpus lacks the subject (e.g. non-STEM).
         if (subjectName) {
-            const ragQuery = `${kind.label} ${objective.text} ${topicName} ${strandName}`.trim();
+            const objSample = node.objectives.slice(0, 8).map((o) => o.text).join(" ");
+            const ragQuery = `${kind.label} ${node.name} ${objSample}`.trim();
             const tbChunks = await retrieveTextbookChunks(ragQuery, { subject: subjectName, limit: 6 });
             const tbExcerpts = tbChunks
                 .map((c) => c.content?.trim())
