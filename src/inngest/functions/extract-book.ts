@@ -223,18 +223,21 @@ export const extractBook = inngest.createFunction(
             tableOfContents: result.tableOfContents,
         };
 
-        let sectionsResearch:
-            | { notes: string; sources: Array<{ title?: string; url: string }> }
-            | null = null;
-        try {
-            sectionsResearch = await step.run("sections-ground", async () =>
-                groundBookSections(sectionMeta),
-            );
-        } catch (e) {
-            // Section grounding exhausted its retries → skip sections (best-effort), don't fail.
-            console.error("[extract-book] section grounding exhausted — skipping sections", e);
-            sectionsResearch = null;
-        }
+        // Catch INSIDE the step so a grounding failure can never throw-and-exhaust to Inngest. An
+        // OUTER try/catch is NOT enough: when a step exhausts its retries, Inngest fails the RUN
+        // (onFailure) rather than letting the surrounding catch resume — which would kill the whole
+        // extraction BEFORE the full-text step (8). Sections are best-effort; on any failure we skip
+        // them and keep going so full-text always runs. (Trade-off: no Inngest step-level retry for a
+        // content-filtered empty — acceptable, the main extraction already succeeded.)
+        const sectionsResearch: { notes: string; sources: Array<{ title?: string; url: string }> } | null =
+            await step.run("sections-ground", async () => {
+                try {
+                    return await groundBookSections(sectionMeta);
+                } catch (e) {
+                    console.error("[extract-book] section grounding failed — skipping sections", e);
+                    return null;
+                }
+            });
 
         // Derive the gate from the step's RETURN value (not a closure-mutated flag) so it
         // stays correct across Inngest replays, where a memoized step does not re-run.
