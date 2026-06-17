@@ -9,21 +9,7 @@ import {
     structureBookSections,
     classifySectionsToObjectives,
 } from "@/lib/ai/book-extraction";
-import {
-    generateBookEmbedding,
-    stageBookTextChunks,
-    embedPendingBookTextChunks,
-} from "@/lib/utils/vector";
-import { discoverAllFullText, fetchFirstAvailable } from "@/lib/sources/registry";
-import { segmentIntoChapters, chunkText } from "@/lib/sources/text-processing";
-
-// Hard cap on total full-text chunks embedded per book, so an unusually long public-domain
-// work (a multi-volume omnibus, the Bible, War and Peace, ...) can't trigger a runaway embed
-// that exhausts the provider quota. ~2000 chunks ≈ ~600k words — covers virtually any single
-// book. Embedding is fanned out across ~ceil(N/EMBED_BATCH) memoized steps (see 8b), so each step
-// stays well under Vercel Hobby's 60s per-invocation ceiling; this cap just bounds the total
-// number of those steps. Truly massive works ingest their first ~2000 chunks.
-const MAX_FULL_TEXT_CHUNKS = 2000;
+import { generateBookEmbedding } from "@/lib/utils/vector";
 
 export const extractBook = inngest.createFunction(
     {
@@ -169,6 +155,15 @@ export const extractBook = inngest.createFunction(
                     extractedAt: new Date(),
                 },
             });
+        });
+
+        // 3b. KICK OFF full-text RAG ingestion as its OWN function (book/fulltext.requested) now the
+        //     extraction row (title/authors) is persisted. DECOUPLED on purpose: it runs independently
+        //     of the heavy sections/cross-walk steps below, so their Hobby-60s flakiness can never
+        //     block full-text (and vice-versa). Fire-and-forget; ingest-book-fulltext is best-effort.
+        await step.sendEvent("kickoff-fulltext", {
+            name: "book/fulltext.requested",
+            data: { bookExtractionId },
         });
 
         // 4. Copy down to ONLY the triggering book (its org is known). Other orgs copy down
@@ -362,233 +357,6 @@ export const extractBook = inngest.createFunction(
                 } catch (e) {
                     console.error("[extract-book cross-walk] non-fatal cross-walk failure", e);
                     return { crossWalked: false, reason: "error" };
-                }
-            });
-        }
-
-        // 8. Best-effort Phase-3 full-text ingestion. If the work is in the public domain and an
-        //    open source (Gutenberg, ...) carries its full text, fetch + chapter-segment + chunk +
-        //    embed it into the GLOBAL book_text_chunks catalog for source-grounded RAG at generation
-        //    time. book_extractions + book_text_chunks are GLOBAL/context-free → PLAIN db (no
-        //    withTenant). Non-fatal: a failure (or simply no open source) must NOT fail the compile —
-        //    the book still generates from its web-grounded facts sheet, so EVERY step here swallows.
-        //
-        //    Split across MANY small steps on purpose: each Inngest step is its own Vercel invocation
-        //    bounded by /api/inngest's maxDuration (60s on Hobby), so no single step may bundle the
-        //    big download, the multi-MB segmentation, AND ~20 embedding batches. Each is also memoized
-        //    so a kill/replay resumes instead of re-doing finished work:
-        //      8a  DISCOVER — light catalog lookup → which sources carry the text (no large download).
-        //      8b  FETCH    — download the winning source's body, park it in full_text_raw (network only).
-        //      8c  STAGE    — read it back, chapter-segment + chunk, persist content-only rows, clear raw.
-        //      8d  EMBED    — drain the unembedded rows in fixed-size, individually-memoized batches.
-        //      8e  MARK     — flip to INGESTED only once EVERY chunk truly has a vector.
-
-        // 8a. DISCOVER: locate an open-source full text (a light Gutendex-style catalog lookup, no
-        //     large download). Its own memoized step so a kill during the heavier download (8b) does
-        //     not repeat discovery. Records UNAVAILABLE when nothing carries the text.
-        const discovered = await step.run("fulltext-discover", async () => {
-            try {
-                const extraction = await db.bookExtraction.findUnique({
-                    where: { id: bookExtractionId },
-                    select: { title: true, authors: true },
-                });
-                if (!extraction) return [];
-
-                // Probe EVERY source (the light step) so 8b can fetch-fall-through: if the best
-                // source's heavy fetch throttles/fails, the next source's text is tried instead.
-                const hits = await discoverAllFullText({
-                    title: extraction.title,
-                    authors: extraction.authors,
-                });
-
-                // No open source carries this text → record UNAVAILABLE so we don't retry blindly
-                // and the UI can show "full-text quotes not available" rather than spinning.
-                if (hits.length === 0) {
-                    await db.bookExtraction.update({
-                        where: { id: bookExtractionId },
-                        data: { fullTextStatus: "UNAVAILABLE" },
-                    });
-                    return [];
-                }
-                return hits; // BookTextLocation[] in best-first priority order
-            } catch (e) {
-                console.error("[extract-book fulltext-discover] non-fatal discover failure", e);
-                return [];
-            }
-        });
-
-        // 8b. FETCH: download the winning source's body — the ONE heavy network step, isolated — and
-        //     park it in book_extractions.full_text_raw. The multi-MB body stays in the DB, NOT returned
-        //     across the Inngest step boundary (which has an output-size limit), and this step does NO
-        //     other work, so the slow fetch never shares the 60s ceiling with segmentation/staging
-        //     (the bug: a 3.2 MB Internet-Archive book or a throttled Wikisource assembly blew the
-        //     monolithic step). fetchFirstAvailable tries the discovered sources best-first (a stalled
-        //     source falls through to the next), bounded by a wall-clock budget. A miss OR a
-        //     deterministic error records UNAVAILABLE — never leaves the status NULL — so a full-text
-        //     failure is VISIBLE rather than silently swallowed.
-        const fetched = discovered.length > 0
-            ? await step.run("fulltext-fetch", async () => {
-                  try {
-                      const result = await fetchFirstAvailable(discovered, { budgetMs: 40000 });
-                      if (!result) {
-                          await db.bookExtraction.update({
-                              where: { id: bookExtractionId },
-                              data: { fullTextStatus: "UNAVAILABLE" },
-                          });
-                          return { ok: false as const, reason: "fetch-failed" };
-                      }
-                      // Park the raw text + provenance; INGESTING now so the row knows its (winning)
-                      // source. Status flips to INGESTED only after every chunk is embedded (8e).
-                      await db.bookExtraction.update({
-                          where: { id: bookExtractionId },
-                          data: {
-                              fullTextRaw: result.text,
-                              publicDomain: true,
-                              fullTextSource: result.source,
-                              fullTextSourceId: result.sourceId,
-                              fullTextStatus: "INGESTING",
-                          },
-                      });
-                      return { ok: true as const, source: result.source, length: result.text.length };
-                  } catch (e) {
-                      console.error("[extract-book fulltext-fetch] non-fatal fetch failure", e);
-                      await db.bookExtraction
-                          .update({ where: { id: bookExtractionId }, data: { fullTextStatus: "UNAVAILABLE" } })
-                          .catch((err) => console.error("[extract-book fulltext-fetch] status write failed", err));
-                      return { ok: false as const, reason: "error" };
-                  }
-              })
-            : { ok: false as const, reason: "unavailable" };
-
-        // 8c. STAGE: read the parked raw text back, chapter-segment + chunk it (aligned to the stored
-        //     Phase-2 section titles so each text chunk's sectionNumber lines up with its facts sheet),
-        //     persist content-only rows (vectors come in 8d), then CLEAR the parked text. Pure CPU + DB
-        //     — NO network — so it fits the ceiling for any book size. A failure records UNAVAILABLE
-        //     (visible) and still clears the parked multi-MB text.
-        const staged = fetched.ok
-            ? await step.run("fulltext-stage", async () => {
-                  try {
-                      const ext = await db.bookExtraction.findUnique({
-                          where: { id: bookExtractionId },
-                          select: { fullTextRaw: true },
-                      });
-                      const text = ext?.fullTextRaw;
-                      if (!text) {
-                          await db.bookExtraction.update({
-                              where: { id: bookExtractionId },
-                              data: { fullTextStatus: "UNAVAILABLE" },
-                          });
-                          return { staged: 0, reason: "no-raw" };
-                      }
-
-                      const storedSections = await db.bookExtractionSection.findMany({
-                          where: { bookExtractionId },
-                          select: { sectionNumber: true, title: true },
-                          orderBy: { sectionNumber: "asc" },
-                      });
-                      const toc = storedSections.map((s) => ({
-                          sectionNumber: s.sectionNumber,
-                          title: s.title,
-                      }));
-
-                      const chapters = segmentIntoChapters(text, toc);
-
-                      // Flatten chapters → overlapping word-window chunks, tagging each with its
-                      // section. Cap the total so a huge book can't trigger a runaway embed.
-                      const allChunks: { sectionNumber: number | null; content: string }[] = [];
-                      for (const chapter of chapters) {
-                          if (allChunks.length >= MAX_FULL_TEXT_CHUNKS) break;
-                          for (const content of chunkText(chapter.text)) {
-                              if (allChunks.length >= MAX_FULL_TEXT_CHUNKS) break;
-                              allChunks.push({ sectionNumber: chapter.sectionNumber, content });
-                          }
-                      }
-
-                      if (allChunks.length === 0) {
-                          await db.bookExtraction.update({
-                              where: { id: bookExtractionId },
-                              data: { fullTextStatus: "UNAVAILABLE", fullTextRaw: null },
-                          });
-                          return { staged: 0, reason: "no-chunks" };
-                      }
-
-                      // Persist content-only rows. Idempotent delete-then-insert.
-                      const count = await stageBookTextChunks(bookExtractionId, allChunks);
-                      // Drop the multi-MB parked text now the chunks are persisted (keep the row lean).
-                      await db.bookExtraction.update({
-                          where: { id: bookExtractionId },
-                          data: {
-                              fullTextRaw: null,
-                              ...(count === 0 ? { fullTextStatus: "UNAVAILABLE" } : {}),
-                          },
-                      });
-                      return { staged: count };
-                  } catch (e) {
-                      console.error("[extract-book fulltext-stage] non-fatal stage failure", e);
-                      await db.bookExtraction
-                          .update({
-                              where: { id: bookExtractionId },
-                              data: { fullTextStatus: "UNAVAILABLE", fullTextRaw: null },
-                          })
-                          .catch((err) => console.error("[extract-book fulltext-stage] status write failed", err));
-                      return { staged: 0, reason: "error" };
-                  }
-              })
-            : { staged: 0, reason: "not-fetched" };
-
-        if (staged.staged > 0) {
-            // 8d. EMBED: drain the staged chunks in fixed-size batches, one memoized step each. A
-            //     batch (≤2 gemini-embedding-2 calls + ≤EMBED_BATCH writes) is comfortably bounded,
-            //     so no single invocation approaches the ceiling. The batch COUNT is derived from the
-            //     memoized stage result, so it's deterministic across replays (stable step ids); each
-            //     step drains the next `embedding IS NULL` slice, so finished batches are never redone.
-            //     embedPendingBookTextChunks THROWS on a real failure (it no longer swallows), so a
-            //     failing batch retries via the function `retries`; if it still exhausts them, we
-            //     catch + break and 8d leaves the row INGESTING (partial) rather than a false INGESTED.
-            const EMBED_BATCH = 200;
-            const numBatches = Math.ceil(staged.staged / EMBED_BATCH);
-            for (let i = 0; i < numBatches; i++) {
-                try {
-                    await step.run(`fulltext-embed-${i}`, async () => {
-                        const embedded = await embedPendingBookTextChunks(
-                            bookExtractionId,
-                            EMBED_BATCH,
-                        );
-                        return { embedded };
-                    });
-                } catch (e) {
-                    // This batch exhausted its retries → stop. 8d's COUNT check keeps the status
-                    // honest (INGESTING, not INGESTED); a later re-extract drains the rest idempotently.
-                    console.error(
-                        `[extract-book] embed batch ${i} exhausted — leaving full-text partial`,
-                        e,
-                    );
-                    break;
-                }
-            }
-
-            // 8e. MARK: flip to INGESTED ONLY when every chunk truly carries a vector — otherwise a
-            //     half-embedded book would be advertised as fully ingested and RAG would silently
-            //     retrieve fewer/no excerpts. Re-check the unembedded count and downgrade to INGESTING
-            //     when any remain. Best-effort + idempotent: wrapped in try/catch so a transient blip
-            //     on this single UPDATE can never fail the whole (already-successful) extraction.
-            await step.run("fulltext-mark-ingested", async () => {
-                try {
-                    const rows = await db.$queryRaw<Array<{ remaining: bigint }>>`
-                        SELECT count(*)::bigint AS remaining
-                        FROM "book_text_chunks"
-                        WHERE book_extraction_id = ${bookExtractionId} AND embedding IS NULL;
-                    `;
-                    const remaining = Number(rows[0]?.remaining ?? 0);
-                    const done = remaining === 0;
-                    await db.bookExtraction.update({
-                        where: { id: bookExtractionId },
-                        data: { fullTextStatus: done ? "INGESTED" : "INGESTING" },
-                    });
-                    return { ingested: done, remaining };
-                } catch (e) {
-                    console.error("[extract-book fulltext-mark-ingested] non-fatal failure", e);
-                    return { ingested: false };
                 }
             });
         }

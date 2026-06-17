@@ -4,6 +4,7 @@ import { processDocument } from "@/inngest/functions/process-document";
 import { scanMessage } from "@/inngest/functions/safety-scan";
 import { compileCurriculum } from "@/inngest/functions/compile-curriculum";
 import { extractBook } from "@/inngest/functions/extract-book";
+import { ingestBookFullText } from "@/inngest/functions/ingest-book-fulltext";
 import { extractVideo } from "@/inngest/functions/extract-video";
 import {
     ingestTextbookCorpus,
@@ -27,6 +28,7 @@ export const { GET, POST, PUT } = serve({
         scanMessage,
         compileCurriculum,
         extractBook,
+        ingestBookFullText,
         extractVideo,
         ingestTextbookCorpus,
         ingestTextbook,

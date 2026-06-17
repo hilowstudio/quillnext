@@ -44,6 +44,15 @@ type VideoExtractRequestedEvent = {
     };
 };
 
+// Phase-3 BOOK full-text RAG ingestion — fired by extract-book once the GLOBAL extraction row is
+// persisted. Its OWN function (ingest-book-fulltext) so it runs DECOUPLED from the heavy
+// grounding/sections steps. GLOBAL/context-free → no organizationId needed.
+type BookFullTextRequestedEvent = {
+    data: {
+        bookExtractionId: string;
+    };
+};
+
 // Open-textbook corpus (by-subject grounding). GLOBAL/shared — no organizationId needed (the worker
 // writes the context-free textbook_* tables with plain db). `corpus.ingest` is user-triggered and
 // fans out one `ingest.requested` per book.
@@ -78,6 +87,7 @@ type Events = {
     "chat/message.sent": ChatMessageSentEvent;
     "curriculum/compile": CurriculumCompileEvent;
     "book/extract.requested": BookExtractRequestedEvent;
+    "book/fulltext.requested": BookFullTextRequestedEvent;
     "video/extract.requested": VideoExtractRequestedEvent;
     "textbook/corpus.ingest": TextbookCorpusIngestEvent;
     "textbook/ingest.requested": TextbookIngestRequestedEvent;
