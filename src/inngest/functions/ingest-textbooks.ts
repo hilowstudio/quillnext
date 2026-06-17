@@ -1,6 +1,6 @@
 import { inngest } from "@/inngest/client";
 import { db } from "@/server/db";
-import { listOpenStaxBooks, assembleOpenStaxSections } from "@/lib/sources/openstax";
+import { CORPUS_SOURCES, getCorpusSource } from "@/lib/sources/corpus-registry";
 import { chunkText } from "@/lib/sources/text-processing";
 import { stageTextbookChunks, embedPendingTextbookChunks } from "@/lib/utils/vector";
 import { crossWalkTextbookTopics } from "@/lib/textbook-coverage";
@@ -11,7 +11,8 @@ const MAX_TEXTBOOK_CHUNKS = 1500;
 
 /**
  * DISCOVERY / fan-out for the open-textbook corpus. User-triggered (`textbook/corpus.ingest`): it
- * lists the OpenStax catalog, upserts a TextbookDocument per book (keyed by cnx_id), and fans out one
+ * enumerates EVERY registered corpus source (CORPUS_SOURCES — openstax, siyavula, …), upserts a
+ * TextbookDocument per book (keyed by its source + externalId), and fans out one
  * `textbook/ingest.requested` per book that still needs ingesting. The corpus tables are GLOBAL /
  * context-free, so all writes use PLAIN db (no withTenant). The actual bulk run is a deliberate,
  * cost-aware operation — this just enqueues it.
@@ -22,54 +23,62 @@ export const ingestTextbookCorpus = inngest.createFunction(
     async ({ event, step }) => {
         const force = event.data?.force === true;
 
-        const books = await step.run("list-catalog", async () => listOpenStaxBooks());
-        if (books.length === 0) return { discovered: 0, queued: 0 };
-
-        // Upsert one document per catalog book; collect those that still need ingesting.
-        const queued = await step.run("upsert-docs", async () => {
-            const toIngest: string[] = [];
-            for (const b of books) {
-                const existing = await db.textbookDocument.findUnique({ where: { cnxId: b.cnxId } });
-                if (existing?.status === "INGESTED" && !force) continue; // already done
-                await db.textbookDocument.upsert({
-                    where: { cnxId: b.cnxId },
-                    create: {
-                        source: "openstax",
-                        cnxId: b.cnxId,
-                        title: b.title,
-                        subject: b.subject,
-                        category: b.category,
-                        status: "PENDING",
-                    },
-                    update: {
-                        title: b.title,
-                        subject: b.subject,
-                        category: b.category,
-                        ...(force ? { status: "PENDING" } : {}),
-                    },
-                });
-                toIngest.push(b.cnxId);
-            }
-            return toIngest;
-        });
+        // List + upsert each source's catalog in its own step (one bounded unit of work per source).
+        let discovered = 0;
+        const queued: Array<{ source: string; externalId: string }> = [];
+        for (const src of CORPUS_SOURCES) {
+            const result = await step.run(`discover-${src.key}`, async () => {
+                const books = await src.listBooks();
+                const toIngest: string[] = [];
+                for (const b of books) {
+                    const existing = await db.textbookDocument.findUnique({
+                        where: { externalId: b.externalId },
+                    });
+                    if (existing?.status === "INGESTED" && !force) continue; // already done
+                    await db.textbookDocument.upsert({
+                        where: { externalId: b.externalId },
+                        create: {
+                            source: src.key,
+                            externalId: b.externalId,
+                            title: b.title,
+                            subject: b.subject,
+                            category: b.category,
+                            status: "PENDING",
+                        },
+                        update: {
+                            source: src.key,
+                            title: b.title,
+                            subject: b.subject,
+                            category: b.category,
+                            ...(force ? { status: "PENDING" } : {}),
+                        },
+                    });
+                    toIngest.push(b.externalId);
+                }
+                return { found: books.length, toIngest };
+            });
+            discovered += result.found;
+            for (const externalId of result.toIngest) queued.push({ source: src.key, externalId });
+        }
 
         if (queued.length > 0) {
             await step.sendEvent(
                 "fan-out",
-                queued.map((cnxId) => ({ name: "textbook/ingest.requested" as const, data: { cnxId } })),
+                queued.map((q) => ({ name: "textbook/ingest.requested" as const, data: q })),
             );
         }
 
-        return { discovered: books.length, queued: queued.length };
+        return { discovered, queued: queued.length };
     },
 );
 
 /**
- * Per-book OPEN-TEXTBOOK ingestion. Assembles the book's content sections from the OpenStax content
- * API, chunks them, and embeds them into the GLOBAL textbook_chunks corpus tagged with the book's
- * subject/category. Split into STAGE → EMBED (memoized batches) → MARK, like the book full-text
- * worker, so each Inngest step stays under the 60s Vercel ceiling and a kill/replay resumes. Global
- * tables → PLAIN db. Best-effort throughout; a failure marks the document, never crashes the corpus.
+ * Per-book OPEN-TEXTBOOK ingestion. Dispatches to the registered CORPUS source (by the stored
+ * `source` key) to assemble the book's content sections, chunks them, and embeds them into the GLOBAL
+ * textbook_chunks corpus tagged with the book's subject/category. Split into STAGE → EMBED (memoized
+ * batches) → MARK → CROSS-WALK, like the book full-text worker, so each Inngest step stays under the
+ * 60s Vercel ceiling and a kill/replay resumes. Global tables → PLAIN db. Best-effort throughout; a
+ * failure marks the document, never crashes the corpus.
  */
 export const ingestTextbook = inngest.createFunction(
     {
@@ -77,33 +86,33 @@ export const ingestTextbook = inngest.createFunction(
         retries: 3,
         concurrency: { limit: 3 }, // gentle on the embedding provider during a bulk run
         onFailure: async ({ event }) => {
-            const cnxId = (event as any)?.data?.event?.data?.cnxId as string | undefined;
-            if (cnxId) {
+            const externalId = (event as any)?.data?.event?.data?.externalId as string | undefined;
+            if (externalId) {
                 await db.textbookDocument
-                    .update({ where: { cnxId }, data: { status: "UNAVAILABLE" } })
+                    .update({ where: { externalId }, data: { status: "UNAVAILABLE" } })
                     .catch((e) => console.error("[ingest-textbook onFailure] mark UNAVAILABLE failed", e));
             }
         },
     },
     { event: "textbook/ingest.requested" },
     async ({ event, step }) => {
-        const { cnxId } = event.data;
+        const { source, externalId } = event.data;
 
         const doc = await step.run("load-doc", async () => {
             return db.textbookDocument.findUnique({
-                where: { cnxId },
+                where: { externalId },
                 select: { id: true, subject: true, category: true },
             });
         });
         if (!doc) return { skipped: true, reason: "no-document" };
 
         // 1. STAGE: assemble + chunk the sections, persist content-only rows (vectors come next).
-        //    No try/catch swallow: a real failure (assembleOpenStaxSections is fail-safe; stage-
+        //    No try/catch swallow: a real failure (the source's assembleSections is fail-safe; stage-
         //    TextbookChunks THROWS on DB error) propagates → Inngest retries → onFailure marks the
-        //    doc UNAVAILABLE. Deterministic empties (no sections / no usable chunk text) mark
-        //    UNAVAILABLE here so the doc never lingers in PENDING.
+        //    doc UNAVAILABLE. Deterministic empties (unknown source / no sections / no usable chunk
+        //    text) mark UNAVAILABLE here so the doc never lingers in PENDING.
         const staged = await step.run("stage", async () => {
-            const sections = await assembleOpenStaxSections(cnxId);
+            const sections = (await getCorpusSource(source)?.assembleSections(externalId)) ?? [];
             if (sections.length === 0) {
                 await db.textbookDocument.update({
                     where: { id: doc.id },
@@ -193,7 +202,7 @@ export const ingestTextbook = inngest.createFunction(
             });
         }
 
-        return { success: true, cnxId };
+        return { success: true, source, externalId };
     },
 );
 

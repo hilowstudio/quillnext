@@ -738,12 +738,14 @@ model BookTextChunk {
 
 /// One ingested open TEXTBOOK in the by-subject corpus (textbook grounding). Global, cross-org
 /// shared (CONTEXT_FREE_MODELS), keyed by subject so generation can ground ANY subject a parent
-/// teaches even with no specific book. `cnxId` is unique → discovery upserts by it and the per-book
-/// worker marks status, so the bulk ingest is idempotent.
+/// teaches even with no specific book. `externalId` is the source's own stable book id (unique) →
+/// discovery upserts by it and the per-book worker marks status, so the bulk ingest is idempotent.
+/// (Column stays `cnx_id` for history; the field is source-agnostic now — openstax cnxId, siyavula
+/// slug, libretexts bookID, etc.)
 model TextbookDocument {
   id         String          @id @default(uuid())
-  source     String          @default("openstax")
-  cnxId      String          @unique @map("cnx_id")
+  source     String // corpus source key: "openstax" | "siyavula" | "libretexts" | … (set by discovery)
+  externalId String          @unique @map("cnx_id") // the source's own book id (opaque)
   title      String
   subject    String? // K-12 subject, e.g. "Biology"
   category   String? // broad category, e.g. "Science"

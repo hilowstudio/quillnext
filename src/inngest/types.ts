@@ -55,7 +55,8 @@ type TextbookCorpusIngestEvent = {
 
 type TextbookIngestRequestedEvent = {
     data: {
-        cnxId: string;
+        source: string; // corpus source key (=== TextbookDocument.source), dispatches assembleSections
+        externalId: string; // the source's own book id (=== TextbookDocument.externalId)
     };
 };
 

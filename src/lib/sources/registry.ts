@@ -12,10 +12,12 @@
  * Sources are tried best-first (the registry returns the first that has the work):
  *   0. OpenStax         — open (CC BY) TEXTBOOKS via a regular content API; authoritative for
  *                         textbooks, a fast null for literature (grounds-don't-echoes at generation).
- *   1. Standard Ebooks  — meticulously hand-produced, proofread literature (highest quality).
- *   2. Project Gutenberg — clean transcriptions of ~70k classics.
- *   3. Wikisource        — community-transcribed (often validated); assembled from its page tree.
- *   4. Internet Archive  — OCR'd scans; noisier but the broadest coverage (long-tail fallback).
+ *   1. Siyavula         — open (CC BY[-ND]) SA CAPS maths & science TEXTBOOKS; matches only its fixed
+ *                         catalog titles, else a fast null (grounds-don't-echoes at generation).
+ *   2. Standard Ebooks  — meticulously hand-produced, proofread literature (highest quality).
+ *   3. Project Gutenberg — clean transcriptions of ~70k classics.
+ *   4. Wikisource        — community-transcribed (often validated); assembled from its page tree.
+ *   5. Internet Archive  — OCR'd scans; noisier but the broadest coverage (long-tail fallback).
  *
  * Every entry point NEVER throws: a source that errors is skipped and we fall through to the next,
  * returning null only when no source yields text.
@@ -26,13 +28,14 @@ import { findOnStandardEbooks, fetchStandardEbooksText } from "./standard-ebooks
 import { findOnWikisource, fetchWikisourceText } from "./wikisource";
 import { findOnInternetArchive, fetchInternetArchiveText } from "./internet-archive";
 import { findOnOpenStax, fetchOpenStaxText } from "./openstax";
+import { findOnSiyavula, fetchSiyavulaText } from "./siyavula";
 
 /**
  * Source keys that are OPEN TEXTBOOKS rather than literature. The generation layer grounds-don't-
  * echoes these (uses the excerpts for factual accuracy but teaches in its own words) instead of
  * allowing verbatim quotes the way it does for public-domain literature.
  */
-export const TEXTBOOK_SOURCES = new Set<string>(["openstax"]);
+export const TEXTBOOK_SOURCES = new Set<string>(["openstax", "siyavula"]);
 
 /** The normalized result of locating a full public-domain text. */
 export interface BookTextResult {
@@ -80,6 +83,14 @@ const openstaxSource: TextSource = {
   fetch: (textUrl) => fetchOpenStaxText(textUrl),
 };
 
+/** Siyavula: open CC BY(-ND) SA CAPS maths & science textbooks. A TEXTBOOK source (grounds-don't-
+ *  echoes). discover only matches its fixed catalog titles, so it's a fast null for everything else. */
+const siyavulaSource: TextSource = {
+  key: "siyavula",
+  discover: (meta) => findOnSiyavula(meta),
+  fetch: (textUrl) => fetchSiyavulaText(textUrl),
+};
+
 /** Standard Ebooks: highest-quality curated texts (single-page HTML → cheerio). Tried first. */
 const standardEbooksSource: TextSource = {
   key: "standard-ebooks",
@@ -122,6 +133,7 @@ const internetArchiveSource: TextSource = {
  */
 const SOURCES: TextSource[] = [
   openstaxSource,
+  siyavulaSource,
   standardEbooksSource,
   gutenbergSource,
   wikisourceSource,
