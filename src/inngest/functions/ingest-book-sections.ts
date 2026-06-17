@@ -60,52 +60,85 @@ export const ingestBookSections = inngest.createFunction(
         });
         if (!sectionMeta) return { skipped: true, reason: "no-extraction" };
 
-        // GROUND chapter-by-chapter (one AI call). Catch inside the step for logic failures; a TIMEOUT
-        // can still fail this function — but that only flips sectionsStatus, never the book.
-        const sectionsResearch: { notes: string; sources: Array<{ title?: string; url: string }> } | null =
-            await step.run("ground", async () => {
+        // GROUND + STRUCTURE the per-section facts, BATCHED so no single grounded call can exceed
+        // Vercel Hobby's 60s. A normal/single-volume book (TOC ≤ THRESHOLD) is ONE batch = one grounded
+        // call (cheap, unchanged). A BIG book (> THRESHOLD chapters) is split into BATCH-chapter groups,
+        // each grounded + structured in its OWN memoized steps so each stays bounded. (A null batch =
+        // no usable TOC → one call, let the model find the structure.) Every step catches internally
+        // (incl. the 50s grounding abort inside runBookGrounding), so a slow/failed batch just yields
+        // nothing — it never fails this function. The book itself is never touched.
+        const SECTION_BATCH_THRESHOLD = 20; // ≤ this many chapters → a single grounded call
+        const SECTION_BATCH_SIZE = 8; // chapters per grounded call when batching a big TOC
+        const toc = Array.isArray(sectionMeta.tableOfContents)
+            ? (sectionMeta.tableOfContents as unknown[])
+            : [];
+        const batches: (unknown[] | null)[] =
+            toc.length > SECTION_BATCH_THRESHOLD
+                ? Array.from({ length: Math.ceil(toc.length / SECTION_BATCH_SIZE) }, (_, i) =>
+                      toc.slice(i * SECTION_BATCH_SIZE, i * SECTION_BATCH_SIZE + SECTION_BATCH_SIZE),
+                  )
+                : [toc.length > 0 ? toc : null];
+
+        // Idempotent clear once; each batch then APPENDS its sections (distinct chapters → no overlap).
+        await step.run("clear-sections", async () => {
+            await db.bookExtractionSection.deleteMany({ where: { bookExtractionId } });
+            return {};
+        });
+
+        let totalWritten = 0;
+        for (let i = 0; i < batches.length; i++) {
+            const batchMeta = {
+                ...sectionMeta,
+                tableOfContents: batches[i] ?? sectionMeta.tableOfContents,
+            };
+
+            // GROUND this batch (≤ a few chapters). Return just the notes (small → safe across the step
+            // boundary). The 50s abort inside runBookGrounding keeps each call under the ceiling.
+            const notes = await step.run(`ground-${i}`, async () => {
                 try {
-                    return await groundBookSections(sectionMeta);
+                    const r = await groundBookSections(batchMeta);
+                    return r.notes;
                 } catch (e) {
-                    console.error("[ingest-book-sections] grounding failed — skipping sections", e);
+                    console.error(`[ingest-book-sections ground-${i}] failed — skipping batch`, e);
                     return null;
                 }
             });
 
-        // STRUCTURE + persist the per-section facts (idempotent replace).
-        const sectionStep = await step.run("structure", async () => {
-            try {
-                if (!sectionsResearch) return { sectionsWritten: false };
-                const sections = await structureBookSections(sectionsResearch.notes, sectionMeta);
-                if (sections.length === 0) return { sectionsWritten: false };
+            // STRUCTURE this batch's notes → section facts, and append them.
+            const written = await step.run(`structure-${i}`, async () => {
+                try {
+                    if (!notes) return 0;
+                    const sections = await structureBookSections(notes, batchMeta);
+                    if (sections.length === 0) return 0;
+                    await db.bookExtractionSection.createMany({
+                        data: sections.map((s) => ({
+                            bookExtractionId,
+                            sectionNumber: s.sectionNumber,
+                            title: s.title,
+                            kind: "CHAPTER",
+                            summary: s.summary,
+                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                            keyPoints: s.keyPoints as any,
+                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                            charactersPresent: s.charactersPresent as any,
+                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                            vocabulary: s.vocabulary as any,
+                            factsSource: "WEB",
+                        })),
+                    });
+                    return sections.length;
+                } catch (e) {
+                    console.error(`[ingest-book-sections structure-${i}] failed`, e);
+                    return 0;
+                }
+            });
+            totalWritten += written;
+        }
 
-                await db.bookExtractionSection.deleteMany({ where: { bookExtractionId } });
-                await db.bookExtractionSection.createMany({
-                    data: sections.map((s) => ({
-                        bookExtractionId,
-                        sectionNumber: s.sectionNumber,
-                        title: s.title,
-                        kind: "CHAPTER",
-                        summary: s.summary,
-                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                        keyPoints: s.keyPoints as any,
-                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                        charactersPresent: s.charactersPresent as any,
-                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                        vocabulary: s.vocabulary as any,
-                        factsSource: "WEB",
-                    })),
-                });
-                return { sectionsWritten: true, count: sections.length };
-            } catch (e) {
-                console.error("[ingest-book-sections structure] non-fatal failure", e);
-                return { sectionsWritten: false };
-            }
-        });
-
-        // No sections written (grounding/structuring degraded) → record UNAVAILABLE and stop. NOT a
-        // book failure — the book is already EXTRACTED; this is just a missing best-effort artifact.
-        if (!sectionStep.sectionsWritten) {
+        // No sections produced across any batch (grounding/structuring degraded) → record UNAVAILABLE
+        // and stop. NOT a book failure — the book is already EXTRACTED; this is a missing best-effort
+        // artifact only.
+        if (totalWritten === 0) {
             await step.run("mark-unavailable", async () => {
                 await db.bookExtraction
                     .update({ where: { id: bookExtractionId }, data: { sectionsStatus: "UNAVAILABLE" } })

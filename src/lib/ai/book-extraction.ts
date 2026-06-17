@@ -191,6 +191,13 @@ async function runBookGrounding(
     // Provider-defined Google Search grounding tool. MUST be keyed "google_search".
     tools: { google_search: google.tools.googleSearch({}) },
     prompt,
+    // Bound the call so it cannot exceed Vercel Hobby's 60s step ceiling: cap the output and ABORT at
+    // 50s. An AbortSignal timeout throws a CATCHABLE error — unlike Vercel's uncatchable 60s process
+    // kill — so the caller degrades cleanly in ONE attempt instead of burning retries. (The per-section
+    // grounding is the slow one; its worker additionally BATCHES a large TOC so each call covers only a
+    // handful of chapters. The coarse main-extraction grounding finishes well inside this budget.)
+    maxOutputTokens: 8192,
+    abortSignal: AbortSignal.timeout(50_000),
   });
   const sources = extractGroundingSources(groundingRes);
   const notes = groundingRes.text ?? "";
@@ -425,6 +432,8 @@ export async function structureBookSections(
     const structuredRes = await generateObject({
       model: models.flash,
       schema: sectionFactsSchema,
+      // Abort before Vercel's 60s kill so a slow structuring degrades cleanly to [] (catchable).
+      abortSignal: AbortSignal.timeout(50_000),
       prompt:
         `Convert the following chapter-by-chapter research notes about a book into structured ` +
         `JSON that matches the provided schema (an array of sections).\n\n` +
