@@ -12,11 +12,13 @@ import { QuizSchema, WorksheetSchema } from "@/lib/ai/schemas";
 import {
     QUOTE_GROUNDING_RULE,
     QUOTE_GROUNDING_RULE_WITH_SOURCE,
+    QUOTE_GROUNDING_RULE_TEXTBOOK,
     buildCanonicalFactsBlock,
     verifyAndReviseMarkdown,
     verifyAndReviseObject,
 } from "@/lib/ai/generation-guards";
 import { retrieveBookChunks } from "@/lib/utils/vector";
+import { TEXTBOOK_SOURCES } from "@/lib/sources/registry";
 
 // Helper to determine ingestion tier (deprecated, using DB flag)
 
@@ -160,6 +162,8 @@ export async function generateResourceCore(params: GenerateResourceCoreParams) {
                             // (set only after every chunk is embedded); publicDomain is provenance
                             // set earlier at stage time, so it must NOT gate retrieval.
                             fullTextStatus: true,
+                            // Which source provided the text — TEXTBOOK sources ground-don't-echo.
+                            fullTextSource: true,
                         },
                     },
                 },
@@ -299,14 +303,27 @@ export async function generateResourceCore(params: GenerateResourceCoreParams) {
                 .filter((c): c is string => !!c);
 
             if (excerpts.length > 0) {
-                excerptsBlock = [
-                    "VERIFIED SOURCE EXCERPTS (you MAY quote these verbatim, with attribution):",
-                    ...excerpts.map((c, i) => `[Excerpt ${i + 1}]\n${c}`),
-                ].join("\n\n");
-                // The verify pass keeps quotes found in these excerpts (instead of removing all).
-                allowedQuoteSource = excerpts.join("\n\n");
-                // The model is now allowed to quote — but ONLY from the excerpts above.
-                quoteRule = QUOTE_GROUNDING_RULE_WITH_SOURCE;
+                // TEXTBOOK sources (OpenStax) ground-don't-echo: the excerpts make the FACTS accurate
+                // but the model teaches in its own words. PD literature instead MAY quote verbatim.
+                const isTextbook =
+                    !!ext?.fullTextSource && TEXTBOOK_SOURCES.has(ext.fullTextSource);
+                if (isTextbook) {
+                    excerptsBlock = [
+                        "VERIFIED SOURCE EXCERPTS (open textbook — for FACTUAL GROUNDING; teach in your own words, do NOT quote verbatim):",
+                        ...excerpts.map((c, i) => `[Excerpt ${i + 1}]\n${c}`),
+                    ].join("\n\n");
+                    // No allowedQuoteSource → the verify pass strips any verbatim quote (ground-don't-echo).
+                    quoteRule = QUOTE_GROUNDING_RULE_TEXTBOOK;
+                } else {
+                    excerptsBlock = [
+                        "VERIFIED SOURCE EXCERPTS (you MAY quote these verbatim, with attribution):",
+                        ...excerpts.map((c, i) => `[Excerpt ${i + 1}]\n${c}`),
+                    ].join("\n\n");
+                    // The verify pass keeps quotes found in these excerpts (instead of removing all).
+                    allowedQuoteSource = excerpts.join("\n\n");
+                    // The model is now allowed to quote — but ONLY from the excerpts above.
+                    quoteRule = QUOTE_GROUNDING_RULE_WITH_SOURCE;
+                }
             }
         }
     } else if (sourceType === "VIDEO") {

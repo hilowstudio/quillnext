@@ -31,6 +31,15 @@ export const QUOTE_GROUNDING_RULE_WITH_SOURCE: string = `QUOTE GROUNDING RULE (m
 Verbatim quotation is allowed ONLY when copied EXACTLY (word-for-word) from the "VERIFIED SOURCE EXCERPTS" provided in this prompt, and ONLY with a chapter/section attribution. You must NEVER quote anything that does not appear in those excerpts — do not quote from memory, and do not present invented or paraphrased text inside quotation marks as a direct quote. For any point not covered by the excerpts, paraphrase and cite the chapter/section instead of quoting. When in doubt, paraphrase.`;
 
 /**
+ * For OPEN TEXTBOOK sources (OpenStax, etc.): the excerpts ground the FACTS, but the model must
+ * teach in its own words — GROUND-don't-echo. No verbatim reproduction of textbook prose (copying a
+ * textbook is pedagogically wrong, and we generate our own material). The caller runs the verify
+ * pass WITHOUT an allowedQuoteSource, so any verbatim quote is stripped.
+ */
+export const QUOTE_GROUNDING_RULE_TEXTBOOK: string = `QUOTE GROUNDING RULE (mandatory):
+The "VERIFIED SOURCE EXCERPTS" below are from an OPEN TEXTBOOK and are provided for FACTUAL GROUNDING ONLY. Use them so every fact, definition, and explanation is accurate, but TEACH THE CONTENT IN YOUR OWN WORDS — do NOT reproduce the textbook's sentences verbatim, and do NOT present copied or invented text inside quotation marks as a direct quote. Paraphrase and explain throughout; never echo the textbook's wording.`;
+
+/**
  * Compactly render an unknown table-of-contents value (string, array, or object)
  * into a short human-readable string. Returns "" if there is nothing useful.
  */
