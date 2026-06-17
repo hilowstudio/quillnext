@@ -14,7 +14,7 @@ import {
     stageBookTextChunks,
     embedPendingBookTextChunks,
 } from "@/lib/utils/vector";
-import { discoverFullText, fetchFullText } from "@/lib/sources/registry";
+import { discoverAllFullText, fetchFirstAvailable } from "@/lib/sources/registry";
 import { segmentIntoChapters, chunkText } from "@/lib/sources/text-processing";
 
 // Hard cap on total full-text chunks embedded per book, so an unusually long public-domain
@@ -388,45 +388,49 @@ export const extractBook = inngest.createFunction(
                     where: { id: bookExtractionId },
                     select: { title: true, authors: true },
                 });
-                if (!extraction) return null;
+                if (!extraction) return [];
 
-                const hit = await discoverFullText({
+                // Probe EVERY source (the light step) so 8b can fetch-fall-through: if the best
+                // source's heavy fetch throttles/fails, the next source's text is tried instead.
+                const hits = await discoverAllFullText({
                     title: extraction.title,
                     authors: extraction.authors,
                 });
 
                 // No open source carries this text → record UNAVAILABLE so we don't retry blindly
                 // and the UI can show "full-text quotes not available" rather than spinning.
-                if (!hit) {
+                if (hits.length === 0) {
                     await db.bookExtraction.update({
                         where: { id: bookExtractionId },
                         data: { fullTextStatus: "UNAVAILABLE" },
                     });
-                    return null;
+                    return [];
                 }
-                return hit; // { source, sourceId, textUrl }
+                return hits; // BookTextLocation[] in best-first priority order
             } catch (e) {
                 console.error("[extract-book fulltext-discover] non-fatal discover failure", e);
-                return null;
+                return [];
             }
         });
 
         // 8b. FETCH + STAGE: download the body (the one heavy fetch, isolated in its own step),
         //     chapter-segment + chunk it, and persist content-only rows (vectors come in 8c). The
-        //     multi-MB text never crosses a step boundary. Bounded: one ≤30s download + regex
-        //     segmentation + a few batched inserts — comfortably under 60s. Only runs once discovery
-        //     succeeded (deterministic from the memoized 8a result).
-        const staged = discovered
+        //     multi-MB text never crosses a step boundary. fetchFirstAvailable tries the discovered
+        //     sources in priority order and returns the first that yields text (so a throttled
+        //     Wikisource assembly falls through to e.g. the Internet Archive). Bounded: a wall-clock
+        //     budget caps the fetch attempts, + regex segmentation + a few batched inserts — under 60s.
+        const staged = discovered.length > 0
             ? await step.run("fulltext-fetch-stage", async () => {
                   try {
-                      const text = await fetchFullText(discovered.source, discovered.textUrl);
-                      if (!text) {
+                      const result = await fetchFirstAvailable(discovered);
+                      if (!result) {
                           await db.bookExtraction.update({
                               where: { id: bookExtractionId },
                               data: { fullTextStatus: "UNAVAILABLE" },
                           });
                           return { staged: 0, reason: "fetch-failed" };
                       }
+                      const text = result.text;
 
                       // Align full-text chapter segmentation to the stored Phase-2 section
                       // titles/order so each text chunk's sectionNumber lines up with its facts sheet.
@@ -465,19 +469,19 @@ export const extractBook = inngest.createFunction(
                       const count = await stageBookTextChunks(bookExtractionId, allChunks);
                       if (count === 0) return { staged: 0, reason: "stage-failed" };
 
-                      // Stamp provenance + INGESTING now so the row already knows its source; status
-                      // flips to INGESTED only after every chunk is embedded (8d).
+                      // Stamp provenance + INGESTING now so the row already knows its (winning)
+                      // source; status flips to INGESTED only after every chunk is embedded (8d).
                       await db.bookExtraction.update({
                           where: { id: bookExtractionId },
                           data: {
                               publicDomain: true,
-                              fullTextSource: discovered.source,
-                              fullTextSourceId: discovered.sourceId,
+                              fullTextSource: result.source,
+                              fullTextSourceId: result.sourceId,
                               fullTextStatus: "INGESTING",
                           },
                       });
 
-                      return { staged: count, source: discovered.source };
+                      return { staged: count, source: result.source };
                   } catch (e) {
                       console.error("[extract-book fulltext-fetch-stage] non-fatal failure", e);
                       return { staged: 0, reason: "error" };

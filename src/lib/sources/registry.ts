@@ -12,8 +12,9 @@
  * Sources are tried best-first by TEXT QUALITY (the registry returns the first that has the work):
  *   1. Standard Ebooks  — meticulously hand-produced, proofread (highest quality).
  *   2. Project Gutenberg — clean transcriptions of ~70k classics.
- *   3. Internet Archive  — OCR'd scans; noisier but the broadest coverage (long-tail fallback).
- * Further adapters (Wikisource, open-textbook sources…) slot in by appending to the `SOURCES` list.
+ *   3. Wikisource        — community-transcribed (often validated); assembled from its page tree.
+ *   4. Internet Archive  — OCR'd scans; noisier but the broadest coverage (long-tail fallback).
+ * Further adapters (open-textbook sources…) slot in by appending to the `SOURCES` list.
  *
  * Every entry point NEVER throws: a source that errors is skipped and we fall through to the next,
  * returning null only when no source yields text.
@@ -21,6 +22,7 @@
 
 import { findOnGutenberg, fetchGutenbergText } from "./gutenberg";
 import { findOnStandardEbooks, fetchStandardEbooksText } from "./standard-ebooks";
+import { findOnWikisource, fetchWikisourceText } from "./wikisource";
 import { findOnInternetArchive, fetchInternetArchiveText } from "./internet-archive";
 
 /** The normalized result of locating a full public-domain text. */
@@ -81,6 +83,13 @@ const gutenbergSource: TextSource = {
   },
 };
 
+/** Wikisource: community-transcribed; the work is ASSEMBLED from its page tree. Mid-priority. */
+const wikisourceSource: TextSource = {
+  key: "wikisource",
+  discover: (meta) => findOnWikisource(meta),
+  fetch: (textUrl) => fetchWikisourceText(textUrl),
+};
+
 /** Internet Archive: OCR'd scans, broadest coverage. Tried LAST (noisiest text — long-tail fallback). */
 const internetArchiveSource: TextSource = {
   key: "internet-archive",
@@ -91,9 +100,15 @@ const internetArchiveSource: TextSource = {
 /**
  * Registered sources in best-first priority order (highest text quality first; see the file header).
  * discoverFullText tries them in order and returns the FIRST that has the work, so a title available
- * on Standard Ebooks uses that over Gutenberg/IA, and IA only catches what the curated sources lack.
+ * on Standard Ebooks uses that over the others, and the OCR'd Internet Archive only catches what the
+ * curated/transcribed sources lack.
  */
-const SOURCES: TextSource[] = [standardEbooksSource, gutenbergSource, internetArchiveSource];
+const SOURCES: TextSource[] = [
+  standardEbooksSource,
+  gutenbergSource,
+  wikisourceSource,
+  internetArchiveSource,
+];
 
 /**
  * DISCOVER the full public-domain text for a work by trying each registered source best-first.
@@ -122,6 +137,33 @@ export async function discoverFullText(meta: {
 }
 
 /**
+ * DISCOVER the work across ALL registered sources, returning EVERY source that has it, in best-first
+ * priority order. Unlike discoverFullText (which stops at the first hit), this collects the full
+ * ranked list so the caller can FETCH-fall-through: if the best source's heavy fetch fails (e.g. a
+ * throttled Wikisource assembly), the next source's text is tried instead. Discovery is the light
+ * step, so probing every source here is cheap. NEVER throws.
+ */
+export async function discoverAllFullText(meta: {
+  title: string;
+  authors?: string[] | null;
+}): Promise<BookTextLocation[]> {
+  if (!meta || typeof meta.title !== "string" || !meta.title.trim()) return [];
+
+  const hits: BookTextLocation[] = [];
+  for (const source of SOURCES) {
+    try {
+      const hit = await source.discover(meta);
+      if (hit && hit.textUrl) {
+        hits.push({ source: source.key, sourceId: hit.sourceId, textUrl: hit.textUrl });
+      }
+    } catch (error) {
+      console.error(`[sources/registry] source "${source.key}" discover failed`, error);
+    }
+  }
+  return hits;
+}
+
+/**
  * FETCH the body for a previously-discovered location (the heavy step: a potentially multi-MB
  * download + de-boilerplating). Returns the de-boilerplated text, or null on miss/failure. NEVER
  * throws. Kept separate from discoverFullText so the download is its own bounded unit of work.
@@ -136,6 +178,31 @@ export async function fetchFullText(source: string, textUrl: string): Promise<st
     console.error(`[sources/registry] source "${source}" fetch failed`, error);
     return null;
   }
+}
+
+/**
+ * Try to FETCH each discovered location in priority order and return the FIRST that yields usable
+ * text, along with which source it came from. This is the fetch-fallback: a source whose fetch
+ * throttles/fails (notably Wikisource's multi-page assembly) is skipped in favour of the next
+ * source's text (e.g. the Internet Archive's OCR), so one flaky source never blocks ingestion.
+ *
+ * Bounded by a wall-clock budget so the calling Inngest step stays under the Vercel ceiling: we do
+ * NOT start a new source's fetch once the budget is spent (each source's fetch already has its own
+ * internal timeout). NEVER throws; returns null when no source delivered text within budget.
+ */
+export async function fetchFirstAvailable(
+  candidates: BookTextLocation[],
+  opts?: { budgetMs?: number; now?: () => number },
+): Promise<{ source: string; sourceId: string; text: string } | null> {
+  const budgetMs = opts?.budgetMs ?? 45_000;
+  const now = opts?.now ?? Date.now;
+  const start = now();
+  for (const c of candidates) {
+    if (now() - start >= budgetMs) break; // out of budget → don't start another fetch
+    const text = await fetchFullText(c.source, c.textUrl);
+    if (text && text.length > 0) return { source: c.source, sourceId: c.sourceId, text };
+  }
+  return null;
 }
 
 /**
