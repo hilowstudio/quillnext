@@ -126,9 +126,20 @@ export async function verifyAndReviseMarkdown(
     factsBlock: string,
     model: unknown,
     allowedQuoteSource?: string,
+    antiEchoSource?: string,
 ): Promise<string> {
     if (!draft || !draft.trim()) return draft;
     try {
+        // GROUND-DON'T-ECHO backstop (open textbooks): catch verbatim source prose reproduced
+        // WITHOUT quotation marks (the quote rule only handles quoted text).
+        const antiEcho = antiEchoSource?.trim() || "";
+        const antiEchoRule = antiEcho
+            ? `\n(d) GROUND-DON'T-ECHO: the draft was written using the SOURCE PROSE below for facts. Rewrite in your OWN WORDS any sentence or passage that reproduces the SOURCE PROSE's wording — even when it is NOT inside quotation marks. The result must teach the concepts without copying the source's sentences.
+
+=== SOURCE PROSE (must NOT be reproduced verbatim) ===
+${antiEcho}
+=== END SOURCE PROSE ===`
+            : "";
         const factsSection = factsBlock?.trim()
             ? `${factsBlock}\n`
             : "(No canonical facts were supplied — still apply the contradiction, quote, and garbled-text checks.)\n";
@@ -155,7 +166,7 @@ ${draft}
 Return ONLY the corrected markdown — preserve the same structure, headings, formatting, and pedagogical intent. Fix the following:
 (a) Internal contradictions, and any claim that disagrees with the CANONICAL FACTS above. The canonical facts are ground truth; correct the draft to agree with them.
 ${quoteRule}
-(c) Garbled, malformed, or nonsensical questions or sentences: rewrite them clearly so they make sense.
+(c) Garbled, malformed, or nonsensical questions or sentences: rewrite them clearly so they make sense.${antiEchoRule}
 
 Do not add commentary, preamble, or explanations. Output ONLY the corrected markdown content.`;
 
@@ -180,9 +191,20 @@ export async function verifyAndReviseObject<T>(
     factsBlock: string,
     model: unknown,
     allowedQuoteSource?: string,
+    antiEchoSource?: string,
 ): Promise<T> {
     if (draft == null) return draft;
     try {
+        // GROUND-DON'T-ECHO backstop (open textbooks): catch verbatim source prose reproduced
+        // without quotation marks.
+        const antiEcho = antiEchoSource?.trim() || "";
+        const antiEchoRule = antiEcho
+            ? `\n(d) GROUND-DON'T-ECHO: rewrite in your OWN WORDS any text that reproduces the SOURCE PROSE's wording (even without quotation marks). Teach the concepts without copying the source's sentences.
+
+=== SOURCE PROSE (must NOT be reproduced verbatim) ===
+${antiEcho}
+=== END SOURCE PROSE ===`
+            : "";
         const factsSection = factsBlock?.trim()
             ? `${factsBlock}\n`
             : "(No canonical facts were supplied — still apply the contradiction, quote, and garbled-text checks.)\n";
@@ -211,7 +233,7 @@ ${serialized}
 Return a corrected version of this content that conforms to the required schema. Fix the following:
 (a) Internal contradictions, and any claim/question/answer that disagrees with the CANONICAL FACTS above. The canonical facts are ground truth; correct the content to agree with them.
 ${quoteRule}
-(c) Garbled, malformed, or nonsensical questions, answers, options, or sentences: rewrite them clearly so they make sense and remain internally consistent (e.g. the correct answer must still be among the options).
+(c) Garbled, malformed, or nonsensical questions, answers, options, or sentences: rewrite them clearly so they make sense and remain internally consistent (e.g. the correct answer must still be among the options).${antiEchoRule}
 
 Preserve the overall structure, intent, and number of items where possible. Do not add commentary — return only the corrected structured content.`;
 

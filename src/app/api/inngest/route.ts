@@ -5,6 +5,7 @@ import { scanMessage } from "@/inngest/functions/safety-scan";
 import { compileCurriculum } from "@/inngest/functions/compile-curriculum";
 import { extractBook } from "@/inngest/functions/extract-book";
 import { extractVideo } from "@/inngest/functions/extract-video";
+import { ingestTextbookCorpus, ingestTextbook } from "@/inngest/functions/ingest-textbooks";
 
 // Each Inngest STEP runs as a fresh invocation of THIS Vercel function, so it is bounded by the
 // function's maxDuration (NOT by Inngest's orchestration). On the Vercel HOBBY plan the hard
@@ -22,5 +23,7 @@ export const { GET, POST, PUT } = serve({
         compileCurriculum,
         extractBook,
         extractVideo,
+        ingestTextbookCorpus,
+        ingestTextbook,
     ],
 });

@@ -80,16 +80,28 @@ function readSubjects(book: Record<string, unknown>): { subject: string | null; 
   }
   const he = Array.isArray(book.book_subjects) ? (book.book_subjects as Array<Record<string, unknown>>) : [];
   if (he.length > 0 && typeof he[0].subject_name === "string") {
-    return { subject: he[0].subject_name as string, category: he[0].subject_name as string };
+    // Higher-ed books have no K-12 category; leave category null (don't duplicate the subject as a
+    // bogus "category") and let the subject-enriched embedding query carry relevance.
+    return { subject: he[0].subject_name as string, category: null };
   }
   return { subject: null, category: null };
 }
 
+// Process-level catalog memo: the catalog rarely changes, but discoverAllFullText calls
+// findOnOpenStax → listOpenStaxBooks for EVERY book extraction (incl. literature that never matches),
+// each doing ~7 paginated calls. Cache it (per warm process) with a TTL to avoid repeating that.
+let _catalogCache: { at: number; books: OpenStaxBook[] } | null = null;
+const CATALOG_TTL_MS = 6 * 60 * 60 * 1000;
+
 /**
  * List the full OpenStax catalog (paginated), with each book's archive id, title, slug, and subject
- * tags. NEVER throws — returns whatever pages it could fetch (or [] on total failure).
+ * tags. Memoized per process (TTL). NEVER throws — returns whatever pages it could fetch (or [] on
+ * total failure; a failed fetch is NOT cached so it retries next call).
  */
 export async function listOpenStaxBooks(): Promise<OpenStaxBook[]> {
+  if (_catalogCache && Date.now() - _catalogCache.at < CATALOG_TTL_MS && _catalogCache.books.length > 0) {
+    return _catalogCache.books;
+  }
   const out: OpenStaxBook[] = [];
   const fields = "title,cnx_id,k12book_subjects,book_subjects,webview_rex_link";
   for (let offset = 0; offset < 400; offset += 20) {
@@ -105,9 +117,12 @@ export async function listOpenStaxBooks(): Promise<OpenStaxBook[]> {
       const { subject, category } = readSubjects(b);
       out.push({ cnxId, title, slug: slugFromRexLink(b.webview_rex_link), subject, category });
     }
-    const total = data?.meta?.total_count ?? 0;
+    // Default a missing total_count to Infinity (NOT 0 — that would break after page 1); the
+    // `items.length < 20` short-page check is the real terminator.
+    const total = data?.meta?.total_count ?? Infinity;
     if (out.length >= total || items.length < 20) break;
   }
+  if (out.length > 0) _catalogCache = { at: Date.now(), books: out };
   return out;
 }
 
@@ -142,8 +157,14 @@ export async function resolveOpenStaxBook(meta: {
       const prefixMatch = cand.startsWith(`${want} `) || want.startsWith(`${cand} `);
       if (!isExact && !prefixMatch) continue;
 
+      // Prefer the NEWEST edition among equal-title matches: the bare title ("American Government")
+      // and "…2e/3e/4e" all normalize the same, so without this the catalog-first (oldest, often
+      // RETIRED) edition would win the tie. Capture the edition number (no suffix = 1st edition).
+      const edition = parseInt(book.title.match(/\b(\d+)e\b/i)?.[1] ?? "1", 10);
+
       let score = isExact ? 3 : 1;
       score -= Math.abs(cand.length - want.length) / 100;
+      score += edition * 0.5; // newest edition wins the tie
       if (score > bestScore) {
         bestScore = score;
         best = book;
@@ -156,13 +177,17 @@ export async function resolveOpenStaxBook(meta: {
   }
 }
 
-/** Resolve the archive base URL + a book's pinned content version from the rex release config. */
+/** Resolve the archive base URL + a book's pinned content version from the rex release config.
+ *  Returns null for a RETIRED book (a superseded edition still carries a defaultVersion, so we must
+ *  check `retired` explicitly or we'd silently ground generation on stale/superseded content). */
 async function resolveArchive(cnxId: string): Promise<{ base: string; bookId: string } | null> {
   const rel = (await getJson(RELEASE)) as
-    | { archiveUrl?: unknown; books?: Record<string, { defaultVersion?: unknown }> }
+    | { archiveUrl?: unknown; books?: Record<string, { defaultVersion?: unknown; retired?: unknown }> }
     | null;
   const archiveUrl = typeof rel?.archiveUrl === "string" ? rel.archiveUrl : null;
-  const version = rel?.books?.[cnxId]?.defaultVersion;
+  const info = rel?.books?.[cnxId];
+  if (info?.retired === true) return null; // never ground on a retired edition
+  const version = info?.defaultVersion;
   if (!archiveUrl || typeof version !== "string") return null;
   return { base: `https://openstax.org${archiveUrl}`, bookId: `${cnxId}@${version}` };
 }

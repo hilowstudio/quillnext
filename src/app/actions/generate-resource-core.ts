@@ -17,7 +17,7 @@ import {
     verifyAndReviseMarkdown,
     verifyAndReviseObject,
 } from "@/lib/ai/generation-guards";
-import { retrieveBookChunks } from "@/lib/utils/vector";
+import { retrieveBookChunks, retrieveTextbookChunks } from "@/lib/utils/vector";
 import { TEXTBOOK_SOURCES } from "@/lib/sources/registry";
 
 // Helper to determine ingestion tier (deprecated, using DB flag)
@@ -138,6 +138,9 @@ export async function generateResourceCore(params: GenerateResourceCoreParams) {
     let quoteRule = QUOTE_GROUNDING_RULE;
     let excerptsBlock = "";
     let allowedQuoteSource = "";
+    // For TEXTBOOK (ground-don't-echo) sources: the excerpts the verify pass must ensure are NOT
+    // reproduced verbatim (even un-quoted). Stays "" for literature (which MAY quote verbatim).
+    let antiEchoSource = "";
 
     if (sourceType === "BOOK") {
         // ... (existing book logic) ...
@@ -312,7 +315,9 @@ export async function generateResourceCore(params: GenerateResourceCoreParams) {
                         "VERIFIED SOURCE EXCERPTS (open textbook — for FACTUAL GROUNDING; teach in your own words, do NOT quote verbatim):",
                         ...excerpts.map((c, i) => `[Excerpt ${i + 1}]\n${c}`),
                     ].join("\n\n");
-                    // No allowedQuoteSource → the verify pass strips any verbatim quote (ground-don't-echo).
+                    // No allowedQuoteSource → the verify pass strips any verbatim quote; antiEchoSource
+                    // makes it also rewrite un-quoted verbatim textbook prose (ground-don't-echo).
+                    antiEchoSource = excerpts.join("\n\n");
                     quoteRule = QUOTE_GROUNDING_RULE_TEXTBOOK;
                 } else {
                     excerptsBlock = [
@@ -377,9 +382,44 @@ export async function generateResourceCore(params: GenerateResourceCoreParams) {
         genContext = { source: "COURSE", courseId: sourceId };
     } else if (sourceType === "TOPIC") {
         // ... (existing topic logic) ...
-        context = `Topic/Objective: ${additionalData?.topicText || sourceId}`;
-        sourceTitle = (additionalData?.topicText || sourceId).substring(0, 50);
-        genContext = { source: "TOPIC", topic: additionalData?.topicText || sourceId };
+        const topicText = additionalData?.topicText || sourceId;
+        context = `Topic/Objective: ${topicText}`;
+        sourceTitle = topicText.substring(0, 50);
+        genContext = { source: "TOPIC", topic: topicText };
+
+        // By-subject TEXTBOOK grounding: ground subject-driven generation in matching OpenStax
+        // sections from the GLOBAL textbook corpus. GROUND-don't-echo — the excerpts make the facts
+        // accurate but the model teaches in its own words (no allowedQuoteSource → the verify pass
+        // strips any verbatim quote). retrieveTextbookChunks reads PLAIN db (global, never throws).
+        //
+        // Derive the SUBJECT to filter on: prefer an explicit additionalData.subject, else parse it
+        // from the "<prefix>: <subject> - <topic>" topicText shape the compiler emits (the prefix
+        // varies per resource — "Unit:", "Slides for:", … — so match any prefix up to the " - ").
+        const subjectHint =
+            (additionalData as { subject?: string })?.subject?.trim() ||
+            (typeof topicText === "string"
+                ? topicText.match(/:\s*(.+?)\s+-\s+/)?.[1]?.trim()
+                : null) ||
+            null;
+        // Only ground when we actually know the subject — an unfiltered semantic search across every
+        // subject risks surfacing WRONG-subject excerpts, which is worse than no grounding at all.
+        if (subjectHint) {
+            const tbChunks = await retrieveTextbookChunks(`${kind.label} ${topicText}`.trim(), {
+                subject: subjectHint,
+                limit: 6,
+            });
+            const tbExcerpts = tbChunks
+                .map((c) => c.content?.trim())
+                .filter((c): c is string => !!c);
+            if (tbExcerpts.length > 0) {
+                excerptsBlock = [
+                    "VERIFIED SOURCE EXCERPTS (open textbook — for FACTUAL GROUNDING; teach in your own words, do NOT quote verbatim):",
+                    ...tbExcerpts.map((c, i) => `[Excerpt ${i + 1}]\n${c}`),
+                ].join("\n\n");
+                antiEchoSource = tbExcerpts.join("\n\n");
+                quoteRule = QUOTE_GROUNDING_RULE_TEXTBOOK;
+            }
+        }
     } else if (sourceType === "URL") {
         // ... (existing url logic) ...
         const url = additionalData?.url || sourceId;
@@ -508,12 +548,12 @@ export async function generateResourceCore(params: GenerateResourceCoreParams) {
     // fix contradictions vs. the canonical facts, ungrounded verbatim quotes, and
     // garbled questions. They never throw; on error the original draft is kept.
     if (kind.contentType === "QUIZ") {
-        jsonContent = await verifyAndReviseObject(jsonContent as any, QuizSchema, factsBlock, models.pro3, allowedQuoteSource);
+        jsonContent = await verifyAndReviseObject(jsonContent as any, QuizSchema, factsBlock, models.pro3, allowedQuoteSource, antiEchoSource);
     } else if (kind.contentType === "WORKSHEET") {
-        jsonContent = await verifyAndReviseObject(jsonContent as any, WorksheetSchema, factsBlock, models.pro3, allowedQuoteSource);
+        jsonContent = await verifyAndReviseObject(jsonContent as any, WorksheetSchema, factsBlock, models.pro3, allowedQuoteSource, antiEchoSource);
     } else {
         // Markdown verification uses the fast/cheap flash model.
-        textContent = await verifyAndReviseMarkdown(textContent, factsBlock, models.flash, allowedQuoteSource);
+        textContent = await verifyAndReviseMarkdown(textContent, factsBlock, models.flash, allowedQuoteSource, antiEchoSource);
     }
 
     // 4. Save to DB (org-scoped write — stamp the explicit tenant).

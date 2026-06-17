@@ -48,6 +48,8 @@ const CONTEXT_FREE_MODELS = new Set([
   "BookExtractionSection", "BookSectionObjective", "SpineGap",
   // Global cross-org shared full-text chunks (public-domain books, pgvector RAG).
   "BookTextChunk",
+  // Global cross-org shared open-textbook corpus (subject-keyed RAG grounding).
+  "TextbookDocument", "TextbookChunk",
 ]);
 
 /**

@@ -736,6 +736,47 @@ model BookTextChunk {
   @@map("book_text_chunks")
 }
 
+/// One ingested open TEXTBOOK in the by-subject corpus (textbook grounding). Global, cross-org
+/// shared (CONTEXT_FREE_MODELS), keyed by subject so generation can ground ANY subject a parent
+/// teaches even with no specific book. `cnxId` is unique → discovery upserts by it and the per-book
+/// worker marks status, so the bulk ingest is idempotent.
+model TextbookDocument {
+  id         String          @id @default(uuid())
+  source     String          @default("openstax")
+  cnxId      String          @unique @map("cnx_id")
+  title      String
+  subject    String? // K-12 subject, e.g. "Biology"
+  category   String? // broad category, e.g. "Science"
+  status     String          @default("PENDING") // PENDING | INGESTED | UNAVAILABLE
+  chunkCount Int             @default(0) @map("chunk_count")
+  createdAt  DateTime        @default(now()) @map("created_at")
+  updatedAt  DateTime        @updatedAt @map("updated_at")
+  chunks     TextbookChunk[]
+
+  @@index([subject])
+  @@map("textbook_documents")
+}
+
+/// A chunk of an open-textbook section, embedded for subject-driven RAG grounding (GROUND-don't-echo
+/// at generation). Global/shared (CONTEXT_FREE_MODELS). subject/category are denormalized for a fast
+/// subject-filtered cosine search.
+model TextbookChunk {
+  id           String                 @id @default(uuid())
+  documentId   String                 @map("document_id")
+  document     TextbookDocument       @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  subject      String?
+  category     String?
+  sectionTitle String?                @map("section_title")
+  chunkIndex   Int                    @map("chunk_index")
+  content      String
+  embedding    Unsupported("vector")?
+  createdAt    DateTime               @default(now()) @map("created_at")
+
+  @@index([subject])
+  @@index([documentId])
+  @@map("textbook_chunks")
+}
+
 /// Chapter/section-level facts sheet for a book (Phase 2 of docs/specs/grounded-generation.md).
 /// Global, cross-org shared (CONTEXT_FREE_MODELS) like its parent BookExtraction. Lets generation
 /// be scoped to the exact chapter/unit a student is on, and cross-walks to the academic spine.

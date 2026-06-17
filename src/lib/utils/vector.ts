@@ -417,3 +417,147 @@ export async function generateVideoEmbedding(
 
   return embedding;
 }
+
+// ============================================================================
+// Open-textbook corpus (by-subject grounding). GLOBAL / CONTEXT_FREE tables → PLAIN db (no
+// withTenant). Mirrors the book_text_chunks stage/embed/retrieve helpers above.
+// ============================================================================
+
+/**
+ * STAGE open-textbook section chunks for a TextbookDocument: persist content-only rows (embedding
+ * NULL) tagged with subject/category/sectionTitle, so the per-book worker can embed them in small,
+ * memoized Inngest batches (see embedPendingTextbookChunks). Idempotent delete-then-insert per
+ * document. Returns the number of rows staged, or 0 ONLY when the input is genuinely empty. It THROWS
+ * on a real DB failure so the Inngest step retries (and eventually marks the doc UNAVAILABLE) rather
+ * than leaving the document stuck in PENDING with no retry.
+ */
+export async function stageTextbookChunks(
+  documentId: string,
+  meta: { subject: string | null; category: string | null },
+  chunks: { sectionTitle: string | null; content: string }[],
+): Promise<number> {
+  const cleaned = chunks
+    .map((c) => ({ sectionTitle: c.sectionTitle, content: c.content?.trim() }))
+    .filter((c): c is { sectionTitle: string | null; content: string } => !!c.content);
+
+  await db.$executeRaw`DELETE FROM "textbook_chunks" WHERE document_id = ${documentId};`;
+  if (cleaned.length === 0) return 0;
+
+  const INSERT_BATCH = 500;
+  let staged = 0;
+  for (let i = 0; i < cleaned.length; i += INSERT_BATCH) {
+    const slice = cleaned.slice(i, i + INSERT_BATCH).map((c, j) => ({
+      documentId,
+      subject: meta.subject,
+      category: meta.category,
+      sectionTitle: c.sectionTitle,
+      chunkIndex: i + j,
+      content: c.content,
+    }));
+    const res = await db.textbookChunk.createMany({ data: slice });
+    staged += res.count;
+  }
+  return staged;
+}
+
+/**
+ * EMBED the next batch of not-yet-embedded chunks for a TextbookDocument. Drains `embedding IS NULL`
+ * in chunk order, embeds with gemini-embedding-2 (RETRIEVAL_DOCUMENT, <=100/call), writes vectors
+ * back. Returns count embedded, or 0 ONLY when none pending. THROWS on a real embed/DB failure so the
+ * Inngest step retries (the IS NULL drain makes that idempotent) rather than silently leaving gaps.
+ */
+export async function embedPendingTextbookChunks(documentId: string, limit: number): Promise<number> {
+  const pending = await db.$queryRaw<Array<{ id: string; content: string }>>`
+    SELECT id, content
+    FROM "textbook_chunks"
+    WHERE document_id = ${documentId} AND embedding IS NULL
+    ORDER BY chunk_index ASC
+    LIMIT ${limit};
+  `;
+  if (pending.length === 0) return 0;
+
+  const BATCH = 100;
+  const embeddings: number[][] = [];
+  for (let i = 0; i < pending.length; i += BATCH) {
+    const batch = pending.slice(i, i + BATCH).map((c) => c.content);
+    const { embeddings: be } = await embedMany({
+      model: embeddingModel,
+      values: batch,
+      providerOptions: embeddingProviderOptions("RETRIEVAL_DOCUMENT"),
+    });
+    embeddings.push(...be);
+  }
+
+  // The write-back maps embeddings[i] → pending[i] by position, so the counts MUST line up; bail
+  // (the step retries) rather than write a vector against the wrong chunk.
+  if (embeddings.length !== pending.length) {
+    throw new Error(
+      `[embedPendingTextbookChunks] embedding/pending count mismatch (${embeddings.length} vs ${pending.length})`,
+    );
+  }
+
+  let embedded = 0;
+  for (let i = 0; i < pending.length; i++) {
+    const vectorString = `[${embeddings[i].join(",")}]`;
+    await db.$executeRawUnsafe(
+      `UPDATE "textbook_chunks" SET embedding = $1::vector WHERE id = $2`,
+      vectorString,
+      pending[i].id,
+    );
+    embedded++;
+  }
+  return embedded;
+}
+
+/**
+ * Retrieve top open-textbook excerpts for subject-driven grounding (GROUND-don't-echo). Embeds a
+ * subject-enriched query and runs a cosine search over the GLOBAL textbook_chunks corpus, soft-
+ * filtered to the subject/category when provided (ILIKE, so "Biology"/"Science" both match). Plain
+ * db (global). Best-effort / never throws: returns [] on any failure so a miss degrades gracefully.
+ */
+export async function retrieveTextbookChunks(
+  query: string,
+  opts?: { subject?: string | null; limit?: number },
+): Promise<{ content: string; sectionTitle: string | null; subject: string | null; similarity: number }[]> {
+  try {
+    const subject = opts?.subject?.trim() || null;
+    const limit = opts?.limit ?? 6;
+
+    // Enrich the embedding query with the subject so relevance survives a subject-tag taxonomy gap.
+    const { embedding: queryEmbedding } = await embed({
+      model: embeddingModel,
+      value: [subject, query].filter(Boolean).join(" "),
+      providerOptions: embeddingProviderOptions("RETRIEVAL_QUERY"),
+    });
+    const vectorQuery = `[${queryEmbedding.join(",")}]`;
+
+    const params: unknown[] = [vectorQuery];
+    let subjectClause = "";
+    if (subject) {
+      params.push(`%${subject}%`);
+      subjectClause = `AND (subject ILIKE $${params.length} OR category ILIKE $${params.length})`;
+    }
+    params.push(limit);
+    const limitParam = `$${params.length}`;
+
+    const rows = await db.$queryRawUnsafe<
+      Array<{ content: string; sectionTitle: string | null; subject: string | null; similarity: number }>
+    >(
+      `SELECT content,
+              section_title as "sectionTitle",
+              subject,
+              1 - (embedding <=> $1::vector) as similarity
+       FROM "textbook_chunks"
+       WHERE embedding IS NOT NULL
+         ${subjectClause}
+         AND 1 - (embedding <=> $1::vector) > 0.5
+       ORDER BY similarity DESC
+       LIMIT ${limitParam}`,
+      ...params,
+    );
+    return rows;
+  } catch (e) {
+    console.error("[retrieveTextbookChunks] non-fatal retrieval failure", e);
+    return [];
+  }
+}
