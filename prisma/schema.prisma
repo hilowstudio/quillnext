@@ -457,8 +457,9 @@ model Objective {
   sortOrder          Int                 @map("sort_order")
   createdAt          DateTime            @default(now()) @map("created_at")
   updatedAt          DateTime            @updatedAt @map("updated_at")
-  activityObjectives ActivityObjective[]
-  subtopic           Subtopic            @relation(fields: [subtopicId], references: [id])
+  activityObjectives    ActivityObjective[]
+  bookSectionObjectives BookSectionObjective[]
+  subtopic              Subtopic              @relation(fields: [subtopicId], references: [id])
 
   @@map("objectives")
 }
@@ -707,8 +708,65 @@ model BookExtraction {
   createdAt       DateTime         @default(now()) @map("created_at")
   updatedAt       DateTime         @updatedAt @map("updated_at")
   books           Book[]
+  sections        BookExtractionSection[]
 
   @@map("book_extractions")
+}
+
+/// Chapter/section-level facts sheet for a book (Phase 2 of docs/specs/grounded-generation.md).
+/// Global, cross-org shared (CONTEXT_FREE_MODELS) like its parent BookExtraction. Lets generation
+/// be scoped to the exact chapter/unit a student is on, and cross-walks to the academic spine.
+model BookExtractionSection {
+  id                String                 @id @default(uuid())
+  bookExtractionId  String                 @map("book_extraction_id")
+  bookExtraction    BookExtraction         @relation(fields: [bookExtractionId], references: [id], onDelete: Cascade)
+  sectionNumber     Int                    @map("section_number")
+  title             String
+  kind              String                 @default("CHAPTER") // CHAPTER | UNIT | SECTION
+  summary           String?
+  keyPoints         Json?                  @map("key_points")
+  charactersPresent Json?                  @map("characters_present")
+  vocabulary        Json?
+  quotes            Json? // [{ text, location, source }] — populated from full text in Phase 3
+  factsSource       String                 @default("WEB") // TEXT | WEB | MODEL
+  createdAt         DateTime               @default(now()) @map("created_at")
+  updatedAt         DateTime               @updatedAt @map("updated_at")
+  objectives        BookSectionObjective[]
+  spineGaps         SpineGap[]
+
+  @@unique([bookExtractionId, sectionNumber])
+  @@index([bookExtractionId])
+  @@map("book_extraction_sections")
+}
+
+/// Cross-walk: a book section <-> an academic-spine Objective it covers (with match confidence).
+/// Global/shared. Enrichment only — a section without matches still generates from its own facts.
+model BookSectionObjective {
+  id          String                @id @default(uuid())
+  sectionId   String                @map("section_id")
+  section     BookExtractionSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  objectiveId String                @map("objective_id")
+  objective   Objective             @relation(fields: [objectiveId], references: [id], onDelete: Cascade)
+  confidence  Float
+  createdAt   DateTime              @default(now()) @map("created_at")
+
+  @@unique([sectionId, objectiveId])
+  @@index([objectiveId])
+  @@map("book_section_objectives")
+}
+
+/// A book section that did NOT confidently map to any spine objective — the running backlog of
+/// what real curricula teach that the spine lacks (the spine-expansion flywheel). Global/shared.
+model SpineGap {
+  id               String                @id @default(uuid())
+  bookExtractionId String                @map("book_extraction_id")
+  sectionId        String                @map("section_id")
+  section          BookExtractionSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  topicGuess       String?               @map("topic_guess")
+  createdAt        DateTime              @default(now()) @map("created_at")
+
+  @@index([bookExtractionId])
+  @@map("spine_gaps")
 }
 
 model BookGeneratedMaterial {

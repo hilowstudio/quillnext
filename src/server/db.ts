@@ -44,6 +44,8 @@ const CONTEXT_FREE_MODELS = new Set([
   "BookExtraction",
   // Global cross-org shared video-extraction catalog + transcript chunks (same pattern).
   "VideoExtraction", "VideoExtractionChunk",
+  // Global cross-org shared book section facts sheets + spine cross-walk + gap backlog.
+  "BookExtractionSection", "BookSectionObjective", "SpineGap",
 ]);
 
 /**
