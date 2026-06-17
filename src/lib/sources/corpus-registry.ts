@@ -13,6 +13,7 @@
 
 import { listOpenStaxBooks, assembleOpenStaxSections } from "./openstax";
 import { listSiyavulaBooks, assembleSiyavulaSections } from "./siyavula";
+import { listLibreTextsBooks, assembleLibreTextsSections } from "./libretexts";
 
 /** One book in a source's catalog (what `listBooks` yields). */
 export interface CorpusBook {
@@ -67,11 +68,19 @@ const siyavulaCorpus: CorpusSource = {
   assembleSections: (externalId) => assembleSiyavulaSections(externalId),
 };
 
+/** LibreTexts — the largest open corpus (~2,686 open-licensed books across 14 disciplines) via the
+ *  MindTouch deki API. Catalog enumerated from commons; sections assembled per book (token-gated). */
+const libretextsCorpus: CorpusSource = {
+  key: "libretexts",
+  listBooks: () => listLibreTextsBooks(),
+  assembleSections: (externalId) => assembleLibreTextsSections(externalId),
+};
+
 /**
  * Registered corpus sources. `ingestTextbookCorpus` enumerates ALL of them (each book upserted with
  * its source key); `ingestTextbook` dispatches the per-book section assembly by the stored source.
  */
-export const CORPUS_SOURCES: CorpusSource[] = [openstaxCorpus, siyavulaCorpus];
+export const CORPUS_SOURCES: CorpusSource[] = [openstaxCorpus, siyavulaCorpus, libretextsCorpus];
 
 /** Look up a registered corpus source by key (=== TextbookDocument.source). */
 export function getCorpusSource(key: string): CorpusSource | undefined {
