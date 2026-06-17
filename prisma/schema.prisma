@@ -707,7 +707,11 @@ model BookExtraction {
   publicDomain     Boolean          @default(false) @map("public_domain")
   fullTextSource   String?          @map("full_text_source") // gutenberg | standard-ebooks | wikisource | internet-archive
   fullTextSourceId String?          @map("full_text_source_id")
-  fullTextStatus   String?          @map("full_text_status") // INGESTED | UNAVAILABLE | null
+  fullTextStatus   String?          @map("full_text_status") // INGESTED | INGESTING | UNAVAILABLE | null
+  // Transient holding area for the fetched raw text BETWEEN the fetch step (downloads it) and the
+  // stage step (segments + chunks it), so the multi-MB body never crosses an Inngest step boundary
+  // (which has an output-size limit). Cleared to NULL once the chunks are staged.
+  fullTextRaw      String?          @map("full_text_raw")
   extractedAt      DateTime?        @map("extracted_at")
   createdAt        DateTime         @default(now()) @map("created_at")
   updatedAt        DateTime         @updatedAt @map("updated_at")
