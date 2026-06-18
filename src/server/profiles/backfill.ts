@@ -1,9 +1,13 @@
-type UserRow = { id: string; name: string | null; role: string; organizationId: string | null };
+type UserRow = { id: string; name: string | null; organizationId: string | null };
 type LearnerRow = {
   id: string; organizationId: string; firstName: string;
   preferredName: string | null; avatarConfig: unknown; profileId?: string | null;
 };
 type Opts = {
+  // The owner (account-holder) user id per org — its PARENT profile is flagged is_owner and gets
+  // the copied classroom PIN. `User.role` is NOT reliable for this (the live owner has role PARENT,
+  // the schema default), so the runner derives the owner from the earliest user in the org.
+  ownerUserIdByOrg: Record<string, string | undefined>;
   ownerPinHashByOrg: Record<string, string | undefined>;
   existingProfileUserIds?: Set<string>;
 };
@@ -26,7 +30,7 @@ export function buildProfileBackfill(users: UserRow[], learners: LearnerRow[], o
 
   for (const u of users) {
     if (!u.organizationId || existing.has(u.id)) continue;
-    const isOwner = u.role === "OWNER";
+    const isOwner = opts.ownerUserIdByOrg[u.organizationId] === u.id;
     profilesToCreate.push({
       id: pid(`user-${u.id}`),
       organizationId: u.organizationId,

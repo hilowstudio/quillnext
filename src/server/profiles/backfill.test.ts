@@ -4,17 +4,20 @@ import { buildProfileBackfill } from "./backfill";
 const ORG = "org-1";
 
 describe("buildProfileBackfill", () => {
-  it("makes one PARENT profile per user (owner flagged) and one STUDENT profile per learner, linked", () => {
+  it("makes one PARENT profile per user (owner flagged via ownerUserIdByOrg) and one STUDENT profile per learner, linked", () => {
     const users = [
-      { id: "u-owner", name: "Adam", role: "OWNER", organizationId: ORG },
-      { id: "u-parent", name: "Bea", role: "PARENT", organizationId: ORG },
+      { id: "u-owner", name: "Adam", organizationId: ORG },
+      { id: "u-parent", name: "Bea", organizationId: ORG },
     ];
     const learners = [
       { id: "l-sam", organizationId: ORG, firstName: "Sam", preferredName: null, avatarConfig: { a: 1 } },
       { id: "l-mia", organizationId: ORG, firstName: "Mia", preferredName: "Mimi", avatarConfig: null },
     ];
 
-    const r = buildProfileBackfill(users, learners, { ownerPinHashByOrg: { [ORG]: "HASH" } });
+    const r = buildProfileBackfill(users, learners, {
+      ownerUserIdByOrg: { [ORG]: "u-owner" },
+      ownerPinHashByOrg: { [ORG]: "HASH" },
+    });
 
     const parents = r.profilesToCreate.filter((p) => p.type === "PARENT");
     const students = r.profilesToCreate.filter((p) => p.type === "STUDENT");
@@ -39,9 +42,9 @@ describe("buildProfileBackfill", () => {
 
   it("is idempotent-safe: skips users/learners that already have a profile", () => {
     const r = buildProfileBackfill(
-      [{ id: "u1", name: "X", role: "OWNER", organizationId: ORG }],
+      [{ id: "u1", name: "X", organizationId: ORG }],
       [{ id: "l1", organizationId: ORG, firstName: "Kid", preferredName: null, avatarConfig: null, profileId: "existing" }],
-      { ownerPinHashByOrg: {}, existingProfileUserIds: new Set(["u1"]) },
+      { ownerUserIdByOrg: { [ORG]: "u1" }, ownerPinHashByOrg: {}, existingProfileUserIds: new Set(["u1"]) },
     );
     expect(r.profilesToCreate).toHaveLength(0);
     expect(r.learnerLinks).toHaveLength(0);
