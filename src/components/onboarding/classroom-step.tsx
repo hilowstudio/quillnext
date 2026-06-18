@@ -234,7 +234,7 @@ export function ClassroomStep({
         transition={{ delay: 0.2 }}
         className="space-y-3 pt-4 border-t border-qc-border-subtle"
       >
-        <Label htmlFor="instructorPin" className="text-sm font-medium text-qc-primary">Instructor PIN *</Label>
+        <Label htmlFor="instructorPin" className="text-sm font-medium text-qc-primary">Parent PIN</Label>
         <div className="flex items-center gap-4">
           <Input
             id="instructorPin"
@@ -245,7 +245,7 @@ export function ClassroomStep({
             className="h-12 w-32 text-center text-xl tracking-widest border-qc-border-strong focus:border-qc-primary transition-all duration-200 focus:scale-105"
           />
           <p className="text-sm font-body text-qc-text-muted flex-1">
-            4-digit code for secure access to parent controls.
+            4-digit code that protects your parent profile. Leave blank when editing to keep your current PIN.
           </p>
         </div>
         {errors.instructorPin && (

@@ -37,8 +37,10 @@ export async function saveClassroomStep(
 
   const validated = classroomStepSchema.parse(data);
 
-  // Hash the instructor PIN
-  const pinHash = await bcrypt.hash(validated.instructorPin, 10);
+  // Hash the PIN only when one was provided (blank on edit = keep the existing owner PIN; FEAT-22).
+  const newPinHash = validated.instructorPin
+    ? await bcrypt.hash(validated.instructorPin, 10)
+    : null;
 
   // Use transaction to ensure consistency
   const result = await withTenant(async (tx) => {
@@ -129,7 +131,6 @@ export async function saveClassroomStep(
             lastName: instructor.lastName,
             sex: instructor.sex,
             email: instructor.email || "",
-            instructorPin: pinHash,
             role: index === 0 ? "PRIMARY" : "ASSISTANT",
           },
         }),
@@ -147,9 +148,9 @@ export async function saveClassroomStep(
     }
 
     // Ensure the account owner's PARENT profile exists (idempotent; same id as the backfill).
-    // pinHash is set on CREATE only (mirrors the classroom PIN so the owner card is PIN-protected);
-    // we deliberately do NOT re-stamp it on update, so re-running onboarding can't clobber a PIN
-    // managed elsewhere later (Slice 5 owns per-profile PIN management).
+    // pinHash is set on CREATE only, and only when a PIN was actually entered; we deliberately do
+    // NOT re-stamp it on update, so editing classroom info with a blank PIN keeps the existing one
+    // (FEAT-22) and can't clobber a PIN changed via Manage Profiles (Slice 5 owns PIN management).
     const ownerName = validated.instructors[0]
       ? `${validated.instructors[0].firstName} ${validated.instructors[0].lastName || ""}`.trim()
       : "Parent";
@@ -160,7 +161,7 @@ export async function saveClassroomStep(
         organizationId: activeOrgId,
         type: "PARENT",
         displayName: ownerName,
-        pinHash,
+        ...(newPinHash ? { pinHash: newPinHash } : {}),
         userId,
         isOwner: true,
       },

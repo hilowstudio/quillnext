@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { pinSchema } from "@/lib/schemas/pin";
 
 // -----------------------------------------------------------------------
 // Family Blueprint Wizard Schemas
@@ -16,7 +17,8 @@ export const classroomSchema = z.object({
   name: z.string().min(1, "Classroom name is required"),
   description: z.string().optional(),
   instructors: z.array(instructorSchema).min(1, "At least one instructor is required"),
-  instructorPin: z.string().regex(/^\d{4}$/, "PIN must be exactly 4 digits"),
+  // Optional: blank means "keep the existing owner PIN" (set at first onboarding). See FEAT-22.
+  instructorPin: pinSchema.optional().or(z.literal("")),
   educationalPhilosophy: z.enum([
     "TRADITIONAL_SCHOOL_AT_HOME",
     "VIRTUAL_ONLINE",

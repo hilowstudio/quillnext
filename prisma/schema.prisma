@@ -252,7 +252,6 @@ model ClassroomInstructor {
   lastName      String?        @map("last_name")
   sex           Sex?
   email         String
-  instructorPin String         @map("instructor_pin")
   role          InstructorRole
   createdAt     DateTime       @default(now()) @map("created_at")
   updatedAt     DateTime       @updatedAt @map("updated_at")
@@ -1152,6 +1151,8 @@ model Profile {
   displayName    String          @map("display_name")
   avatarConfig   Json?           @map("avatar_config")
   pinHash        String?         @map("pin_hash")
+  pinFailedCount Int             @default(0) @map("pin_failed_count")
+  pinWindowStart DateTime?       @map("pin_window_start")
   viewMode       ProfileViewMode @default(STANDARD) @map("view_mode")
   userId         String?         @map("user_id")
   isOwner        Boolean         @default(false) @map("is_owner")

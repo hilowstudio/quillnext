@@ -44,10 +44,6 @@ process.env.RLS_ENABLED = "false";
           .map((p) => p.userId)
           .filter((id): id is string => id !== null),
       );
-      const firstInstructor = await db.classroomInstructor.findFirst({
-        where: { classroom: { organizationId } },
-        select: { instructorPin: true },
-      });
       // Owner = the earliest user in the org. User.role is unreliable (the live owner is role
       // PARENT, the schema default), so we derive ownership from creation order.
       const ownerUser = await db.user.findFirst({
@@ -58,7 +54,7 @@ process.env.RLS_ENABLED = "false";
 
       const { profilesToCreate, learnerLinks } = buildProfileBackfill(users, learners, {
         ownerUserIdByOrg: { [organizationId]: ownerUser?.id },
-        ownerPinHashByOrg: { [organizationId]: firstInstructor?.instructorPin },
+        ownerPinHashByOrg: {}, // instructor_pin dropped (HYG-12); owner PIN now set at onboarding
         existingProfileUserIds,
       });
 
