@@ -270,7 +270,7 @@ export async function generateResourceCore(params: GenerateResourceCoreParams) {
     if (additionalData?.studentId) {
         const studentId = additionalData.studentId;
         student = await withTenant(
-            (tx) => tx.student.findUnique({ where: { id: studentId } }),
+            (tx) => tx.learner.findUnique({ where: { id: studentId } }),
             undefined,
             { organizationId, userId },
         );

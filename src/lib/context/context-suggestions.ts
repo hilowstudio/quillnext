@@ -96,7 +96,7 @@ export async function analyzeContextCompleteness(
   } else {
     // Check if any students exist for the organization
     const studentCount = await withTenant(
-      (tx) => tx.student.count({ where: { organizationId } }),
+      (tx) => tx.learner.count({ where: { organizationId } }),
       undefined,
       { organizationId, userId: null },
     );

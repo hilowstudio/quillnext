@@ -9,7 +9,7 @@ import { revalidatePath } from "next/cache";
 import { Prisma } from "@/generated/client";
 
 // Define the type we expect from the detailed student fetch
-type StudentWithDetails = Prisma.StudentGetPayload<{
+type StudentWithDetails = Prisma.LearnerGetPayload<{
     include: {
         organization: true,
         classroomEnrollments: {
@@ -29,7 +29,7 @@ type StudentWithDetails = Prisma.StudentGetPayload<{
 async function assertStudentInOrg(studentId: string, organizationId: string | null) {
     if (!organizationId) throw new Error("Organization not found for user");
     const s = await withTenant(
-        (tx) => tx.student.findUnique({ where: { id: studentId }, select: { organizationId: true } }),
+        (tx) => tx.learner.findUnique({ where: { id: studentId }, select: { organizationId: true } }),
         undefined,
         { organizationId, userId: null }
     );
@@ -46,7 +46,7 @@ export async function generateTranscriptData(studentId: string): Promise<Transcr
     const { organizationId } = await getCurrentUserOrg(session);
 
     const student = await withTenant(
-        (tx) => tx.student.findUnique({
+        (tx) => tx.learner.findUnique({
             where: { id: studentId },
             include: {
                 organization: true,

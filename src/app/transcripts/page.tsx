@@ -1,7 +1,7 @@
 import { auth } from "@/auth";
 import { getCurrentUserOrg } from "@/lib/auth-helpers";
 import { withTenant } from "@/server/db";
-import { Student, Transcript } from "@/generated/client";
+import { Learner, Transcript } from "@/generated/client";
 import { format } from "date-fns";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -29,7 +29,7 @@ export default async function TranscriptsPage() {
         }
 
         const students = await withTenant(
-            (tx) => (tx as any).student.findMany({
+            (tx) => (tx as any).learner.findMany({
                 where: { organizationId },
                 include: {
                     transcripts: {
@@ -40,7 +40,7 @@ export default async function TranscriptsPage() {
             }),
             undefined,
             { organizationId, userId: null }
-        ) as (Student & { transcripts: Transcript[] })[];
+        ) as (Learner & { transcripts: Transcript[] })[];
 
         return (
             <div className="container mx-auto py-8 max-w-5xl">

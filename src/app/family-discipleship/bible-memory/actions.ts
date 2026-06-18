@@ -33,7 +33,7 @@ async function requireCaller() {
 
 async function assertStudentInOrg(studentId: string, organizationId: string, userId: string) {
     const s = await withTenant(
-        (tx) => tx.student.findUnique({ where: { id: studentId }, select: { organizationId: true } }),
+        (tx) => tx.learner.findUnique({ where: { id: studentId }, select: { organizationId: true } }),
         undefined,
         { organizationId, userId },
     );

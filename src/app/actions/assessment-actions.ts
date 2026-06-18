@@ -29,7 +29,7 @@ export async function createAssessmentAttempt(assessmentId: string, studentId: s
     }
 
     // The student must belong to the caller's org.
-    const student = await db.student.findUnique({ where: { id: studentId }, select: { organizationId: true } });
+    const student = await db.learner.findUnique({ where: { id: studentId }, select: { organizationId: true } });
     if (!student || student.organizationId !== organizationId) {
         throw new Error("Unauthorized");
     }

@@ -117,7 +117,7 @@ export async function buildPersonalizedPrompt(
 ): Promise<string> {
   const student = await withTenant(
     (tx) =>
-      tx.student.findUnique({
+      tx.learner.findUnique({
         where: { id: studentId },
         include: {
           learnerProfile: true,

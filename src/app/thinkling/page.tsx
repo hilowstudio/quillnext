@@ -21,7 +21,7 @@ export default async function ThinklingPage() {
         return redirect("/onboarding");
     }
 
-    const students = await withTenant((tx) => tx.student.findMany({
+    const students = await withTenant((tx) => tx.learner.findMany({
         where: { organizationId },
         select: {
             id: true,

@@ -12,7 +12,7 @@ export default async function BibleMemoryPage({
     searchParams: Promise<{ studentId?: string }>;
 }) {
     // SECURITY: require a session and only ever resolve a student that belongs to the
-    // caller's org. Previously this did a global `db.student.findFirst()` ("first student
+    // caller's org. Previously this did a global `db.learner.findFirst()` ("first student
     // for demo purposes"), leaking an arbitrary cross-tenant student into the UI.
     const session = await auth();
     if (!session?.user) {
@@ -30,14 +30,14 @@ export default async function BibleMemoryPage({
     // first student.
     let student = requestedStudentId
         ? await withTenant(
-              (tx) => tx.student.findFirst({ where: { id: requestedStudentId, organizationId } }),
+              (tx) => tx.learner.findFirst({ where: { id: requestedStudentId, organizationId } }),
               undefined,
               { organizationId, userId: null },
           )
         : null;
     if (!student) {
         student = await withTenant(
-            (tx) => tx.student.findFirst({ where: { organizationId } }),
+            (tx) => tx.learner.findFirst({ where: { organizationId } }),
             undefined,
             { organizationId, userId: null },
         );

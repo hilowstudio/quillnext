@@ -30,7 +30,7 @@ interface GenerateOverallFeedbackParams {
 async function assertStudentInOrg(studentId: string): Promise<string> {
     const { organizationId } = await getCurrentUserOrg();
     if (!organizationId) throw new Error("Forbidden");
-    const student = await db.student.findFirst({
+    const student = await db.learner.findFirst({
         where: { id: studentId, organizationId },
         select: { id: true },
     });

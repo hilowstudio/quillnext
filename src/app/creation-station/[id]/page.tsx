@@ -92,7 +92,7 @@ export default async function GeneratorPage(
   let video = null;
 
   if (studentId) {
-    student = await withTenant((tx) => tx.student.findUnique({
+    student = await withTenant((tx) => tx.learner.findUnique({
       where: { id: studentId },
       select: {
         id: true,

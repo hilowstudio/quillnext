@@ -8,7 +8,7 @@ export async function getStudentDashboardData(organizationId: string, studentId:
     // the Next runtime). All reads use `tx`.
     return withTenant(
         (tx) =>
-            tx.student.findUnique({
+            tx.learner.findUnique({
                 where: { id: studentId, organizationId },
                 select: {
                     id: true,
@@ -72,7 +72,7 @@ export async function getParentDashboardData(organizationId: string) {
                 take: 5,
             });
 
-            const students = await tx.student.findMany({
+            const students = await tx.learner.findMany({
                 where: { organizationId },
                 select: {
                     id: true,

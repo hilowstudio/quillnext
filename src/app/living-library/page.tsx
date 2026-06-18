@@ -34,7 +34,7 @@ export default async function LibraryPage(
   // Fetch Students (needed for filtering options in LibraryClient -> ResourceList)
   const students = await withTenant(
     (tx) =>
-      tx.student.findMany({
+      tx.learner.findMany({
         where: { organizationId },
         select: { id: true, firstName: true, lastName: true, preferredName: true },
         orderBy: { createdAt: "desc" },

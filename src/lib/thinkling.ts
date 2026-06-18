@@ -8,7 +8,7 @@ interface ThinklingContext {
 }
 
 export async function getContextForThinkling(studentId: string, mode: ThinklingMode, organizationId: string | null): Promise<ThinklingContext> {
-    const student = await withTenant((tx) => tx.student.findUnique({
+    const student = await withTenant((tx) => tx.learner.findUnique({
         where: { id: studentId },
         include: {
             learnerProfile: true,

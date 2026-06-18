@@ -23,7 +23,7 @@ process.env.RLS_ENABLED = "false";
         where: { organizationId },
         select: { id: true, name: true, organizationId: true },
       });
-      const learners = await db.student.findMany({
+      const learners = await db.learner.findMany({
         where: { organizationId },
         select: {
           id: true,
@@ -78,7 +78,7 @@ process.env.RLS_ENABLED = "false";
         });
       }
       for (const link of learnerLinks) {
-        await db.student.update({ where: { id: link.learnerId }, data: { profileId: link.profileId } });
+        await db.learner.update({ where: { id: link.learnerId }, data: { profileId: link.profileId } });
       }
       createdProfiles += profilesToCreate.length;
       linkedLearners += learnerLinks.length;

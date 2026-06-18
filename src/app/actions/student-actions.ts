@@ -18,7 +18,7 @@ export async function deleteStudent(rawData: unknown) {
     const { organizationId } = await getCurrentUserOrg();
 
     // Verify student belongs to organization
-    const student = await db.student.findUnique({
+    const student = await db.learner.findUnique({
         where: { id: data.id },
     });
 
@@ -33,7 +33,7 @@ export async function deleteStudent(rawData: unknown) {
     // Removed defensive try/catch - let Prisma handle cascade deletes
     // If delete fails due to constraints, error will bubble up explicitly
     try {
-        await db.student.delete({
+        await db.learner.delete({
             where: { id: data.id },
         });
 

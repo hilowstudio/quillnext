@@ -9,7 +9,7 @@ export async function assignResourceToStudent(resourceId: string, studentId: str
     if (!organizationId) throw new Error("No organization found");
 
     // The student must belong to the caller's org.
-    const student = await db.student.findUnique({ where: { id: studentId }, select: { organizationId: true } });
+    const student = await db.learner.findUnique({ where: { id: studentId }, select: { organizationId: true } });
     if (!student || student.organizationId !== organizationId) throw new Error("Unauthorized");
 
     if (type === 'COURSE') {

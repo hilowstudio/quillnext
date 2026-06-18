@@ -67,7 +67,7 @@ export async function exportUserData() {
     classrooms,
   ] = await Promise.all([
     orgId
-      ? db.student.findMany({
+      ? db.learner.findMany({
           where: { organizationId: orgId },
           include: {
             learnerProfile: true,

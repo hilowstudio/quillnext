@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
     });
 
     // Create student
-    const student = await db.student.create({
+    const student = await db.learner.create({
       data: {
         organization: { connect: { id: organizationId } },
         firstName: validated.firstName,

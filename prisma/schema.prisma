@@ -109,7 +109,7 @@ model Organization {
   classrooms     Classroom[]
   courses        Course[]
   resources      Resource[]
-  students       Student[]
+  students       Learner[]
   users          User[]
   articles       Article[]
   documents      DocumentResource[]
@@ -132,7 +132,7 @@ model Transcript {
   createdAt      DateTime     @default(now()) @map("created_at")
   updatedAt      DateTime     @updatedAt @map("updated_at")
 
-  student        Student      @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  student        Learner      @relation(fields: [studentId], references: [id], onDelete: Cascade)
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@map("transcripts")
@@ -278,7 +278,7 @@ model ClassroomHoliday {
   @@map("classroom_holidays")
 }
 
-model Student {
+model Learner {
   id                    String                     @id @default(uuid())
   organizationId        String                     @map("account_id")
   firstName             String                     @map("first_name")
@@ -332,7 +332,7 @@ model SafetyFlag {
   createdAt   DateTime @default(now()) @map("created_at")
   resolvedAt  DateTime? @map("resolved_at")
 
-  student     Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  student     Learner  @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
   @@map("safety_flags")
 }
@@ -345,7 +345,7 @@ model ClassroomStudent {
   enrolledAt  DateTime  @default(now()) @map("enrolled_at")
   createdAt   DateTime  @default(now()) @map("created_at")
   classroom   Classroom @relation(fields: [classroomId], references: [id], onDelete: Cascade)
-  student     Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  student     Learner   @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
   @@id([classroomId, studentId])
   @@map("classroom_students")
@@ -362,7 +362,7 @@ model LearnerProfile {
   questionnaireVersion      String?   @map("questionnaire_version")
   createdAt                 DateTime  @default(now()) @map("created_at")
   updatedAt                 DateTime  @updatedAt @map("updated_at")
-  student                   Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  student                   Learner   @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
   @@map("learner_profiles")
 }
@@ -513,7 +513,7 @@ model CourseStudent {
   completedAt DateTime?           @map("completed_at")
   createdAt   DateTime            @default(now()) @map("created_at")
   course      Course              @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  student     Student             @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  student     Learner             @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
   @@id([courseId, studentId])
   @@index([studentId])
@@ -875,7 +875,7 @@ model BookGeneratedMaterial {
   generatedAt           DateTime     @default(now()) @map("generated_at")
   createdAt             DateTime     @default(now()) @map("created_at")
   book                  Book         @relation(fields: [bookId], references: [id], onDelete: Cascade)
-  student               Student?     @relation(fields: [generatedForStudentId], references: [id])
+  student               Learner?     @relation(fields: [generatedForStudentId], references: [id])
   resource              Resource     @relation(fields: [resourceId], references: [id], onDelete: Cascade)
   resourceKind          ResourceKind @relation(fields: [resourceKindId], references: [id])
 
@@ -986,7 +986,7 @@ model Resource {
   assignments             ResourceAssignment[]
   organization            Organization            @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   createdByUser           User                    @relation("CreatedResources", fields: [createdByUserId], references: [id])
-  student                 Student?                @relation(fields: [generatedForStudentId], references: [id])
+  student                 Learner?                @relation(fields: [generatedForStudentId], references: [id])
   book                    Book?                   @relation(fields: [generatedFromBookId], references: [id])
   video                   VideoResource?          @relation(fields: [generatedFromVideoId], references: [id])
   article                 Article?                @relation(fields: [generatedFromArticleId], references: [id])
@@ -1053,7 +1053,7 @@ model ResourceAssignment {
   course         Course?      @relation(fields: [courseId], references: [id])
   resource       Resource     @relation(fields: [resourceId], references: [id], onDelete: Cascade)
   studentId      String?      @map("student_id")
-  student        Student?     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  student        Learner?     @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
   @@index([courseId])
   @@index([resourceId])
@@ -1075,7 +1075,7 @@ model ActivityProgress {
   createdAt        DateTime       @default(now()) @map("created_at")
   updatedAt        DateTime       @updatedAt @map("updated_at")
   activity         Activity       @relation(fields: [activityId], references: [id], onDelete: Cascade)
-  student          Student        @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  student          Learner        @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
   @@unique([activityId, studentId])
   @@index([studentId])
@@ -1100,7 +1100,7 @@ model AssessmentAttempt {
   updatedAt     DateTime                 @updatedAt @map("updated_at")
   assessment    Assessment               @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
   graderUser    User?                    @relation("GradedAttempts", fields: [graderUserId], references: [id])
-  student       Student                  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  student       Learner                  @relation(fields: [studentId], references: [id], onDelete: Cascade)
   itemResponses AssessmentItemResponse[]
 
   @@index([assessmentId])
@@ -1139,7 +1139,7 @@ model CourseProgress {
   updatedAt                   DateTime     @updatedAt @map("updated_at")
   course                      Course       @relation(fields: [courseId], references: [id], onDelete: Cascade)
   currentBlock                CourseBlock? @relation(fields: [currentBlockId], references: [id])
-  student                     Student      @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  student                     Learner      @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
   @@unique([courseId, studentId])
   @@map("course_progress")
@@ -1160,7 +1160,7 @@ model Profile {
 
   organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   user           User?           @relation(fields: [userId], references: [id], onDelete: SetNull)
-  learner        Student?
+  learner        Learner?
 
   @@index([organizationId])
   @@map("profiles")
@@ -1490,7 +1490,7 @@ model PrayerJournalEntry {
   updatedAt   DateTime  @updatedAt @map("updated_at")
 
   user    User     @relation("UserPrayerEntries", fields: [userId], references: [id], onDelete: Cascade)
-  student Student? @relation("StudentPrayerEntries", fields: [studentId], references: [id], onDelete: Cascade)
+  student Learner? @relation("StudentPrayerEntries", fields: [studentId], references: [id], onDelete: Cascade)
 
   @@index([studentId])
   @@index([userId])
@@ -1534,7 +1534,7 @@ model BibleMemory {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  student Student? @relation("StudentMemoryVerses", fields: [studentId], references: [id], onDelete: Cascade)
+  student Learner? @relation("StudentMemoryVerses", fields: [studentId], references: [id], onDelete: Cascade)
   user    User?    @relation("UserMemoryVerses", fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([studentId])
@@ -1554,7 +1554,7 @@ model BibleMemoryFolder {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  student Learner @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
   @@index([studentId])
   @@map("bible_memory_folder")
@@ -1587,7 +1587,7 @@ model StudentScheduleItem {
 
   // Relations
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  student      Student      @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  student      Learner      @relation(fields: [studentId], references: [id], onDelete: Cascade)
   courseBlock  CourseBlock? @relation(fields: [courseBlockId], references: [id])
   activity     Activity?    @relation(fields: [activityId], references: [id])
 
@@ -1622,7 +1622,7 @@ model CustomEvent {
 
   // Relations
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  student      Student?     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  student      Learner?     @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
   @@index([organizationId])
   @@index([studentId, date])
@@ -1647,7 +1647,7 @@ model StudentCatechismProgress {
   createdAt            DateTime @default(now()) @map("created_at")
   updatedAt            DateTime @updatedAt @map("updated_at")
 
-  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  student Learner @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
   @@unique([studentId, catechismId])
   @@map("student_catechism_progress")

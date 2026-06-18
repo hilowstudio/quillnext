@@ -48,7 +48,7 @@ export async function POST(req: Request) {
         // Multi-tenant guard: the student (whose full learner profile drives the
         // system prompt) must belong to the caller's organization.
         const { organizationId } = await getCurrentUserOrg();
-        const student = await db.student.findUnique({ where: { id: studentId }, select: { organizationId: true } });
+        const student = await db.learner.findUnique({ where: { id: studentId }, select: { organizationId: true } });
         if (!student || student.organizationId !== organizationId) {
             return new Response("Forbidden", { status: 403 });
         }

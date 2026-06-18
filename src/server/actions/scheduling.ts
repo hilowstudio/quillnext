@@ -18,7 +18,7 @@ async function requireOrg() {
 
 async function assertStudentInOrg(studentId: string, organizationId: string) {
     const s = await withTenant(
-        (tx) => tx.student.findUnique({ where: { id: studentId }, select: { organizationId: true } }),
+        (tx) => tx.learner.findUnique({ where: { id: studentId }, select: { organizationId: true } }),
         undefined,
         { organizationId, userId: null }
     );
@@ -169,7 +169,7 @@ export async function getWeeklySchedule(
         async () => {
             return withTenant(
                 async (tx) => {
-                    const students = await tx.student.findMany({
+                    const students = await tx.learner.findMany({
                         where: { organizationId },
                         select: { id: true, firstName: true, preferredName: true }
                     });

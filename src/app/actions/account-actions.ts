@@ -88,7 +88,7 @@ export async function deleteAccount() {
 
       if (orgId) {
         // Students cascade their nested data (progress, attempts, etc.)
-        await tx.student.deleteMany({ where: { organizationId: orgId } });
+        await tx.learner.deleteMany({ where: { organizationId: orgId } });
 
         // Transcripts
         await tx.transcript.deleteMany({ where: { organizationId: orgId } });

@@ -97,9 +97,9 @@ const studentSelect = {
         take: 5,
         orderBy: { createdAt: "desc" },
     },
-} satisfies Prisma.StudentSelect;
+} satisfies Prisma.LearnerSelect;
 
-export type StudentWithRelations = Prisma.StudentGetPayload<{
+export type StudentWithRelations = Prisma.LearnerGetPayload<{
     select: typeof studentSelect;
 }>;
 
@@ -179,7 +179,7 @@ export type BookWithRelations = Prisma.BookGetPayload<{
 export const getStudentById = cache(async (studentId: string, organizationId: string) => {
     const student = await withTenant(
         (tx) =>
-            tx.student.findUnique({
+            tx.learner.findUnique({
                 where: { id: studentId },
                 select: studentSelect,
             }),

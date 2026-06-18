@@ -35,7 +35,7 @@ export default async function GradingIndexPage() {
             select: { id: true, title: true, course: { select: { title: true } } },
             orderBy: { createdAt: "desc" },
         }), undefined, { organizationId, userId: null }),
-        withTenant((tx) => tx.student.findMany({
+        withTenant((tx) => tx.learner.findMany({
             where: { organizationId },
             select: { id: true, firstName: true, lastName: true, preferredName: true },
             orderBy: { firstName: "asc" },

@@ -34,8 +34,8 @@ export default async function BlueprintPage() {
 
   // Get counts for context completeness
   const [studentsCount, studentsWithProfilesCount, booksCount, coursesCount] = await Promise.all([
-    withTenant((tx) => tx.student.count({ where: { organizationId } }), undefined, { organizationId, userId: null }),
-    withTenant((tx) => tx.student.count({
+    withTenant((tx) => tx.learner.count({ where: { organizationId } }), undefined, { organizationId, userId: null }),
+    withTenant((tx) => tx.learner.count({
       where: {
         organizationId,
         learnerProfile: { isNot: null },

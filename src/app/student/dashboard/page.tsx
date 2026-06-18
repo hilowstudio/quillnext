@@ -24,7 +24,7 @@ export default async function StudentDashboardPage({
     const { studentId, date } = await searchParams;
 
     // 1. Get Students
-    const students = await withTenant((tx) => tx.student.findMany({
+    const students = await withTenant((tx) => tx.learner.findMany({
         where: { organizationId },
         select: { id: true, firstName: true, preferredName: true }
     }), undefined, { organizationId, userId: null });

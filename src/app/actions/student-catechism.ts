@@ -8,7 +8,7 @@ import { getCurrentUserOrg } from "@/lib/auth-helpers";
 // is the student, who must belong to the caller's organization.
 async function assertStudentInOrg(studentId: string) {
     const { organizationId } = await getCurrentUserOrg(); // throws if unauthenticated
-    const s = await db.student.findUnique({ where: { id: studentId }, select: { organizationId: true } });
+    const s = await db.learner.findUnique({ where: { id: studentId }, select: { organizationId: true } });
     if (!s || s.organizationId !== organizationId) throw new Error("Unauthorized");
 }
 

@@ -1,4 +1,4 @@
-import { EducationalPhilosophy, Student, Classroom } from "@/generated/client";
+import { EducationalPhilosophy, Learner, Classroom } from "@/generated/client";
 import { INKLING_BASE_PERSONALITY, INKLING_ETHICAL_GUIDELINES } from "@/lib/constants/ai-guardrails";
 import { PHILOSOPHY_PROMPTS } from "@/lib/constants/educational-philosophies";
 
@@ -27,7 +27,7 @@ export class PromptBuilder {
      * Sets the student context, transforming "Learning Difficulties" into
      * "Helpful Supports & Accommodations".
      */
-    setStudentContext(student: Student | null) {
+    setStudentContext(student: Learner | null) {
         if (!student) {
             this.studentContext = "Student: Generic Profile (Age/Grade not specified)";
             return this;

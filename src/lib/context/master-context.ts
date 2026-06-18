@@ -440,11 +440,11 @@ export async function getStudentContext(
       take: 10,
       orderBy: { createdAt: "desc" },
     },
-  } satisfies Prisma.StudentSelect;
+  } satisfies Prisma.LearnerSelect;
 
   const student = await withTenant(
     (tx) =>
-      tx.student.findUnique({
+      tx.learner.findUnique({
         where: { id: studentId },
         select: studentSelect,
       }),

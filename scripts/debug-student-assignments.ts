@@ -13,7 +13,7 @@ async function main() {
 
     // We need a valid student ID to trigger the query effectively if the error is runtime SQL.
     // Let's first fetch ANY student.
-    const student = await db.student.findFirst();
+    const student = await db.learner.findFirst();
     if (!student) {
         console.log("No students found. Creating dummy...");
         // Not creating one to avoid side effects, just use a fake UUID.

@@ -10,7 +10,7 @@ import { StudentCard } from "@/components/students/StudentCard";
 
 const getOrganizationStudents = cacheQuery(
   async (organizationId: string) => {
-    return withTenant((tx) => tx.student.findMany({
+    return withTenant((tx) => tx.learner.findMany({
       where: { organizationId },
       select: {
         id: true,

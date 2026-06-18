@@ -27,7 +27,7 @@ export async function POST(
     console.log(`Processing assessment step '${step}' for student:`, id);
 
     // Get student
-    const student = await db.student.findUnique({
+    const student = await db.learner.findUnique({
       where: { id },
     });
 

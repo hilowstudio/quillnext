@@ -88,7 +88,7 @@ export async function getSmartDefaults(organizationId: string, courseId?: string
     // If no course, check if there's only one student in organization
     const students = await withTenant(
       (tx) =>
-        tx.student.findMany({
+        tx.learner.findMany({
           where: { organizationId },
           take: 2,
         }),
