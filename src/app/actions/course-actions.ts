@@ -2,6 +2,7 @@
 
 import { auth } from "@/auth";
 import { getCurrentUserOrg } from "@/lib/auth-helpers";
+import { assertParentProfile } from "@/server/profiles/guards";
 import { withTenant } from "@/server/db";
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
@@ -86,6 +87,8 @@ export async function deleteBlock(rawData: unknown) {
 
     const session = await auth();
     if (!session?.user) throw new Error("Not authenticated");
+
+    await assertParentProfile();
 
     const { organizationId } = await getCurrentUserOrg();
 
@@ -176,6 +179,8 @@ export async function deleteCourse(rawData: unknown) {
     if (!session?.user) {
         throw new Error("Not authenticated");
     }
+
+    await assertParentProfile();
 
     const { organizationId } = await getCurrentUserOrg();
 

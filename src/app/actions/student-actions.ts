@@ -2,6 +2,7 @@
 
 import { auth } from "@/auth";
 import { getCurrentUserOrg } from "@/lib/auth-helpers";
+import { assertParentProfile } from "@/server/profiles/guards";
 import { db } from "@/server/db";
 import { revalidatePath } from "next/cache";
 import { deleteStudentSchema } from "@/lib/schemas/actions";
@@ -14,6 +15,8 @@ export async function deleteStudent(rawData: unknown) {
     if (!session?.user) {
         throw new Error("Not authenticated");
     }
+
+    await assertParentProfile();
 
     const { organizationId } = await getCurrentUserOrg();
 

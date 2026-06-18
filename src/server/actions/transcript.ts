@@ -5,6 +5,7 @@ import { auth } from "@/auth";
 import type { TranscriptData, TranscriptCourse, StudentInfo, SchoolInfo } from "@/components/transcript/types";
 import { DEFAULT_GRADING_SCALE } from "@/components/transcript/utils";
 import { getCurrentUserOrg } from "@/lib/auth-helpers";
+import { assertParentProfile } from "@/server/profiles/guards";
 import { revalidatePath } from "next/cache";
 import { Prisma } from "@/generated/client";
 
@@ -203,6 +204,7 @@ export async function getTranscripts(studentId: string) {
 export async function deleteTranscript(transcriptId: string) {
     const session = await auth();
     if (!session?.user?.id) throw new Error("Not authenticated");
+    await assertParentProfile();
     const { organizationId } = await getCurrentUserOrg(session);
     if (!organizationId) throw new Error("Organization not found for user");
 

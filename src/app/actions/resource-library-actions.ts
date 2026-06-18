@@ -3,6 +3,7 @@
 import { withTenant } from "@/server/db";
 import { auth } from "@/auth";
 import { getCurrentUserOrg } from "@/lib/auth-helpers";
+import { assertParentProfile } from "@/server/profiles/guards";
 import { revalidatePath, revalidateTag, unstable_cache } from "next/cache";
 import { z } from "zod";
 import * as cheerio from "cheerio";
@@ -356,6 +357,8 @@ async function deleteResource(id: string, model: "book" | "videoResource" | "art
     if (!curSession?.user) {
         throw new Error("Unauthorized");
     }
+
+    await assertParentProfile();
 
     const { organizationId } = await getCurrentUserOrg();
 

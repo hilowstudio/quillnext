@@ -3,6 +3,7 @@
 import { db, withTenant } from "@/server/db";
 import { auth } from "@/auth";
 import { setRlsContext } from "@/server/rls-context";
+import { assertParentProfile } from "@/server/profiles/guards";
 import { revalidatePath } from "next/cache";
 
 export async function deactivateAccount() {
@@ -10,6 +11,8 @@ export async function deactivateAccount() {
   if (!session?.user?.id) {
     return { success: false, error: "Unauthorized" };
   }
+
+  await assertParentProfile();
 
   await db.user.update({
     where: { id: session.user.id },
@@ -26,6 +29,8 @@ export async function reactivateAccount() {
     return { success: false, error: "Unauthorized" };
   }
 
+  await assertParentProfile();
+
   await db.user.update({
     where: { id: session.user.id },
     data: { deactivatedAt: null },
@@ -40,6 +45,8 @@ export async function deleteAccount() {
   if (!session?.user?.id) {
     return { success: false, error: "Unauthorized" };
   }
+
+  await assertParentProfile();
 
   const userId = session.user.id;
 
@@ -183,6 +190,8 @@ export async function transferOwnership(newOwnerUserId: string) {
   if (!session?.user?.id) {
     return { success: false, error: "Unauthorized" };
   }
+
+  await assertParentProfile();
 
   const currentUser = await db.user.findUnique({
     where: { id: session.user.id },

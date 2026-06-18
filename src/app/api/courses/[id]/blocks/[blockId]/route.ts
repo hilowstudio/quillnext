@@ -4,6 +4,7 @@ export const runtime = "nodejs";
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { getCurrentUserOrg } from "@/lib/auth-helpers";
+import { assertParentProfile } from "@/server/profiles/guards";
 import { db } from "@/server/db";
 import { courseBlockSchema } from "@/lib/schemas/courses";
 
@@ -212,6 +213,8 @@ export async function DELETE(
   }
 
   try {
+    await assertParentProfile();
+
     const { organizationId } = await getCurrentUserOrg();
 
     // Verify course exists and belongs to organization
