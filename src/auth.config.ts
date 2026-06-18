@@ -1,8 +1,12 @@
 import type { NextAuthConfig } from "next-auth";
 
 /**
- * Edge-safe Auth.js configuration
- * This file is used by Proxy and must be edge-compatible
+ * Base Auth.js configuration, merged into the full instance in `auth.ts`.
+ * Kept dependency-light (no Prisma/Node-only imports) so it stays edge-safe.
+ *
+ * NOTE: the former `authorized()` callback was removed — it never ran. This app gates routes
+ * via `src/proxy.ts` (the Next 16 proxy/middleware), not NextAuth's middleware wrapper, so the
+ * callback was dead config.
  */
 export const authConfig = {
   providers: [], // Providers added in auth.ts
@@ -10,27 +14,4 @@ export const authConfig = {
   pages: {
     signIn: "/login",
   },
-
-  callbacks: {
-    authorized({ auth, request: { nextUrl } }) {
-      const isLoggedIn = !!auth?.user;
-      const isOnDashboard = nextUrl.pathname.startsWith("/dashboard");
-      const isOnOnboarding = nextUrl.pathname.startsWith("/onboarding");
-
-      // Protect dashboard routes
-      if (isOnDashboard) {
-        if (isLoggedIn) return true;
-        return false; // Redirect unauthenticated users to login page
-      }
-
-      // Allow onboarding for authenticated users
-      if (isOnOnboarding) {
-        return isLoggedIn;
-      }
-
-      // Allow public routes
-      return true;
-    },
-  },
 } satisfies NextAuthConfig;
-
