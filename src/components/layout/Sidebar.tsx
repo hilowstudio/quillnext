@@ -35,6 +35,7 @@ const NAV_ITEMS = [
 
 import { UserNav } from "@/components/navigation/UserNav";
 import { User } from "next-auth";
+import { switchProfile } from "@/app/select-profile/actions";
 
 interface SidebarProps {
     user?: User;
@@ -119,6 +120,14 @@ export function Sidebar({ user }: SidebarProps) {
                                         <span className="text-xs text-qc-text-muted truncate">{user.email}</span>
                                     </div>
                                 </div>
+                                <form action={switchProfile} className="mt-3 px-2">
+                                    <button
+                                        type="submit"
+                                        className="w-full text-left text-sm font-medium text-qc-text-muted hover:text-qc-primary transition-colors"
+                                    >
+                                        Switch Profile
+                                    </button>
+                                </form>
                             </div>
                         )}
                     </div>

@@ -6,6 +6,7 @@ import { auth } from "@/auth";
 import { getCurrentUserOrg } from "@/lib/auth-helpers";
 import { db } from "@/server/db";
 import { studentSchema } from "@/lib/schemas/students";
+import { studentProfileId } from "@/server/profiles/ids";
 
 export async function POST(request: NextRequest) {
   const session = await auth();
@@ -66,6 +67,18 @@ export async function POST(request: NextRequest) {
         studentId: student.id,
       },
     });
+
+    // Give the new learner a STUDENT profile so they appear in the picker (same id as the backfill).
+    const profileId = studentProfileId(student.id);
+    await db.profile.create({
+      data: {
+        id: profileId,
+        organizationId,
+        type: "STUDENT",
+        displayName: validated.preferredName || validated.firstName,
+      },
+    });
+    await db.learner.update({ where: { id: student.id }, data: { profileId } });
 
     // Invalidate students cache so the new student appears immediately
     // revalidateTag("students");
