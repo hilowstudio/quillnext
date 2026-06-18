@@ -69,7 +69,7 @@ export function ProfilePicker({ profiles }: { profiles: ProfileCard[] }) {
                   referrerPolicy="no-referrer"
                 />
                 <AvatarFallback className="text-4xl font-bold bg-qc-parchment-crumpled text-qc-primary">
-                  {p.displayName[0]}
+                  {p.displayName?.[0] ?? "?"}
                 </AvatarFallback>
               </Avatar>
               {p.hasPin && (
