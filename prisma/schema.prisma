@@ -283,9 +283,9 @@ model Learner {
   firstName             String                     @map("first_name")
   lastName              String?                    @map("last_name")
   preferredName         String?                    @map("preferred_name")
-  birthdate             DateTime                   @db.Date
+  birthdate             DateTime?                  @db.Date
   sex                   Sex?
-  currentGrade          String                     @map("current_grade")
+  currentGrade          String?                    @map("current_grade")
   createdAt             DateTime                   @default(now()) @map("created_at")
   updatedAt             DateTime                   @updatedAt @map("updated_at")
   support_intensity     String?
