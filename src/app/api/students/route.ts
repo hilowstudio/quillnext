@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { revalidateTag, revalidatePath } from "next/cache";
 import { auth } from "@/auth";
 import { getCurrentUserOrg } from "@/lib/auth-helpers";
-import { db } from "@/server/db";
+import { db, withTenant } from "@/server/db";
 import { studentSchema } from "@/lib/schemas/students";
 import { studentProfileId } from "@/server/profiles/ids";
 
@@ -69,16 +69,24 @@ export async function POST(request: NextRequest) {
     });
 
     // Give the new learner a STUDENT profile so they appear in the picker (same id as the backfill).
+    // One tenant-scoped transaction so the profile + back-link are atomic (no orphaned profile if
+    // the link fails). organizationId is the caller's own org, resolved above.
     const profileId = studentProfileId(student.id);
-    await db.profile.create({
-      data: {
-        id: profileId,
-        organizationId,
-        type: "STUDENT",
-        displayName: validated.preferredName || validated.firstName,
+    await withTenant(
+      async (tx) => {
+        await tx.profile.create({
+          data: {
+            id: profileId,
+            organizationId,
+            type: "STUDENT",
+            displayName: validated.preferredName || validated.firstName,
+          },
+        });
+        await tx.learner.update({ where: { id: student.id }, data: { profileId } });
       },
-    });
-    await db.learner.update({ where: { id: student.id }, data: { profileId } });
+      undefined,
+      { organizationId, userId: null },
+    );
 
     // Invalidate students cache so the new student appears immediately
     // revalidateTag("students");

@@ -147,7 +147,9 @@ export async function saveClassroomStep(
     }
 
     // Ensure the account owner's PARENT profile exists (idempotent; same id as the backfill).
-    // pinHash mirrors the classroom instructor PIN so the owner card is PIN-protected.
+    // pinHash is set on CREATE only (mirrors the classroom PIN so the owner card is PIN-protected);
+    // we deliberately do NOT re-stamp it on update, so re-running onboarding can't clobber a PIN
+    // managed elsewhere later (Slice 5 owns per-profile PIN management).
     const ownerName = validated.instructors[0]
       ? `${validated.instructors[0].firstName} ${validated.instructors[0].lastName || ""}`.trim()
       : "Parent";
@@ -162,7 +164,7 @@ export async function saveClassroomStep(
         userId,
         isOwner: true,
       },
-      update: { displayName: ownerName, pinHash },
+      update: { displayName: ownerName },
     });
 
     return { classroom, instructors, organizationId: activeOrgId };
