@@ -1,29 +1,25 @@
 import { inngest } from "@/inngest/client";
 import { db, withTenant } from "@/server/db";
-import {
-    groundBookSections,
-    structureBookSections,
-    classifySectionsToObjectives,
-} from "@/lib/ai/book-extraction";
+import { structureSectionsFromText, classifySectionsToObjectives } from "@/lib/ai/book-extraction";
+import { retrieveBookChunks } from "@/lib/utils/vector";
 
 /**
  * Phase-2 BOOK SECTIONS facts-sheet — its OWN Inngest function, DECOUPLED from extract-book.
  *
- * extract-book fires `book/sections.requested` once it persists the global extraction row; this
- * function then web-grounds the book chapter-by-chapter, structures the per-section facts into
- * book_extraction_sections, and cross-walks each section to academic-spine Objectives (recording
- * SpineGaps for misses).
+ * extract-book fires `book/sections.requested` once it persists the extraction row. This function then
+ * builds the per-section facts sheet FROM THE BOOK'S OWN INGESTED FULL TEXT (public-domain books): for
+ * each published-TOC section it retrieves the most-relevant full-text chunks (retrieveBookChunks) and a
+ * single no-tools model call structures them into facts. NO web grounding — `google_search` research
+ * is search-round-trip bound and exceeds Vercel Hobby's 60s even for ONE chapter (measured), so it can
+ * never produce a facts-sheet on Hobby. Books WITHOUT ingested full text (non-public-domain) get NO
+ * facts-sheet on Hobby (sectionsStatus = UNAVAILABLE) — that path awaits Vercel Pro (300s), where
+ * web-grounded sections become viable again.
  *
- * WHY a separate function (this is the fix): these are HEAVY web-grounded AI calls. On Vercel Hobby
- * (60s/step) one can TIME OUT, and a process-timeout is uncatchable in-process — so when this lived
- * inside extract-book, a sections timeout exhausted retries and failed the WHOLE run, which marked
- * the BOOK as FAILED even though its core extraction (summary/TOC) had already succeeded. Isolated in
- * its own function, a sections failure fails ONLY this function and is recorded as
- * BookExtraction.sectionsStatus = "UNAVAILABLE" — the book's own extraction_status is never touched.
- *
- * book_extractions + book_extraction_sections + book_section_objectives + spine_gaps are GLOBAL /
- * context-free → PLAIN db. The ONLY org-scoped read (the book's subjectId for the cross-walk) goes
- * through withTenant with the org/user carried on the event.
+ * WHY a separate function: a sections failure (or its absence) must never touch the book. Isolated
+ * here, it only sets BookExtraction.sectionsStatus (EXTRACTED | UNAVAILABLE); the book's own
+ * extraction_status is never affected. book_extractions + book_extraction_sections +
+ * book_section_objectives + spine_gaps are GLOBAL / context-free → PLAIN db; the ONLY org-scoped read
+ * (the book's subjectId for the cross-walk) goes through withTenant with the org/user on the event.
  */
 export const ingestBookSections = inngest.createFunction(
     {
@@ -44,70 +40,100 @@ export const ingestBookSections = inngest.createFunction(
     async ({ event, step }) => {
         const { bookExtractionId, triggeringBookId, organizationId, userId } = event.data;
 
-        // Section anchor: reuse the persisted extraction row's identity + structured TOC.
-        const sectionMeta = await step.run("load", async () => {
+        // Load the extraction's identity + published TOC + whether its FULL TEXT is ingested.
+        const loaded = await step.run("load", async () => {
             const ext = await db.bookExtraction.findUnique({
                 where: { id: bookExtractionId },
-                select: { title: true, authors: true, isbn13: true, tableOfContents: true },
+                select: { title: true, authors: true, tableOfContents: true, fullTextStatus: true },
             });
             if (!ext) return null;
+            const toc = Array.isArray(ext.tableOfContents) ? (ext.tableOfContents as unknown[]) : [];
             return {
                 title: ext.title,
                 authors: ext.authors,
-                isbn: ext.isbn13,
-                tableOfContents: ext.tableOfContents,
+                fullTextIngested: ext.fullTextStatus === "INGESTED",
+                // Published-TOC sections, numbered by order (the TOC entries are {title} / {chapterNumber,title}).
+                sections: toc
+                    .map((t, i) => {
+                        const title =
+                            t && typeof t === "object" && typeof (t as { title?: unknown }).title === "string"
+                                ? ((t as { title: string }).title)
+                                : "";
+                        return { sectionNumber: i + 1, title: title.trim() };
+                    })
+                    .filter((s) => s.title.length > 0),
             };
         });
-        if (!sectionMeta) return { skipped: true, reason: "no-extraction" };
+        if (!loaded) return { skipped: true, reason: "no-extraction" };
 
-        // GROUND chapter-by-chapter (one grounded call) then STRUCTURE + persist, each its own bounded
-        // step. Grounding fails FAST + catchably (the 50s abort in runBookGrounding), so a slow/failed
-        // grounding just yields nothing and degrades to UNAVAILABLE — it never fails this function and
-        // never touches the book. IMPORTANT: this grounded research exceeds Hobby's 60s for these prompts
-        // REGARDLESS of book size (measured: even a 1-chapter call hits 50s), so on Hobby sections land
-        // UNAVAILABLE; producing the facts-sheet needs a higher ceiling (Vercel Pro 300s) or a
-        // non-grounded approach. (Batching was removed — it cannot help a fixed-cost grounded call.)
-        const notes = await step.run("ground", async () => {
-            try {
-                const r = await groundBookSections(sectionMeta);
-                return r.notes;
-            } catch (e) {
-                console.error("[ingest-book-sections ground] failed — skipping sections", e);
-                return null;
-            }
+        // We build the facts-sheet ONLY from the book's own ingested full text. Requires public-domain
+        // full text AND a usable published TOC. Anything else gets NO facts-sheet on Hobby (web-grounded
+        // sections exceed the 60s ceiling) → UNAVAILABLE until Vercel Pro re-enables grounding. This is
+        // a missing best-effort artifact only — the book is already EXTRACTED and never touched.
+        if (!loaded.fullTextIngested || loaded.sections.length === 0) {
+            await step.run("mark-unavailable", async () => {
+                await db.bookExtraction
+                    .update({ where: { id: bookExtractionId }, data: { sectionsStatus: "UNAVAILABLE" } })
+                    .catch((e) => console.error("[ingest-book-sections] mark UNAVAILABLE failed", e));
+                return { sectionsStatus: "UNAVAILABLE" };
+            });
+            return {
+                sectionsWritten: false,
+                reason: loaded.fullTextIngested ? "no-toc" : "no-full-text",
+            };
+        }
+
+        // Derive the facts-sheet from the full text, BATCHED so each step stays under Hobby-60s: per
+        // batch, retrieve each section's most-relevant chunks (from the book's OWN embedded text) and
+        // a single no-tools call structures them. Clear once, then append per batch.
+        await step.run("clear-sections", async () => {
+            await db.bookExtractionSection.deleteMany({ where: { bookExtractionId } });
+            return {};
         });
 
-        const written = await step.run("structure", async () => {
-            try {
-                if (!notes) return 0;
-                const sections = await structureBookSections(notes, sectionMeta);
-                if (sections.length === 0) return 0;
-                await db.bookExtractionSection.deleteMany({ where: { bookExtractionId } });
-                await db.bookExtractionSection.createMany({
-                    data: sections.map((s) => ({
-                        bookExtractionId,
-                        sectionNumber: s.sectionNumber,
-                        title: s.title,
-                        kind: "CHAPTER",
-                        summary: s.summary,
-                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                        keyPoints: s.keyPoints as any,
-                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                        charactersPresent: s.charactersPresent as any,
-                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                        vocabulary: s.vocabulary as any,
-                        factsSource: "WEB",
-                    })),
-                });
-                return sections.length;
-            } catch (e) {
-                console.error("[ingest-book-sections structure] non-fatal failure", e);
-                return 0;
-            }
-        });
+        const FACTS_BATCH = 4; // sections per step (each = 4 retrievals + 1 structuring call)
+        const meta = { title: loaded.title, authors: loaded.authors };
+        let written = 0;
+        const numBatches = Math.ceil(loaded.sections.length / FACTS_BATCH);
+        for (let b = 0; b < numBatches; b++) {
+            const batch = loaded.sections.slice(b * FACTS_BATCH, b * FACTS_BATCH + FACTS_BATCH);
+            const count = await step.run(`facts-${b}`, async () => {
+                try {
+                    const withExcerpts = [];
+                    for (const s of batch) {
+                        const chunks = await retrieveBookChunks(bookExtractionId, `${loaded.title} ${s.title}`, {
+                            limit: 6,
+                        });
+                        withExcerpts.push({ ...s, excerpts: chunks.map((c) => c.content) });
+                    }
+                    const facts = await structureSectionsFromText(meta, withExcerpts);
+                    if (facts.length === 0) return 0;
+                    await db.bookExtractionSection.createMany({
+                        data: facts.map((s) => ({
+                            bookExtractionId,
+                            sectionNumber: s.sectionNumber,
+                            title: s.title,
+                            kind: "CHAPTER",
+                            summary: s.summary,
+                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                            keyPoints: s.keyPoints as any,
+                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                            charactersPresent: s.charactersPresent as any,
+                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                            vocabulary: s.vocabulary as any,
+                            factsSource: "TEXT",
+                        })),
+                    });
+                    return facts.length;
+                } catch (e) {
+                    console.error(`[ingest-book-sections facts-${b}] failed`, e);
+                    return 0;
+                }
+            });
+            written += count;
+        }
 
-        // No sections produced (grounding/structuring degraded) → record UNAVAILABLE and stop. NOT a
-        // book failure — the book is already EXTRACTED; this is a missing best-effort artifact only.
+        // Nothing produced (retrieval/structuring degraded across all batches) → UNAVAILABLE, book safe.
         if (written === 0) {
             await step.run("mark-unavailable", async () => {
                 await db.bookExtraction

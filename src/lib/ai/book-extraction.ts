@@ -468,6 +468,48 @@ export async function structureBookSections(
   }
 }
 
+/**
+ * Build the per-section facts sheet from the book's OWN ingested full text (public-domain books) —
+ * NO web grounding. The caller retrieves each section's most-relevant chunks (via retrieveBookChunks)
+ * and passes them as `excerpts`; this is a single no-tools generateObject over those excerpts, so it's
+ * fast and fits Vercel Hobby's 60s (unlike groundBookSections, whose google_search exceeds 60s). Takes
+ * a BATCH of sections at once for efficiency. NEVER throws — degrades to [].
+ */
+export async function structureSectionsFromText(
+  meta: { title: string; authors?: string[] | null },
+  sections: { sectionNumber: number; title: string; excerpts: string[] }[],
+): Promise<SectionFacts[]> {
+  try {
+    const usable = sections.filter((s) => s.excerpts.length > 0);
+    if (usable.length === 0) return [];
+    const byline = meta.authors && meta.authors.length > 0 ? ` by ${meta.authors.join(", ")}` : "";
+    const res = await generateObject({
+      model: models.flash,
+      schema: sectionFactsSchema,
+      prompt:
+        `Build a factual per-section facts sheet for the book "${meta.title}"${byline}, using ONLY the ` +
+        `supplied EXCERPTS from the book's own text — no outside knowledge, do not fabricate. Produce ` +
+        `EXACTLY ONE entry per section below, KEEPING its sectionNumber and title. For each section set:\n` +
+        `- "summary": a 2-3 sentence factual summary grounded in that section's excerpts.\n` +
+        `- "keyPoints": the key events or points (strings).\n` +
+        `- "charactersPresent": characters or real figures present in that section.\n` +
+        `- "vocabulary": 3-5 key terms central to that section.\n` +
+        `Use empty arrays when a field is genuinely unknown.\n\n` +
+        usable
+          .map((s) => `### Section ${s.sectionNumber}: ${s.title}\nEXCERPTS:\n${s.excerpts.join("\n---\n")}`)
+          .join("\n\n"),
+    });
+    // Keep only the sections we asked for (guard against model drift), preserving our number/title.
+    const wanted = new Map(usable.map((s) => [s.sectionNumber, s.title]));
+    return (res.object.sections ?? [])
+      .filter((s) => wanted.has(s.sectionNumber))
+      .map((s) => ({ ...s, title: wanted.get(s.sectionNumber) ?? s.title }));
+  } catch (error) {
+    console.error(`[book-extraction] structureSectionsFromText failed for "${meta.title}" — returning [].`, error);
+    return [];
+  }
+}
+
 /** Zod schema for classifySectionsToObjectives — per-section objective-code matches. */
 const sectionObjectivesSchema = z.object({
   results: z.array(
