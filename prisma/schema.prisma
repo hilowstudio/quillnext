@@ -315,7 +315,7 @@ model Learner {
   safetyFlags           SafetyFlag[]
   profile               Profile?                   @relation(fields: [profileId], references: [id], onDelete: SetNull)
 
-  @@map("students")
+  @@map("learners")
 }
 
 model SafetyFlag {
