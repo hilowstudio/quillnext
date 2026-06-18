@@ -26,7 +26,7 @@ export default async function HomePage(props: {
     const learnerId = await getLearnerIdForProfile(active.id, organizationId);
     if (learnerId) {
       const student = await getStudentDashboardData(organizationId, learnerId);
-      if (student) return <StudentDashboard student={student} />;
+      if (student) return <StudentDashboard student={student} viewMode={active.viewMode} />;
     }
     // STUDENT profile with no usable learner -> back to the picker (fail-safe).
     redirect("/select-profile");

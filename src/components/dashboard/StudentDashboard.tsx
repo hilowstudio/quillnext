@@ -15,9 +15,11 @@ import { DiscipleshipDashboard } from "@/components/family-discipleship/Disciple
 
 interface StudentDashboardProps {
     student: any;
+    /** Active profile's view mode. Kid-view seam (spec §10); renders STANDARD today. */
+    viewMode?: "STANDARD" | "KID";
 }
 
-export function StudentDashboard({ student }: StudentDashboardProps) {
+export function StudentDashboard({ student, viewMode = "STANDARD" }: StudentDashboardProps) {
     const { setActiveStudentId } = useStudentProfile();
     const [data, setData] = useState<{ assignments: any[]; courseEnrollments: any[] }>({ assignments: [], courseEnrollments: [] });
     const [loading, setLoading] = useState(true);
@@ -33,6 +35,12 @@ export function StudentDashboard({ student }: StudentDashboardProps) {
         }
         loadData();
     }, [student.id]);
+
+    // Kid-view seam (spec §10): the dedicated simplified KID UI will branch here. Today both view
+    // modes render the same standard dashboard below — this is the single switch point for it.
+    if (viewMode === "KID") {
+        // TODO(kid-view): render the dedicated kid UI. For now, fall through to the standard view.
+    }
 
     return (
         <div className="container mx-auto max-w-6xl px-4 py-8">
