@@ -91,7 +91,9 @@ export const ingestBookSections = inngest.createFunction(
             return {};
         });
 
-        const FACTS_BATCH = 4; // sections per step (each = 4 retrievals + 1 structuring call)
+        // 2 sections/step keeps each structuring call comfortably under Vercel's 60s (4 sections
+        // measured ~32s locally → too close to the ceiling once Vercel cold-start + latency are added).
+        const FACTS_BATCH = 2;
         const meta = { title: loaded.title, authors: loaded.authors };
         let written = 0;
         const numBatches = Math.ceil(loaded.sections.length / FACTS_BATCH);

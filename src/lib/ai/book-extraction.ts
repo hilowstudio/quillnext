@@ -486,6 +486,9 @@ export async function structureSectionsFromText(
     const res = await generateObject({
       model: models.flash,
       schema: sectionFactsSchema,
+      // Catchable safety net: abort before Vercel's 60s kill so a slow batch degrades to [] (caught)
+      // rather than timing out the step and triggering a retry storm. The caller keeps batches small.
+      abortSignal: AbortSignal.timeout(55_000),
       prompt:
         `Build a factual per-section facts sheet for the book "${meta.title}"${byline}, using ONLY the ` +
         `supplied EXCERPTS from the book's own text — no outside knowledge, do not fabricate. Produce ` +
