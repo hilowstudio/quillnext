@@ -117,6 +117,7 @@ model Organization {
   scheduleItems  StudentScheduleItem[]
   customEvents   CustomEvent[]
   transcripts    Transcript[]
+  profiles       Profile[]
 
   @@map("organizations")
 }
@@ -168,6 +169,7 @@ model User {
   churchNotes           LocalChurchNotes[]     @relation("UserChurchNotes")
   prayerEntries         PrayerJournalEntry[]   @relation("UserPrayerEntries")
   bibleMemoryVerses     BibleMemory[]          @relation("UserMemoryVerses")
+  profiles              Profile[]
 
   @@map("users")
 }
@@ -292,6 +294,7 @@ model Student {
   support_profile       Json?
   learningDifficulties  String?                    @map("learning_difficulties") // e.g., "Dyslexia, ADHD"
   avatarConfig          Json?                      @map("avatar_config")
+  profileId             String?                    @unique @map("profile_id")
   activityProgress      ActivityProgress[]
   assessmentAttempts    AssessmentAttempt[]
   generatedMaterials    BookGeneratedMaterial[]
@@ -310,6 +313,7 @@ model Student {
   bibleMemoryFolders    BibleMemoryFolder[]
   transcripts           Transcript[]
   safetyFlags           SafetyFlag[]
+  profile               Profile?                   @relation(fields: [profileId], references: [id], onDelete: SetNull)
 
   @@map("students")
 }
@@ -1139,6 +1143,37 @@ model CourseProgress {
 
   @@unique([courseId, studentId])
   @@map("course_progress")
+}
+
+model Profile {
+  id             String          @id @default(uuid())
+  organizationId String          @map("account_id")
+  type           ProfileType
+  displayName    String          @map("display_name")
+  avatarConfig   Json?           @map("avatar_config")
+  pinHash        String?         @map("pin_hash")
+  viewMode       ProfileViewMode @default(STANDARD) @map("view_mode")
+  userId         String?         @map("user_id")
+  isOwner        Boolean         @default(false) @map("is_owner")
+  createdAt      DateTime        @default(now()) @map("created_at")
+  updatedAt      DateTime        @updatedAt @map("updated_at")
+
+  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user           User?           @relation(fields: [userId], references: [id], onDelete: SetNull)
+  learner        Student?
+
+  @@index([organizationId])
+  @@map("profiles")
+}
+
+enum ProfileType {
+  PARENT
+  STUDENT
+}
+
+enum ProfileViewMode {
+  STANDARD
+  KID
 }
 
 enum OrganizationType {
