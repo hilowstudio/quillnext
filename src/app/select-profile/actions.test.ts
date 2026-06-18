@@ -53,4 +53,17 @@ describe("selectProfile", () => {
     await expect(selectProfile("p1", "1234")).rejects.toThrow("REDIRECT");
     expect(setActiveProfile).toHaveBeenCalledWith({ profileId: "p1", type: "PARENT" });
   });
+
+  it("locks out after 5 wrong-PIN attempts (rate limit gate)", async () => {
+    // Unique profileId so the rate-limit key (u1:p-ratelimit) is isolated from the other tests.
+    const hash = await bcrypt.hash("1234", 10);
+    withTenant.mockResolvedValue({ id: "p-ratelimit", organizationId: "o1", type: "PARENT", pinHash: hash });
+    for (let i = 0; i < 5; i++) {
+      expect(await selectProfile("p-ratelimit", "0000")).toEqual({ ok: false, error: "Incorrect PIN." });
+    }
+    const res = await selectProfile("p-ratelimit", "0000");
+    expect(res.ok).toBe(false);
+    expect(res.error).toMatch(/Too many attempts/);
+    expect(setActiveProfile).not.toHaveBeenCalled();
+  });
 });
