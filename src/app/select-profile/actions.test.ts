@@ -1,0 +1,56 @@
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import bcrypt from "bcryptjs";
+
+const getCurrentUserOrg = vi.fn();
+const withTenant = vi.fn();
+const setActiveProfile = vi.fn();
+const clearActiveProfile = vi.fn();
+const redirect = vi.fn((_: string) => { throw new Error("REDIRECT"); });
+
+vi.mock("@/lib/auth-helpers", () => ({ getCurrentUserOrg: () => getCurrentUserOrg() }));
+vi.mock("@/server/db", () => ({ withTenant: (...a: unknown[]) => withTenant(...a) }));
+vi.mock("@/server/profiles/active-profile", () => ({
+  setActiveProfile: (...a: unknown[]) => setActiveProfile(...a),
+  clearActiveProfile: (...a: unknown[]) => clearActiveProfile(...a),
+}));
+vi.mock("next/navigation", () => ({ redirect: (p: string) => redirect(p) }));
+
+import { selectProfile } from "./actions";
+
+const CTX = { userId: "u1", organizationId: "o1" };
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  getCurrentUserOrg.mockResolvedValue(CTX);
+});
+
+describe("selectProfile", () => {
+  it("rejects a profile in a different org without setting a cookie", async () => {
+    withTenant.mockResolvedValue({ id: "p1", organizationId: "other", type: "PARENT", pinHash: null });
+    const res = await selectProfile("p1");
+    expect(res).toEqual({ ok: false, error: "Profile not found." });
+    expect(setActiveProfile).not.toHaveBeenCalled();
+  });
+
+  it("selects a no-PIN profile and redirects to /", async () => {
+    withTenant.mockResolvedValue({ id: "p2", organizationId: "o1", type: "STUDENT", pinHash: null });
+    await expect(selectProfile("p2")).rejects.toThrow("REDIRECT");
+    expect(setActiveProfile).toHaveBeenCalledWith({ profileId: "p2", type: "STUDENT" });
+    expect(redirect).toHaveBeenCalledWith("/");
+  });
+
+  it("rejects a wrong PIN and does not set a cookie", async () => {
+    const hash = await bcrypt.hash("1234", 10);
+    withTenant.mockResolvedValue({ id: "p1", organizationId: "o1", type: "PARENT", pinHash: hash });
+    const res = await selectProfile("p1", "0000");
+    expect(res).toEqual({ ok: false, error: "Incorrect PIN." });
+    expect(setActiveProfile).not.toHaveBeenCalled();
+  });
+
+  it("accepts the correct PIN and redirects", async () => {
+    const hash = await bcrypt.hash("1234", 10);
+    withTenant.mockResolvedValue({ id: "p1", organizationId: "o1", type: "PARENT", pinHash: hash });
+    await expect(selectProfile("p1", "1234")).rejects.toThrow("REDIRECT");
+    expect(setActiveProfile).toHaveBeenCalledWith({ profileId: "p1", type: "PARENT" });
+  });
+});
