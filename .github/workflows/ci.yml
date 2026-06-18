@@ -24,3 +24,4 @@ jobs:
       - run: npm run postgenerate
       - run: npx tsc --noEmit
       - run: npm run lint
+      - run: npm test
