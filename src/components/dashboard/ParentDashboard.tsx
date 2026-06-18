@@ -8,6 +8,8 @@ import { ContextCompleteness } from "@/components/context/ContextCompleteness";
 import { InklingToolkit } from "@/components/navigation/InklingToolkit";
 import { AssignResourceDialog } from "@/components/assignments/AssignResourceDialog";
 import { StudentProfileSwitcher } from "./StudentProfileSwitcher";
+import { MyLearningCard } from "./MyLearningCard";
+import type { MyLearning } from "@/server/profiles/my-learning";
 
 export interface ParentDashboardProps {
     students: any[];
@@ -16,6 +18,7 @@ export interface ParentDashboardProps {
     completeness: any;
     suggestions: any;
     classroomName: string;
+    myLearning: MyLearning;
 }
 
 export function ParentDashboard({
@@ -25,6 +28,7 @@ export function ParentDashboard({
     completeness,
     suggestions,
     classroomName,
+    myLearning,
 }: ParentDashboardProps) {
     const studentsWithAssessment = students.filter((s) => s.learnerProfile !== null);
     const studentsWithoutAssessment = students.filter((s) => s.learnerProfile === null);
@@ -131,6 +135,9 @@ export function ParentDashboard({
                     <InklingToolkit />
                 </CardContent>
             </Card>
+
+            {/* My Learning (parent-as-learner, spec §9) — additive; appears for the active parent profile. */}
+            <MyLearningCard myLearning={myLearning} />
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
                 {/* Context Completeness */}

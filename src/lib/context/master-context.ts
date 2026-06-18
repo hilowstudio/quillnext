@@ -58,8 +58,8 @@ export interface StudentContext {
     firstName: string;
     lastName: string;
     preferredName: string | null;
-    currentGrade: string;
-    birthdate: Date;
+    currentGrade: string | null;
+    birthdate: Date | null;
     learningDifficulties: string[] | null;
   };
   profile: {

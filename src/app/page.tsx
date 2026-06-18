@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { getCurrentUserOrg } from "@/lib/auth-helpers";
 import { getActiveProfile } from "@/server/profiles/active-profile";
 import { getLearnerIdForProfile } from "@/server/profiles/queries";
+import { getMyLearning } from "@/server/profiles/my-learning";
 import { ParentDashboard } from "@/components/dashboard/ParentDashboard";
 import { StudentDashboard } from "@/components/dashboard/StudentDashboard";
 import { getParentDashboardData, getStudentDashboardData } from "@/server/queries/dashboard";
@@ -39,6 +40,7 @@ export default async function HomePage(props: {
   }
 
   const data = await getParentDashboardData(organizationId);
+  const myLearning = await getMyLearning(active.id, organizationId);
   return (
     <ParentDashboard
       students={data.students}
@@ -47,6 +49,7 @@ export default async function HomePage(props: {
       completeness={data.completeness}
       suggestions={data.suggestions}
       classroomName={data.classroomName || "My Classroom"}
+      myLearning={myLearning}
     />
   );
 }
