@@ -40,6 +40,12 @@ describe("loadActiveProfile", () => {
     expect(cookieGet).not.toHaveBeenCalled();
   });
 
+  it("returns null when the logged-in user has no organization", async () => {
+    getCurrentUserOrg.mockResolvedValue({ userId: "u1", organizationId: null });
+    expect(await loadActiveProfile()).toBeNull();
+    expect(cookieGet).not.toHaveBeenCalled();
+  });
+
   it("returns null when there is no active_profile cookie", async () => {
     cookieGet.mockReturnValue(undefined);
     expect(await loadActiveProfile()).toBeNull();
