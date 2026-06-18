@@ -185,19 +185,22 @@ function extractGroundingSources(groundingRes: {
  */
 async function runBookGrounding(
   prompt: string,
+  opts?: { abortMs?: number },
 ): Promise<{ notes: string; sources: Array<{ title?: string; url: string }> }> {
   const groundingRes = await generateText({
     model: models.flash,
     // Provider-defined Google Search grounding tool. MUST be keyed "google_search".
     tools: { google_search: google.tools.googleSearch({}) },
     prompt,
-    // Bound the call so it cannot exceed Vercel Hobby's 60s step ceiling: cap the output and ABORT at
-    // 50s. An AbortSignal timeout throws a CATCHABLE error — unlike Vercel's uncatchable 60s process
-    // kill — so the caller degrades cleanly in ONE attempt instead of burning retries. (The per-section
-    // grounding is the slow one; its worker additionally BATCHES a large TOC so each call covers only a
-    // handful of chapters. The coarse main-extraction grounding finishes well inside this budget.)
-    maxOutputTokens: 8192,
-    abortSignal: AbortSignal.timeout(50_000),
+    // The grounded google_search research is search-round-trip bound — it runs ~50-60s for these
+    // prompts (measured: even a ONE-chapter sections call hits 50s). The MAIN extraction grounding
+    // passes NO opts → original behaviour (it fits Vercel's 60s in prod; do NOT cut it short). A caller
+    // that must fail FAST + CATCHABLY on Hobby (the per-section facts-sheet) passes abortMs so an
+    // AbortSignal trips before the uncatchable 60s process kill → a clean, single-attempt degrade.
+    // NOTE: that sections grounding exceeds 60s regardless of batch size, so it degrades to UNAVAILABLE
+    // on Hobby no matter what — a higher ceiling (Vercel Pro 300s) or a non-grounded approach is the
+    // only way to actually produce it.
+    ...(opts?.abortMs ? { abortSignal: AbortSignal.timeout(opts.abortMs) } : {}),
   });
   const sources = extractGroundingSources(groundingRes);
   const notes = groundingRes.text ?? "";
@@ -413,7 +416,9 @@ export async function groundBookSections(
     `4. The characters or real figures present in that chapter.\n` +
     `5. 3-5 vocabulary words or key terms introduced or central to that chapter.\n` +
     `Cite the specific pages you used. Ground every claim in the sources.`;
-  return runBookGrounding(groundingPrompt);
+  // Fail FAST + catchably on Hobby (the worker degrades to sectionsStatus=UNAVAILABLE) rather than the
+  // uncatchable 60s kill + retries. (This grounding exceeds 60s on Hobby regardless — see runBookGrounding.)
+  return runBookGrounding(groundingPrompt, { abortMs: 50_000 });
 }
 
 /**
@@ -432,8 +437,6 @@ export async function structureBookSections(
     const structuredRes = await generateObject({
       model: models.flash,
       schema: sectionFactsSchema,
-      // Abort before Vercel's 60s kill so a slow structuring degrades cleanly to [] (catchable).
-      abortSignal: AbortSignal.timeout(50_000),
       prompt:
         `Convert the following chapter-by-chapter research notes about a book into structured ` +
         `JSON that matches the provided schema (an array of sections).\n\n` +
