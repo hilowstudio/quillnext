@@ -14,6 +14,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 import { getCurrentUserOrg } from "@/lib/auth-helpers";
+import { parentProfileId } from "@/server/profiles/ids";
 
 // -----------------------------------------------------------------------
 // Family Blueprint Server Actions
@@ -144,6 +145,25 @@ export async function saveClassroomStep(
         },
       });
     }
+
+    // Ensure the account owner's PARENT profile exists (idempotent; same id as the backfill).
+    // pinHash mirrors the classroom instructor PIN so the owner card is PIN-protected.
+    const ownerName = validated.instructors[0]
+      ? `${validated.instructors[0].firstName} ${validated.instructors[0].lastName || ""}`.trim()
+      : "Parent";
+    await tx.profile.upsert({
+      where: { id: parentProfileId(userId) },
+      create: {
+        id: parentProfileId(userId),
+        organizationId: activeOrgId,
+        type: "PARENT",
+        displayName: ownerName,
+        pinHash,
+        userId,
+        isOwner: true,
+      },
+      update: { displayName: ownerName, pinHash },
+    });
 
     return { classroom, instructors, organizationId: activeOrgId };
   }, undefined, { organizationId, userId });
