@@ -1,6 +1,14 @@
 import { auth } from "@/auth";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import {
+  ACTIVE_PROFILE_COOKIE,
+  activeProfileCookieOptions,
+  signActiveProfile,
+  verifyActiveProfile,
+  type ProfileType,
+} from "@/lib/active-profile-cookie";
+import { profileGateDecision } from "@/lib/profile-access";
 
 /**
  * Routes reachable while logged OUT. Everything NOT listed here requires a session, so a page
@@ -28,6 +36,9 @@ function isPublicRoute(pathname: string): boolean {
   return PUBLIC_ROUTES.has(path);
 }
 
+const RESTAMP_AFTER_SECONDS = 5 * 60; // re-issue a PARENT cookie at most once per ~5 min of activity
+const COOKIE_MAX_AGE = 60 * 60 * 24 * 30; // browser retention; idle is enforced server-side via iat
+
 export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
@@ -40,7 +51,43 @@ export async function proxy(req: NextRequest) {
     return NextResponse.redirect(new URL("/login", req.url));
   }
 
-  return NextResponse.next();
+  // Resolve the active profile TYPE from the signed cookie — at the edge, no DB hit. The cookie is
+  // only trusted if its signature/idle is valid AND it is bound to THIS login + org.
+  const secret = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET;
+  const raw = req.cookies.get(ACTIVE_PROFILE_COOKIE)?.value;
+  const userId = session.user.id;
+  const orgId = (session.user as { organizationId?: string }).organizationId;
+
+  let activeType: ProfileType | null = null;
+  let token: Awaited<ReturnType<typeof verifyActiveProfile>> = null;
+  if (raw && secret) {
+    token = await verifyActiveProfile(raw, secret, Date.now());
+    if (token && token.uid === userId && token.org === orgId) {
+      activeType = token.type;
+    }
+  }
+
+  if (profileGateDecision(pathname, activeType) === "picker") {
+    return NextResponse.redirect(new URL("/select-profile", req.url));
+  }
+
+  // Allowed. Sliding idle: refresh an aging PARENT cookie so continued activity keeps it alive.
+  const res = NextResponse.next();
+  if (activeType === "PARENT" && token && secret) {
+    const ageSeconds = Math.floor(Date.now() / 1000) - token.iat;
+    if (ageSeconds > RESTAMP_AFTER_SECONDS) {
+      const fresh = await signActiveProfile(
+        { profileId: token.profileId, type: token.type, uid: token.uid, org: token.org },
+        secret,
+        Date.now(),
+      );
+      res.cookies.set(ACTIVE_PROFILE_COOKIE, fresh, {
+        ...activeProfileCookieOptions(),
+        maxAge: COOKIE_MAX_AGE,
+      });
+    }
+  }
+  return res;
 }
 
 // Don't run Proxy on API routes, Next internals, the static `/assets/*` tree (e.g. the login
