@@ -5,6 +5,9 @@ const getCurrentUserOrg = vi.fn();
 const withTenant = vi.fn();
 const setActiveProfile = vi.fn();
 const clearActiveProfile = vi.fn();
+const checkProfilePinThrottle = vi.fn();
+const recordProfilePinFailure = vi.fn();
+const clearProfilePinThrottle = vi.fn();
 const redirect = vi.fn((_: string) => { throw new Error("REDIRECT"); });
 
 vi.mock("@/lib/auth-helpers", () => ({ getCurrentUserOrg: () => getCurrentUserOrg() }));
@@ -12,6 +15,11 @@ vi.mock("@/server/db", () => ({ withTenant: (...a: unknown[]) => withTenant(...a
 vi.mock("@/server/profiles/active-profile", () => ({
   setActiveProfile: (...a: unknown[]) => setActiveProfile(...a),
   clearActiveProfile: (...a: unknown[]) => clearActiveProfile(...a),
+}));
+vi.mock("@/server/profiles/pin-throttle", () => ({
+  checkProfilePinThrottle: (...a: unknown[]) => checkProfilePinThrottle(...a),
+  recordProfilePinFailure: (...a: unknown[]) => recordProfilePinFailure(...a),
+  clearProfilePinThrottle: (...a: unknown[]) => clearProfilePinThrottle(...a),
 }));
 vi.mock("next/navigation", () => ({ redirect: (p: string) => redirect(p) }));
 
@@ -22,6 +30,7 @@ const CTX = { userId: "u1", organizationId: "o1" };
 beforeEach(() => {
   vi.clearAllMocks();
   getCurrentUserOrg.mockResolvedValue(CTX);
+  checkProfilePinThrottle.mockResolvedValue({ allowed: true, retryAfterMs: 0 });
 });
 
 describe("selectProfile", () => {
@@ -54,16 +63,14 @@ describe("selectProfile", () => {
     expect(setActiveProfile).toHaveBeenCalledWith({ profileId: "p1", type: "PARENT" });
   });
 
-  it("locks out after 5 wrong-PIN attempts (rate limit gate)", async () => {
-    // Unique profileId so the rate-limit key (u1:p-ratelimit) is isolated from the other tests.
+  it("blocks when the durable throttle is locked out", async () => {
     const hash = await bcrypt.hash("1234", 10);
-    withTenant.mockResolvedValue({ id: "p-ratelimit", organizationId: "o1", type: "PARENT", pinHash: hash });
-    for (let i = 0; i < 5; i++) {
-      expect(await selectProfile("p-ratelimit", "0000")).toEqual({ ok: false, error: "Incorrect PIN." });
-    }
-    const res = await selectProfile("p-ratelimit", "0000");
+    withTenant.mockResolvedValue({ id: "p1", organizationId: "o1", type: "PARENT", pinHash: hash });
+    checkProfilePinThrottle.mockResolvedValue({ allowed: false, retryAfterMs: 12_000 });
+    const res = await selectProfile("p1", "0000");
     expect(res.ok).toBe(false);
     expect(res.error).toMatch(/Too many attempts/);
+    expect(recordProfilePinFailure).not.toHaveBeenCalled(); // gated before the bcrypt check
     expect(setActiveProfile).not.toHaveBeenCalled();
   });
 });
