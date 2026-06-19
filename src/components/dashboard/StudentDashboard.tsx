@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useStudentProfile } from "@/components/providers/StudentProfileProvider";
 import { getStudentAssignments, saveStudentAvatarConfig } from "@/app/actions/student";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -20,7 +19,6 @@ interface StudentDashboardProps {
 }
 
 export function StudentDashboard({ student, viewMode = "STANDARD" }: StudentDashboardProps) {
-    const { setActiveStudentId } = useStudentProfile();
     const [data, setData] = useState<{ assignments: any[]; courseEnrollments: any[] }>({ assignments: [], courseEnrollments: [] });
     const [loading, setLoading] = useState(true);
     const [customizerOpen, setCustomizerOpen] = useState(false);
@@ -78,9 +76,6 @@ export function StudentDashboard({ student, viewMode = "STANDARD" }: StudentDash
                         </p>
                     </div>
                 </div>
-                <Button variant="secondary" onClick={() => setActiveStudentId(null)} className="gap-2 self-start">
-                    <ArrowLeft size={16} /> Switch Profile
-                </Button>
             </div>
 
             {loading ? (
