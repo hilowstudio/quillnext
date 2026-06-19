@@ -55,11 +55,11 @@ export async function selectProfile(profileId: string, pin?: string): Promise<Se
 }
 
 /**
- * Enter PARENT-only profile management from the picker: PIN-verify the org's owner PARENT profile,
- * set it active, and land on /manage-profiles (which the proxy gates to PARENT). On success this
- * REDIRECTS and never returns; only failures return a result.
+ * PIN-verify the org's owner PARENT profile (bcrypt, rate-limited) and set it active. Shared by the
+ * parent-only entry points below; the caller redirects to its destination on success. No cookie is
+ * set unless the PIN check passes. On failure returns a result the client can show.
  */
-export async function enterProfileManagement(pin?: string): Promise<SelectProfileResult> {
+async function enterAsOwnerParent(pin?: string): Promise<{ ok: true } | SelectProfileResult> {
   const { organizationId } = await getCurrentUserOrg();
   if (!organizationId) return { ok: false, error: "No organization." };
 
@@ -67,7 +67,7 @@ export async function enterProfileManagement(pin?: string): Promise<SelectProfil
     (tx) =>
       tx.profile.findFirst({
         where: { organizationId, type: "PARENT", isOwner: true },
-        select: { id: true, type: true, pinHash: true },
+        select: { id: true, pinHash: true },
       }),
     undefined,
     { organizationId, userId: null },
@@ -88,7 +88,31 @@ export async function enterProfileManagement(pin?: string): Promise<SelectProfil
   }
 
   await setActiveProfile({ profileId: owner.id, type: "PARENT" });
+  return { ok: true };
+}
+
+/**
+ * Enter PARENT-only profile management from the picker: become the owner PARENT (PIN-gated) and land
+ * on /manage-profiles (which the proxy gates to PARENT). On success this REDIRECTS and never returns;
+ * only failures return a result.
+ */
+export async function enterProfileManagement(pin?: string): Promise<SelectProfileResult> {
+  const res = await enterAsOwnerParent(pin);
+  if (!res.ok) return res;
   redirect("/manage-profiles");
+}
+
+/**
+ * Parent-gated entry to a learner's personality assessment from the picker: become the owner PARENT
+ * (PIN-gated), then land on /students/[id]/assessment — a PARENT route the picker's no-active-profile
+ * state can't otherwise reach. `studentId` is restricted to an id-safe charset so it can't smuggle
+ * anything else into the redirect path. REDIRECTS on success; only failures return a result.
+ */
+export async function enterAssessment(studentId: string, pin?: string): Promise<SelectProfileResult> {
+  if (!/^[A-Za-z0-9_-]+$/.test(studentId)) return { ok: false, error: "Invalid student." };
+  const res = await enterAsOwnerParent(pin);
+  if (!res.ok) return res;
+  redirect(`/students/${studentId}/assessment`);
 }
 
 /** Clear the active profile and return to the picker ("Switch Profile"). */

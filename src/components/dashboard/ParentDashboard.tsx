@@ -1,13 +1,10 @@
-import { getStudentAvatarUrl } from "@/lib/utils";
 import { MathOperations, NotePencil, Camera } from "@phosphor-icons/react/dist/ssr";
-import Image from "next/image";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ContextCompleteness } from "@/components/context/ContextCompleteness";
 import { InklingToolkit } from "@/components/navigation/InklingToolkit";
 import { AssignResourceDialog } from "@/components/assignments/AssignResourceDialog";
-import { StudentProfileSwitcher } from "./StudentProfileSwitcher";
 import { MyLearningCard } from "./MyLearningCard";
 import type { MyLearning } from "@/server/profiles/my-learning";
 
@@ -30,8 +27,6 @@ export function ParentDashboard({
     classroomName,
     myLearning,
 }: ParentDashboardProps) {
-    const studentsWithAssessment = students.filter((s) => s.learnerProfile !== null);
-    const studentsWithoutAssessment = students.filter((s) => s.learnerProfile === null);
     const pageTitle = classroomName || "My Classroom";
 
     return (
@@ -90,42 +85,6 @@ export function ParentDashboard({
                         </Button>
                     </CardContent>
                 </Card>
-            </section>
-
-            {/* Student Profiles Selection */}
-            <section aria-label="Student profiles">
-            <Card className="mb-12 shadow-md border-qc-border-subtle bg-gradient-to-br from-white to-qc-parchment">
-                <CardHeader>
-                    <CardTitle className="font-display text-2xl font-bold text-qc-charcoal">Who is learning today?</CardTitle>
-                    <CardDescription className="text-lg text-qc-text-muted">
-                        Select a student profile to view their dashboard
-                    </CardDescription>
-                </CardHeader>
-                <CardContent>
-                    {/* Client Island for Student Selection */}
-                    <StudentProfileSwitcher students={students} />
-
-                    {studentsWithoutAssessment.length > 0 && (
-                        <div className="mt-8 p-3 bg-qc-warning-bg/80 backdrop-blur-sm border border-qc-warning-border rounded-qc-md text-center max-w-2xl mx-auto shadow-qc-sm">
-                            <p className="font-body text-sm font-medium text-qc-warning-text mb-1">
-                                Pending Assessments
-                            </p>
-                            <p className="font-body text-xs text-qc-warning-text mb-2">
-                                {studentsWithoutAssessment.length} student{studentsWithoutAssessment.length !== 1 ? "s need" : " needs"} personality assessment.
-                            </p>
-                            <div className="flex flex-wrap justify-center gap-2">
-                                {studentsWithoutAssessment.slice(0, 5).map((student) => (
-                                    <Button key={student.id} variant="outline" size="sm" className="h-7 text-xs bg-white" asChild>
-                                        <Link href={`/students/${student.id}/assessment`}>
-                                            Assess {student.preferredName || student.firstName}
-                                        </Link>
-                                    </Button>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-                </CardContent>
-            </Card>
             </section>
 
             {/* Inkling Toolkit Navigation */}

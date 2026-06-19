@@ -16,12 +16,19 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { AvatarCustomizer } from "@/components/profile/AvatarCustomizer";
-import { selectProfile, enterProfileManagement } from "@/app/select-profile/actions";
+import { selectProfile, enterProfileManagement, enterAssessment } from "@/app/select-profile/actions";
 import { verifyProfilePin } from "@/server/profiles/pin-actions";
 import { setProfileAvatar } from "@/server/profiles/avatar-actions";
 import type { ProfileCard } from "@/server/profiles/profile-card";
+import type { PendingAssessments } from "@/server/queries/students";
 
-export function ProfilePicker({ profiles }: { profiles: ProfileCard[] }) {
+export function ProfilePicker({
+  profiles,
+  pendingAssessments,
+}: {
+  profiles: ProfileCard[];
+  pendingAssessments: PendingAssessments;
+}) {
   const [pending, startTransition] = useTransition();
   const [pinFor, setPinFor] = useState<ProfileCard | null>(null);
   const [pin, setPin] = useState("");
@@ -33,6 +40,9 @@ export function ProfilePicker({ profiles }: { profiles: ProfileCard[] }) {
   const [avatarPinFor, setAvatarPinFor] = useState<ProfileCard | null>(null);
   const [avatarPin, setAvatarPin] = useState("");
   const [avatarPinError, setAvatarPinError] = useState<string | null>(null);
+  const [assessFor, setAssessFor] = useState<{ id: string; name: string } | null>(null);
+  const [assessPin, setAssessPin] = useState("");
+  const [assessError, setAssessError] = useState<string | null>(null);
   const router = useRouter();
   const owner = profiles.find((p) => p.isOwner);
 
@@ -78,6 +88,32 @@ export function ProfilePicker({ profiles }: { profiles: ProfileCard[] }) {
     startTransition(async () => {
       const res = await enterProfileManagement(managePin);
       if (res && !res.ok) setManageError(res.error);
+    });
+  }
+
+  // "Assess …" is a PARENT action, but the picker has no active profile — so gate into the owner
+  // PARENT (PIN if set) first, then enterAssessment redirects to the assessment page.
+  function startAssess(s: { id: string; firstName: string; preferredName: string | null }) {
+    setAssessError(null);
+    const target = { id: s.id, name: s.preferredName || s.firstName };
+    if (owner?.hasPin) {
+      setAssessPin("");
+      setAssessFor(target);
+      return;
+    }
+    startTransition(async () => {
+      const res = await enterAssessment(target.id);
+      if (res && !res.ok) setAssessError(res.error);
+    });
+  }
+
+  function submitAssess() {
+    if (!assessFor || assessPin.length !== 4) return;
+    setAssessError(null);
+    const target = assessFor;
+    startTransition(async () => {
+      const res = await enterAssessment(target.id, assessPin);
+      if (res && !res.ok) setAssessError(res.error);
     });
   }
 
@@ -169,6 +205,32 @@ export function ProfilePicker({ profiles }: { profiles: ProfileCard[] }) {
       </button>
       {manageError && !manageOpen && <p className="mt-2 text-sm text-qc-error">{manageError}</p>}
 
+      {pendingAssessments.total > 0 && (
+        <div className="mt-10 w-full max-w-2xl rounded-qc-md border border-qc-warning-border bg-qc-warning-bg/80 p-4 text-center shadow-qc-sm backdrop-blur-sm">
+          <p className="font-body text-sm font-medium text-qc-warning-text mb-1">Pending Assessments</p>
+          <p className="font-body text-xs text-qc-warning-text mb-3">
+            {pendingAssessments.total} student{pendingAssessments.total !== 1 ? "s need" : " needs"} personality assessment.
+          </p>
+          <div className="flex flex-wrap justify-center gap-2">
+            {pendingAssessments.students.map((s) => (
+              <Button
+                key={s.id}
+                variant="outline"
+                size="sm"
+                className="h-7 text-xs bg-white"
+                disabled={pending}
+                onClick={() => startAssess(s)}
+              >
+                Assess {s.preferredName || s.firstName}
+              </Button>
+            ))}
+          </div>
+          {assessError && assessFor == null && (
+            <p className="mt-3 text-sm text-qc-error">{assessError}</p>
+          )}
+        </div>
+      )}
+
       <Dialog
         open={pinFor != null}
         onOpenChange={(open) => {
@@ -241,6 +303,45 @@ export function ProfilePicker({ profiles }: { profiles: ProfileCard[] }) {
               Cancel
             </Button>
             <Button onClick={submitManage} disabled={pending || managePin.length !== 4}>
+              Continue
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={assessFor != null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setAssessFor(null);
+            setAssessError(null);
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Enter your parent PIN</DialogTitle>
+            <DialogDescription>Completing {assessFor?.name}&apos;s assessment is a parent action.</DialogDescription>
+          </DialogHeader>
+          <Input
+            type="password"
+            inputMode="numeric"
+            autoFocus
+            maxLength={4}
+            value={assessPin}
+            onChange={(e) => setAssessPin(e.target.value.replace(/\D/g, "").slice(0, 4))}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") submitAssess();
+            }}
+            placeholder="••••"
+            className="text-center text-2xl tracking-[0.5em]"
+          />
+          {assessError && <p className="text-sm text-qc-error">{assessError}</p>}
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setAssessFor(null)} disabled={pending}>
+              Cancel
+            </Button>
+            <Button onClick={submitAssess} disabled={pending || assessPin.length !== 4}>
               Continue
             </Button>
           </DialogFooter>

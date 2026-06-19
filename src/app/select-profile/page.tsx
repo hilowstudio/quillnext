@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentUserOrg } from "@/lib/auth-helpers";
 import { listOrganizationProfiles } from "@/server/profiles/queries";
+import { listStudentsNeedingAssessment } from "@/server/queries/students";
 import { ProfilePicker } from "@/components/profile/ProfilePicker";
 
 export default async function SelectProfilePage() {
@@ -29,5 +30,7 @@ export default async function SelectProfilePage() {
     );
   }
 
-  return <ProfilePicker profiles={profiles} />;
+  const pendingAssessments = await listStudentsNeedingAssessment(organizationId);
+
+  return <ProfilePicker profiles={profiles} pendingAssessments={pendingAssessments} />;
 }

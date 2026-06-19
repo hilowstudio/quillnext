@@ -195,6 +195,46 @@ export const getStudentById = cache(async (studentId: string, organizationId: st
     return student;
 });
 
+/** Learners still needing a personality assessment, plus the org-wide count of them. */
+export type PendingAssessments = {
+    total: number;
+    students: { id: string; firstName: string; preferredName: string | null }[];
+};
+
+/**
+ * Lists learners in the org with no personality assessment yet (`learnerProfile == null`).
+ * Returns the total count and the first few (for "Assess …" shortcuts) — surfaced on the
+ * profile picker as a gentle parent nudge.
+ *
+ * Uses React cache() for request-level deduplication.
+ */
+export const listStudentsNeedingAssessment = cache(
+    async (organizationId: string): Promise<PendingAssessments> => {
+        const where = {
+            organizationId,
+            learnerProfile: { is: null },
+        } satisfies Prisma.LearnerWhereInput;
+
+        return withTenant(
+            async (tx) => {
+                const total = await tx.learner.count({ where });
+                const students =
+                    total === 0
+                        ? []
+                        : await tx.learner.findMany({
+                              where,
+                              select: { id: true, firstName: true, preferredName: true },
+                              orderBy: [{ preferredName: "asc" }, { firstName: "asc" }],
+                              take: 5,
+                          });
+                return { total, students };
+            },
+            undefined,
+            { organizationId, userId: null },
+        );
+    },
+);
+
 /**
  * Fetches the master context for a student
  * Includes all relevant organizational, academic, family, and library data
