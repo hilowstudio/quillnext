@@ -25,6 +25,7 @@ export const metadata: Metadata = {
 };
 
 import { auth } from "@/auth";
+import { getActiveProfile } from "@/server/profiles/active-profile";
 
 export default async function RootLayout({
   children,
@@ -32,13 +33,14 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const session = await auth();
+  const activeProfile = await getActiveProfile();
 
   return (
     <html lang="en" className={`${inter.variable} ${cormorantGaramond.variable}`} suppressHydrationWarning>
       <body suppressHydrationWarning>
         <NuqsAdapter>
           <StudentProfileProvider>
-            <GlobalShell user={session?.user}>
+            <GlobalShell user={session?.user} activeProfile={activeProfile}>
               {children}
             </GlobalShell>
             <Toaster position="bottom-right" richColors closeButton />

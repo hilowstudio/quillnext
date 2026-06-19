@@ -338,6 +338,15 @@ export function ProfileSettingsDialog({
                         </div>
                     </TabsContent>
                 </Tabs>
+                <div className="mt-2 pt-4 border-t border-qc-border-subtle flex justify-end">
+                    <Button
+                        variant="outline"
+                        onClick={() => signOut({ callbackUrl: "/login" })}
+                        className="border-qc-error-border text-qc-error-text hover:bg-qc-error-bg"
+                    >
+                        Sign Out
+                    </Button>
+                </div>
             </DialogContent>
         </Dialog>
     );

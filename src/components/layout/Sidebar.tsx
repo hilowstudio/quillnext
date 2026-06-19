@@ -33,15 +33,15 @@ const NAV_ITEMS = [
 
 
 
-import { UserNav } from "@/components/navigation/UserNav";
 import { User } from "next-auth";
-import { switchProfile } from "@/app/select-profile/actions";
+import { AccountMenu, type AccountMenuProfile } from "@/components/navigation/AccountMenu";
 
 interface SidebarProps {
     user?: User;
+    activeProfile?: AccountMenuProfile | null;
 }
 
-export function Sidebar({ user }: SidebarProps) {
+export function Sidebar({ user, activeProfile }: SidebarProps) {
     const pathname = usePathname();
     const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -111,23 +111,9 @@ export function Sidebar({ user }: SidebarProps) {
                             <a href="mailto:adam@quillandcompass.app" className="hover:text-qc-primary transition-colors">Feedback</a>
                         </div>
 
-                        {user && (
+                        {user && activeProfile && (
                             <div className="pt-2 border-t border-qc-border-subtle/30">
-                                <div className="flex items-center gap-3 px-2">
-                                    <UserNav user={user} />
-                                    <div className="flex flex-col overflow-hidden">
-                                        <span className="text-sm font-medium truncate text-qc-charcoal">{user.name}</span>
-                                        <span className="text-xs text-qc-text-muted truncate">{user.email}</span>
-                                    </div>
-                                </div>
-                                <form action={switchProfile} className="mt-3 px-2">
-                                    <button
-                                        type="submit"
-                                        className="w-full text-left text-sm font-medium text-qc-text-muted hover:text-qc-primary transition-colors"
-                                    >
-                                        Switch Profile
-                                    </button>
-                                </form>
+                                <AccountMenu user={user} activeProfile={activeProfile} />
                             </div>
                         )}
                     </div>
