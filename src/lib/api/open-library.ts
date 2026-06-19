@@ -17,7 +17,9 @@ export async function lookupOpenLibraryByIsbn(isbn: string): Promise<BookMetadat
         const key = `ISBN:${isbn}`;
         const bookData = data[key];
 
-        if (!bookData) return null;
+        // Skip results with no title so BookMetadata.title is never runtime-undefined
+        // (the upstream JSON is not schema-validated).
+        if (!bookData || !bookData.title) return null;
 
         return {
             title: bookData.title,

@@ -72,16 +72,24 @@ export async function POST(req: Request) {
         // We trigger this asynchronously via Inngest so it runs in the background
         const lastMessage = coreMessages[coreMessages.length - 1];
         if (lastMessage && lastMessage.role === 'user') {
-            await inngest.send({
-                name: "chat/message.sent",
-                data: {
-                    studentId,
-                    message: lastMessage.content,
-                    // org carried so the background safety scan has RLS tenant context
-                    // (non-null: the student-in-org guard above guarantees it)
-                    organizationId: organizationId!,
-                }
-            });
+            // Enqueue the background safety scan. This is a child-safety event, so we must NOT
+            // silently drop it (no bare fire-and-forget) — but a transient Inngest enqueue failure
+            // must also NOT 500 the chat and deny the student a reply. Log loudly and continue; only
+            // the enqueue is awaited here, the scan PROCESSING is async (see safety-scan job).
+            try {
+                await inngest.send({
+                    name: "chat/message.sent",
+                    data: {
+                        studentId,
+                        message: lastMessage.content,
+                        // org carried so the background safety scan has RLS tenant context
+                        // (non-null: the student-in-org guard above guarantees it)
+                        organizationId: organizationId!,
+                    }
+                });
+            } catch (sendErr) {
+                console.error("Thinkling: failed to enqueue safety scan (chat/message.sent):", sendErr);
+            }
         }
 
         console.log("StreamText: Starting stream configuration...");
@@ -91,10 +99,8 @@ export async function POST(req: Request) {
             messages: coreMessages,
         });
 
-        // Use the method available in this SDK version (found via logs: toUIMessageStreamResponse)
-        // toTextStreamResponse sends raw text, but useChat expects structured UI messages by default.
-        // @ts-ignore
-        return result.toDataStreamResponse ? result.toDataStreamResponse() : result.toUIMessageStreamResponse();
+        // useChat expects structured UI messages; toUIMessageStreamResponse is the AI SDK v5 method.
+        return result.toUIMessageStreamResponse();
     } catch (error: any) {
         console.error("Thinkling Error:", error);
         return new Response(JSON.stringify({

@@ -50,9 +50,6 @@ export function TranscriptPreview({ transcript, className }: TranscriptPreviewPr
                     {transcript.studentInfo.email && <InfoRow label="Email" value={transcript.studentInfo.email} />}
                     {transcript.studentInfo.gender && <InfoRow label="Gender" value={transcript.studentInfo.gender} />}
                     <InfoRow label="Date of Birth" value={formatDateLocal(transcript.studentInfo.birthDate) || "—"} />
-                    {transcript.studentInfo.socialSecurityNumber && (
-                        <InfoRow label="SSN" value={transcript.studentInfo.socialSecurityNumber} className="font-mono" />
-                    )}
                     {transcript.studentInfo.graduationDate && (
                         <InfoRow label="Graduation Date" value={formatDateLocal(transcript.studentInfo.graduationDate)} />
                     )}

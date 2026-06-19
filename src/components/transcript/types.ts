@@ -110,7 +110,6 @@ export interface StudentInfo {
     graduationDate?: string;
     gender?: string;
     studentId?: string;
-    socialSecurityNumber?: string; // Optional SSN for financial aid applications
     address?: {
         street?: string;
         city?: string;

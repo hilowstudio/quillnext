@@ -101,17 +101,8 @@ export function EnvironmentStep({
   const onSubmit = async (data: EnvironmentFormData) => {
     setIsSaving(true);
     try {
-      const response = await fetch("/api/auth/user-org", {
-        method: "GET",
-        credentials: "include",
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to get user organization");
-      }
-
-      const { organizationId } = await response.json();
-      await saveEnvironmentStep(organizationId, data);
+      // Identity is derived server-side from the session inside saveEnvironmentStep.
+      await saveEnvironmentStep(data);
       onSaveComplete();
     } catch (error) {
       console.error("Failed to save environment step:", error);

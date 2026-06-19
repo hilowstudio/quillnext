@@ -38,35 +38,11 @@ export const processDocument = inngest.createFunction(
         // org-scoped db op (see update-db step). DocumentResource is org-scoped, not
         // user-scoped, so { organizationId, userId: null } is correct.
 
-        // 1. Download file from Firebase Storage
+        // 1. Download file from Firebase Storage. The producer (resource-library-actions
+        // uploadDocument) always passes the Storage object PATH in `fileUrl`, so download it
+        // via the Admin SDK bucket.
         const base64File = await step.run("download-file", async (): Promise<string> => {
-            // fileUrl might be a public URL or a gs:// path.
-            // For this implementation, we assume we passed the storage path (e.g. "documents/abc.pdf")
-            // OR we just use the public URL to fetch it if it's signed.
-            // OPTION A: Fetch via HTTP if signed URL
-            // OPTION B: Use Admin SDK if we have the path.
-
-            // Let's assume we pass the storage path in 'fileUrl' for internal processing, 
-            // or we handle the download via fetch if it is a public http url.
-
-            // If it is a firebase storage URL, we can use fetch.
-            if (fileUrl.startsWith("http")) {
-                const res = await fetch(fileUrl);
-                if (!res.ok) throw new Error("Failed to fetch file");
-                const arrayBuffer = await res.arrayBuffer();
-                return Buffer.from(arrayBuffer).toString("base64");
-            }
-
-            // Fallback: assume it is a path info and we use admin sdk
-            // But for simplicity in "Scale 3" refactor, let's assume standard fetch works if public,
-            // or we use the Admin SDK bucket logic if we passed a path.
-
-            // REFACTOR: We will change `resource-library-actions` to upload and give us a path or url.
-            // Let's stick to using the Admin SDK to download by file name if we passed a path.
-
             const bucket = await getStorageBucket();
-            // Extract file path from URL if needed, or expect 'fileUrl' to be the path.
-            // For safety, let's try to just download it assuming it is the path in the bucket.
             const file = bucket.file(fileUrl);
             const [downloadedBuffer] = await file.download();
             return downloadedBuffer.toString("base64");
@@ -112,8 +88,7 @@ export const processDocument = inngest.createFunction(
             );
 
             // Invalidate the library list so the user sees the new text/status
-            // @ts-ignore
-            revalidateTag(`library-${doc.organizationId}`);
+            revalidateTag(`library-${doc.organizationId}`, {});
         });
 
         return { success: true, resourceId };

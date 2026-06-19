@@ -130,8 +130,7 @@ const ALL_NULL_METADATA: YouTubeVideoMetadata = {
 export async function fetchVideoMetadata(videoId: string): Promise<YouTubeVideoMetadata> {
     const apiKey =
         process.env.YOUTUBE_API_KEY ??
-        process.env.GOOGLE_BOOKS_API_KEY ??
-        process.env.NEXT_PUBLIC_GOOGLE_BOOKS_API_KEY;
+        process.env.GOOGLE_BOOKS_API_KEY;
 
     if (!apiKey) {
         console.warn("fetchVideoMetadata: no YouTube/Google API key configured; returning empty metadata");

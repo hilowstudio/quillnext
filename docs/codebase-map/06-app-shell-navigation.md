@@ -1,0 +1,116 @@
+# 06 — App Shell, Layout & Navigation
+> Source of truth: the files in §1, read end-to-end. Written against commit b585c1e.
+
+## 1. Scope
+| File | Role |
+|---|---|
+| `src/app/layout.tsx` | Root layout: fonts, globals, providers (Nuqs, StudentProfile, Toaster), wraps `GlobalShell`; fetches `auth()` + `getActiveProfile()` server-side. |
+| `src/app/page.tsx` | Home route. Auth/org/profile gating, then routes to `StudentDashboard` or `ParentDashboard` by active profile type. |
+| `src/app/loading.tsx` | Global route-segment loading spinner. |
+| `src/app/error.tsx` | Global error boundary (client). Renders message + reset button. |
+| `src/components/layout/GlobalShell.tsx` | Client shell: chromeless vs sidebar layout based on pathname; renders `Sidebar` + `<main>`. |
+| `src/components/layout/Sidebar.tsx` | The live primary nav (logo, NAV_ITEMS, footer links, SessionTimer, AccountMenu, mobile drawer). |
+| `src/components/layout/SidebarClientIslands.tsx` | Alt "client island" sidebar parts (`SidebarNavigation`, `MobileSidebarToggle`, `SettingsButton`). **No importers.** |
+| `src/components/layout/SessionTimer.tsx` | Tiny client widget counting minutes on page; shown in Sidebar footer. |
+| ~~`src/components/layout/CommandPalette.tsx`~~ | Cmd/Ctrl-K command dialog. **Deleted 2026-06-19** (was dead — Q-06-005). |
+| `src/components/layout/CreationDrawer.tsx` | Right-side sheet embedding `GeneratorsClient`. **No importers** + hardcoded org placeholder. |
+| `src/components/navigation/AccountMenu.tsx` | Sidebar account dropdown: active profile, Switch Profile, (parent) Account Settings + Family Blueprint. Wired by Sidebar. |
+| `src/components/navigation/MainNav.tsx` | Legacy top nav bar (logo, home, discipleship, UserNav). **No importers.** |
+| `src/components/navigation/UserNav.tsx` | Legacy avatar dropdown (Profile Settings / All About Me / Log out). Only imported by MainNav (which is dead). |
+| `src/components/navigation/ContextNav.tsx` | URL-context breadcrumb card + `useContextPreservation` hook. **No importers.** |
+| `src/components/navigation/InklingToolkit.tsx` | 4-card tool launcher grid. Wired by `ParentDashboard`. |
+| `src/components/icons/arrow-left.tsx` | Phosphor `ArrowLeft` re-export. Used by onboarding-wizard. |
+| `src/components/icons/arrow-right.tsx` | Phosphor `ArrowRight` re-export. Used by onboarding-wizard. |
+| `src/components/icons/check-circle.tsx` | Phosphor `CheckCircle` re-export. Used by onboarding-wizard. |
+| `src/components/icons/google-logo.tsx` | Phosphor `GoogleLogo` re-export. Used by login/signup. |
+| `src/components/icons/plus.tsx` | Phosphor `Plus` re-export. Used by classroom/schedule steps. |
+| `src/components/icons/sign-in.tsx` | Phosphor `SignIn` re-export. Used by login. |
+| `src/components/icons/trash.tsx` | Phosphor `Trash` re-export. Used by classroom/schedule steps. |
+| `src/components/icons/user-plus.tsx` | Phosphor `UserPlus` re-export. Used by signup. |
+
+## 2. Purpose / intent
+This chapter is the application chrome: the root HTML/font/provider setup, the home dashboard router, and the persistent left sidebar with its account menu, session timer, and footer. The home page is a thin profile-aware router — STUDENT profiles land on their own learner dashboard, PARENT profiles get the full classroom dashboard with an optional `?studentId` peek. The icon files are thin Phosphor re-exports kept as a stable local import surface for auth/onboarding screens. A second generation of navigation primitives (`MainNav`/`UserNav`, `CommandPalette`, `CreationDrawer`, `ContextNav`, `SidebarClientIslands`) exists but is not wired into the live shell — the active shell is `GlobalShell` → `Sidebar` → `AccountMenu`.
+
+## 3. Architecture & key files
+- **Root layout** (`layout.tsx:30-52`): server component. Loads two Google fonts as CSS vars (`--font-body`, `--font-display`, `layout.tsx:9-20`), sets `metadata` (`:22-25`), then `auth()` (`:35`) and `getActiveProfile()` (`:36`). Wraps children in `NuqsAdapter` → `StudentProfileProvider` → `GlobalShell` (passing `session?.user` + `activeProfile`) and renders a global Sonner `Toaster` (`:46`). `suppressHydrationWarning` on `<html>`/`<body>`.
+- **GlobalShell** (`GlobalShell.tsx:17-37`): client. `CHROMELESS_PREFIXES = ["/select-profile"]` (`:15`) — those routes render bare children (`:23-25`); everything else gets `<Sidebar>` + a left-margined `<main>` (`lg:ml-64`, `:30`).
+- **Sidebar** (`Sidebar.tsx:44-132`): client. Static `NAV_ITEMS` array (`:23-31`) of 7 routes with Phosphor icons; active-state via `pathname` prefix match (`:82`). Footer holds `SessionTimer` (`:105`), static legal/feedback links (`:106-112`), and `AccountMenu` rendered only when both `user && activeProfile` (`:114-118`). Mobile drawer via local `mobileOpen` state (`:46,52-54,124-129`).
+- **AccountMenu** (`AccountMenu.tsx:35-84`): Radix dropdown showing the active profile avatar/name. `Switch Profile` always present and calls the `switchProfile()` server action (`:61`); parents additionally get `Account Settings` (opens `ProfileSettingsDialog`, `:66-68,80`) and a `Family Blueprint` link to `/context` (`:69-73`). Exports the `AccountMenuProfile` type reused by GlobalShell/Sidebar/layout.
+- **Home router** (`page.tsx`): described in §4.
+- **InklingToolkit** (`InklingToolkit.tsx:37-97`): framer-motion 4-card grid linking Creation Station / Courses / Thinkling / Living Library; consumed by `ParentDashboard` (`ParentDashboard.tsx:6,94`).
+- **Icons**: each file (e.g. `arrow-left.tsx:6-8`) is a `"use client"` wrapper that re-exports a single Phosphor icon with `IconProps`.
+
+## 4. Data flow
+Home request trace (`page.tsx`):
+1. `searchParams` awaited (`:14`); `auth()` (`:15`) → no user ⇒ `redirect("/login")` (`:16`).
+2. `getCurrentUserOrg(session)` (`:18`) → no `organizationId` ⇒ `redirect("/onboarding")` (`:19`). This is the canonical tenant gate (see 04-…).
+3. `getActiveProfile()` (`:22`) → none ⇒ `redirect("/select-profile")` (`:23`).
+4. STUDENT branch (`:26-34`): `getLearnerIdForProfile(active.id, organizationId)` (`:27`) → `getStudentDashboardData(organizationId, learnerId)` (`:29`) → render `StudentDashboard` with `viewMode` (`:30`); fail-safe `redirect("/select-profile")` (`:33`) if no learner/data.
+5. PARENT branch: optional `?studentId` peek calls `getStudentDashboardData(organizationId, searchParams.studentId)` (`:37-40`); otherwise `getParentDashboardData(organizationId)` (`:42`) + `getMyLearning(active.id, organizationId)` (`:43`) → `ParentDashboard` (`:44-54`).
+
+Both queries take `organizationId` from `getCurrentUserOrg`, so the home route is org-scoped. (Verify the downstream query implementations in their own chapters; see 02-data-model / 04-security-auth-tenancy.)
+
+Shell render flow: `layout.tsx` (server, fetches user + activeProfile) → `GlobalShell` (client, picks chromeless vs sidebar) → `Sidebar` (client, renders nav + `AccountMenu`). `AccountMenu`'s Switch Profile invokes the `switchProfile` server action from `@/app/select-profile/actions` (`AccountMenu.tsx:16,61`).
+
+SessionTimer: pure client; `setInterval` increments minutes every 60s (`SessionTimer.tsx:9-14`), hidden until ≥1 min (`:16`).
+
+## 5. Status table
+| Unit | Status | Evidence |
+|---|---|---|
+| `layout.tsx` RootLayout | DONE | App root; renders shell + providers (`layout.tsx:30-52`). |
+| `page.tsx` HomePage | DONE | `/` route; full gating + dashboard routing (`page.tsx:11-55`). |
+| `loading.tsx` | DONE | Default segment loading UI (`loading.tsx:1-10`). |
+| `error.tsx` | DONE | Route error boundary, `"use client"` + reset (`error.tsx:1-26`). |
+| `GlobalShell` | DONE | Imported by layout (`layout.tsx:4,43`); chromeless logic live (`GlobalShell.tsx:19-25`). |
+| `Sidebar` | DONE | Imported by GlobalShell (`GlobalShell.tsx:4,29`). |
+| `AccountMenu` | DONE | Imported/rendered by Sidebar (`Sidebar.tsx:37,116`). |
+| `SessionTimer` | DONE | Rendered by Sidebar (`Sidebar.tsx:20,105`). |
+| `InklingToolkit` | DONE | Imported by ParentDashboard (`ParentDashboard.tsx:6,94`). |
+| Icons (all 8) | DONE | All imported by onboarding/login/signup (see §6 importers). |
+| `SidebarClientIslands` (`SidebarNavigation`/`MobileSidebarToggle`/`SettingsButton`) | DEAD | Grep: only self-defs, no importers repo-wide. |
+| `CommandPalette` | ✅ REMOVED (2026-06-19) | deleted — was dead (Q-06-005 / Q-06-001). |
+| `CreationDrawer` | DEAD | Grep: only self-def at `CreationDrawer.tsx:10`; no importer. |
+| `ContextNav` + `useContextPreservation` | DEAD | Grep: only self-defs (`ContextNav.tsx:16,103`); no importer. |
+| `MainNav` | DEAD | Grep: only self-def (`MainNav.tsx:20`); no importer. |
+| `UserNav` | DEAD (transitively) | Only importer is `MainNav` (`MainNav.tsx:11,82`), which is itself dead. |
+
+## 6. Integration points
+- **Imports in (live shell):** `@/components/layout/GlobalShell`, `@/components/providers/StudentProfileProvider`, `@/auth` (`auth`), `@/server/profiles/active-profile` (`getActiveProfile`), `nuqs/adapters/next/app`, `sonner`, `next/font/google` — all in `layout.tsx`. `page.tsx` imports `@/lib/auth-helpers` (`getCurrentUserOrg`), `@/server/profiles/{active-profile,queries,my-learning}`, `@/server/queries/dashboard`, and the two dashboard components.
+- **Importers out:** `GlobalShell` ← layout; `Sidebar` ← GlobalShell; `AccountMenu`/`SessionTimer` ← Sidebar; `InklingToolkit` ← `ParentDashboard`; icons ← `onboarding-wizard.tsx`, `classroom-step.tsx`, `schedule-step.tsx`, `app/login/page.tsx`, `app/signup/page.tsx`.
+- **Server actions:** `switchProfile` from `@/app/select-profile/actions` (`AccountMenu.tsx:16`); `signOut` from `next-auth/react` (`UserNav.tsx:19`, dead path).
+- **Env vars:** none directly in these files.
+- **External APIs:** Google Fonts (Inter, Cormorant Garamond) via `next/font/google`; `@phosphor-icons/react`; `framer-motion`; `sonner`.
+- **Prisma models:** none direct here — all DB access is delegated to `src/server/profiles/*` and `src/server/queries/dashboard.ts` (see those chapters / 02-data-model).
+- **Inngest jobs:** none.
+
+## 7. Findings
+
+Q-06-001  [MED]  ◑ PARTIALLY ADDRESSED 2026-06-19 — `CommandPalette.tsx` deleted (owner); the rest remain dead. Large dead second-generation nav/shell surface — ~~`CommandPalette.tsx`~~ (deleted), `CreationDrawer.tsx`, `ContextNav.tsx`, `MainNav.tsx`, `UserNav.tsx`, `SidebarClientIslands.tsx`
+  Evidence: Grep for each export across `**/*.{ts,tsx}` returns only the definition site (and `UserNav` only from `MainNav`). The live shell is `GlobalShell` → `Sidebar` → `AccountMenu`; none of these six files is imported by it or any route.
+  Impact: ~400 lines of unreachable UI (two parallel sidebar implementations, two account dropdowns, an unbound Cmd-K palette) that drift from the live `Sidebar`/`AccountMenu` and mislead readers about the real nav. Maintenance + bundle/clarity cost.
+  Status: documented (not fixed)
+
+Q-06-002  [MED]  CreationDrawer passes a hardcoded org placeholder to GeneratorsClient — `src/components/layout/CreationDrawer.tsx:44`
+  Evidence: `<GeneratorsClient organizationId="current-org-id-placeholder" />`; the in-file comment (`:36-43`) acknowledges it. `GeneratorsClient` forwards `organizationId` to its generator (`GeneratorsClient.tsx:35,225`).
+  Impact: If wired, every generation request would be scoped to a literal bogus org id — a tenant-scoping/correctness bug. Currently latent because the component is DEAD (Q-06-001).
+  Status: documented (not fixed)
+
+Q-06-003  [LOW]  Two divergent account dropdowns (profile-aware vs legacy) — `AccountMenu.tsx` vs `UserNav.tsx`
+  Evidence: Live `AccountMenu` is profile-aware (Switch Profile / parent-gated Account Settings + Family Blueprint, `AccountMenu.tsx:35-84`). Dead `UserNav` offers a different menu (Profile Settings / "All About Me" → `/context` / Log out via `signOut`, `UserNav.tsx:51-67`).
+  Impact: Drift risk — the recently-removed/relocated behaviors (per recent commits) still live in `UserNav`; a future reader could revive the stale version.
+  Status: documented (not fixed)
+
+Q-06-004  [LOW]  `MobileSidebarToggle` "client island" controls nothing — `src/components/layout/SidebarClientIslands.tsx:57-95`
+  Evidence: It emits a `<style jsx global>` setting `.sidebar-mobile-control { transform: ... }` (`:83-92`) but no element in the repo uses that class (Grep `sidebar-mobile-control` → only this file), and the function has no importer.
+  Impact: Even if imported, the toggle would not move any sidebar; confirms it as non-functional dead code.
+  Status: documented (not fixed)
+
+Q-06-005  [LOW]  ✅ RESOLVED 2026-06-19 — `CommandPalette.tsx` deleted (owner decision; dead ⌘K palette + its stray icon imports gone). CommandPalette used semantically wrong icons for actions — `src/components/layout/CommandPalette.tsx:81,85` (deleted)
+  Evidence: "Create Course" uses `Calculator` (`:81`) and "Scan Book" uses `Smiley` (`:85`); the Phosphor import block (`:14-25`) pulls in several never-rendered icons (`Calendar` `:16`, `CreditCard` `:17`, `Gear` `:18`, `User` `:20`).
+  Impact: Cosmetic/quality only; component is DEAD. Indicates copy-paste from a template (cmdk demo) that was never finished.
+  Status: documented (not fixed)
+
+Q-06-006  [INFO]  ✅ RESOLVED 2026-06-19 — error boundary now shows a static message + error.digest (no raw error.message) (see CHANGELOG.md). `error.tsx` renders raw `error.message` to the user — `src/app/error.tsx:16`
+  Evidence: `<p ...>{error.message}</p>` shows the thrown message directly in the global error boundary.
+  Impact: Could surface internal error strings to end users. Low risk (Next.js strips messages from server errors in prod, exposing only `digest`), but client-thrown messages render verbatim.
+  Status: documented (not fixed)

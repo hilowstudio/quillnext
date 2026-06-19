@@ -36,8 +36,8 @@ export default function WorldMap({ stats, onCountrySelect }: WorldMapProps) {
     }, [stats]);
 
     useEffect(() => {
-        // Fetch a reliable public GeoJSON of the world
-        fetch('https://raw.githubusercontent.com/holtzy/D3-graph-gallery/master/DATA/world.geojson')
+        // Self-hosted world GeoJSON (committed at public/world.geojson) — no third-party runtime dependency.
+        fetch('/world.geojson')
             .then(res => res.json())
             .then(data => {
                 setGeoJsonData(data);

@@ -118,28 +118,8 @@ export async function fetchYouTubeTranscript(
 }
 
 /**
- * Split a transcript into overlapping word-window chunks for embedding.
- *
- * Window: 300 words, 50-word overlap (i.e. step 250 words). Chunks shorter than 50
- * characters (after trimming) are dropped so trailing fragments don't pollute the index.
- * Returns `[]` for empty/whitespace input.
+ * Overlapping word-window chunks for embedding. Identical algorithm to the shared `chunkText`
+ * (300-word window / 50-word overlap), so we re-export that single implementation under the
+ * transcript pipeline's call-site name instead of keeping a byte-identical copy.
  */
-export function chunkTranscript(text: string): string[] {
-  if (!text || typeof text !== "string") return [];
-
-  const words = text.split(/\s+/).filter(Boolean);
-  if (words.length === 0) return [];
-
-  const WINDOW = 300;
-  const OVERLAP = 50;
-  const STEP = WINDOW - OVERLAP; // 250
-
-  const chunks: string[] = [];
-  for (let start = 0; start < words.length; start += STEP) {
-    const chunk = words.slice(start, start + WINDOW).join(" ").trim();
-    if (chunk.length >= 50) chunks.push(chunk);
-    if (start + WINDOW >= words.length) break; // last window covered the tail
-  }
-
-  return chunks;
-}
+export { chunkText as chunkTranscript } from "@/lib/sources/text-processing";

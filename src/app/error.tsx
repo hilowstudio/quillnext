@@ -13,7 +13,10 @@ export default function Error({
         <h2 className="font-display text-2xl font-bold text-qc-error text-balance">
           Something went wrong!
         </h2>
-        <p className="mt-4 font-body text-qc-text-muted">{error.message}</p>
+        <p className="mt-4 font-body text-qc-text-muted">
+          An unexpected error occurred. Please try again.
+          {error.digest ? ` (Reference: ${error.digest})` : ""}
+        </p>
         <button
           onClick={reset}
           className="mt-6 rounded-qc-md bg-qc-primary px-4 py-2 font-body text-white transition-colors hover:bg-opacity-90"

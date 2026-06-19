@@ -15,9 +15,13 @@ import { embeddingModel, embeddingProviderOptions } from "@/lib/ai/config";
  * Semantic search for books using pgvector cosine similarity.
  */
 export async function searchBooks(query: string, limit = 5) {
+  // Cap the embed input: a search query never needs to be long, and an unbounded string would
+  // inflate embedding cost/latency (an authenticated-abuse vector once multi-tenant).
+  const q = (query ?? "").trim().slice(0, 1000);
+  if (!q) return [];
   const { embedding: queryEmbedding } = await embed({
     model: embeddingModel,
-    value: query,
+    value: q,
     providerOptions: embeddingProviderOptions("RETRIEVAL_QUERY"),
   });
   const vectorQuery = `[${queryEmbedding.join(",")}]`;

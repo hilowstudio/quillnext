@@ -35,9 +35,8 @@ export function ThinklingChat({ studentId, mode, onModeChange }: ThinklingChatPr
         onFinish: (event) => {
             console.log("ThinklingChat Finished Event:", event);
 
-            // The onFinish callback provides an event object containing the message
-            // We need to extract .message to get the actual UIMessage
-            const { message } = event as any;
+            // The onFinish callback provides an event object containing the final UIMessage.
+            const { message } = event;
             console.log("ThinklingChat Finished Message Extracted:", message);
 
             // Fallback: If for some reason the stream didn't update the UI, append the final message manually
@@ -81,14 +80,11 @@ export function ThinklingChat({ studentId, mode, onModeChange }: ThinklingChatPr
         const userMessage = input;
         setInput(""); // Clear input immediately
 
-        // Correct usage for AI SDK: Use sendMessage (object)
-        // @ts-ignore - sendMessage signature check
-        await sendMessage({
-            role: "user",
-            content: userMessage
-        } as any, {
-            body: { studentId, mode }
-        });
+        // AI SDK v5: sendMessage takes a { text } message + per-call options (body merged into the request).
+        await sendMessage(
+            { text: userMessage },
+            { body: { studentId, mode } },
+        );
     };
 
     return (

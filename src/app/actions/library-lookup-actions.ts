@@ -12,7 +12,7 @@ import { searchLibrarySchema } from "@/lib/schemas/actions";
 export async function lookupBook(rawData: unknown): Promise<{ success: boolean; data?: BookMetadata; results?: BookMetadata[]; error?: string }> {
     const validated = searchLibrarySchema.parse(rawData);
 
-    const apiKey = process.env.GOOGLE_BOOKS_API_KEY ?? process.env.NEXT_PUBLIC_GOOGLE_BOOKS_API_KEY;
+    const apiKey = process.env.GOOGLE_BOOKS_API_KEY;
     const query = validated.query;
     const type = validated.type === "BOOK" ? "ISBN" : "TITLE_AUTHOR";
 

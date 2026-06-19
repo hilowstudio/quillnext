@@ -26,7 +26,7 @@ async function assertStudentInOrg(studentId: string, organizationId: string) {
 }
 
 // Helper to check if a date is a school day
-async function isSchoolDay(date: Date, classroomId: string, schoolDaysOfWeek: number[], holidays: any[]): Promise<boolean> {
+async function isSchoolDay(date: Date, schoolDaysOfWeek: number[], holidays: any[]): Promise<boolean> {
     const dayOfWeek = date.getDay();
 
     if (!schoolDaysOfWeek.includes(dayOfWeek)) {
@@ -55,7 +55,7 @@ async function getNextSchoolDays(
     const holidays = classroom.holidays || [];
 
     while (days.length < count) {
-        if (await isSchoolDay(currentDate, classroom.id, schoolDaysOfWeek, holidays)) {
+        if (await isSchoolDay(currentDate, schoolDaysOfWeek, holidays)) {
             days.push(new Date(currentDate));
         }
         currentDate = addDays(currentDate, 1);

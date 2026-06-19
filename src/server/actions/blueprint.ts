@@ -26,14 +26,10 @@ import { parentProfileId } from "@/server/profiles/ids";
  * Creates/updates classroom and instructors
  */
 export async function saveClassroomStep(
-  organizationId: string | null,
-  userId: string,
   data: z.infer<typeof classroomStepSchema>,
 ) {
-  // Derive identity from the session — never trust caller-supplied org/userId.
-  const caller = await getCurrentUserOrg();
-  organizationId = caller.organizationId;
-  userId = caller.userId;
+  // Identity comes from the session — never trust caller-supplied org/userId.
+  const { organizationId, userId } = await getCurrentUserOrg();
 
   const validated = classroomStepSchema.parse(data);
 
@@ -180,12 +176,11 @@ export async function saveClassroomStep(
  * Updates classroom schedule
  */
 export async function saveScheduleStep(
-  organizationId: string,
   data: z.infer<typeof scheduleStepSchema>,
 ) {
   const { organizationId: sessionOrg } = await getCurrentUserOrg();
   if (!sessionOrg) throw new Error("Classroom not found. Please complete Step 1 first.");
-  organizationId = sessionOrg;
+  const organizationId = sessionOrg;
 
   const validated = scheduleStepSchema.parse(data);
 
@@ -272,12 +267,11 @@ export async function saveScheduleStep(
  * For now, we'll use a workaround by storing in description or create a separate table
  */
 export async function saveEnvironmentStep(
-  organizationId: string,
   data: z.infer<typeof environmentStepSchema>,
 ) {
   const { organizationId: sessionOrg } = await getCurrentUserOrg();
   if (!sessionOrg) throw new Error("Classroom not found. Please complete Step 1 first.");
-  organizationId = sessionOrg;
+  const organizationId = sessionOrg;
 
   const validated = environmentStepSchema.parse(data);
 

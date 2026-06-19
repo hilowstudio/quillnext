@@ -14,23 +14,26 @@ export async function getSourceMetadata(sourceId: string, sourceType: SourceType
             where: { id: sourceId },
             select: { subjectId: true, strandId: true }
         });
-        subjectId = source?.subjectId;
-        strandId = source?.strandId;
+        if (!source) return { success: false as const, error: "Source not found" };
+        subjectId = source.subjectId;
+        strandId = source.strandId;
     } else if (sourceType === "VIDEO") {
         const source = await db.videoResource.findUnique({
             where: { id: sourceId },
             select: { subjectId: true, strandId: true }
         });
-        subjectId = source?.subjectId;
-        strandId = source?.strandId;
+        if (!source) return { success: false as const, error: "Source not found" };
+        subjectId = source.subjectId;
+        strandId = source.strandId;
     } else if (sourceType === "COURSE") {
         const source = await db.course.findUnique({
             where: { id: sourceId },
             select: { subjectId: true, strandId: true }
         });
-        subjectId = source?.subjectId;
-        strandId = source?.strandId;
+        if (!source) return { success: false as const, error: "Source not found" };
+        subjectId = source.subjectId;
+        strandId = source.strandId;
     }
 
-    return { success: true, metadata: { subjectId, strandId } };
+    return { success: true as const, metadata: { subjectId, strandId } };
 }

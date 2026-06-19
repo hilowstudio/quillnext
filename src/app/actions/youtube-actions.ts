@@ -7,10 +7,9 @@ export async function getPlaylistDetails(rawData: unknown): Promise<{ success: b
     // Validate input
     const data = fetchPlaylistSchema.parse(rawData);
 
-    const apiKey = process.env.GOOGLE_BOOKS_API_KEY ?? process.env.NEXT_PUBLIC_GOOGLE_BOOKS_API_KEY; // Using the key user mentioned is configured (usually same project)
-    // IMPORTANT: Ideally we should use a specific YOUTUBE_API_KEY, but often they are the same GCP project key.
-    // I will check if there is a specific YOUTUBE key, if not fallback to generic or existing.
-    // For now assuming the standard key works for both if enabled.
+    // Server-only key (YouTube Data API). Prefer a dedicated YOUTUBE_API_KEY; fall back to the shared
+    // Google Books key (same GCP project). No NEXT_PUBLIC_ fallback — that would expose the key to the browser.
+    const apiKey = process.env.YOUTUBE_API_KEY ?? process.env.GOOGLE_BOOKS_API_KEY;
 
     if (!apiKey) {
         return { success: false, error: "Server configuration error: Missing API Key" };

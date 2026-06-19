@@ -1,112 +1,105 @@
-# QuillNext
+# Quill & Compass (QuillNext)
 
-AI-powered curriculum generation platform built with Next.js 16 App Router, Prisma, and Tailwind CSS v4.
+An AI-assisted homeschool platform: curriculum generation, a living resource library,
+planning/scheduling, grading, transcripts, and family discipleship — built for a single
+family/organization tenant model.
 
-## Getting Started
+> **Architecture reference:** the authoritative, verified map of this codebase lives in
+> [`docs/codebase-map/`](docs/codebase-map/00-INDEX.md) (24 chapters + a findings register).
+> Start there for anything beyond getting the app running. The design system is documented in
+> [`design.md`](design.md).
 
-### Prerequisites
+## Tech stack
 
-- Node.js ≥ 24 (Active LTS recommended)
-- PostgreSQL database
-- npm or yarn
+- **Framework:** Next.js 16 (App Router) + React 19
+- **Language:** TypeScript 5.9 (strict)
+- **Database/ORM:** PostgreSQL (Supabase) via Prisma 7 (`@prisma/adapter-pg`)
+- **Auth:** NextAuth (Auth.js) v5 — Google OAuth, JWT sessions
+- **AI:** Vercel AI SDK — Google Gemini (primary); OpenAI-compatible models also wired
+- **Background jobs:** Inngest
+- **Storage:** Firebase Admin (server-side document storage)
+- **Styling/UI:** Tailwind CSS v4, Radix UI via shadcn/ui (lucide icons)
+- **Editor / content:** Tiptap, react-markdown + KaTeX
+- **Validation:** Zod
+- **Tests:** Vitest
 
-### Installation
+> Note: the production build uses **webpack** (`next build --webpack`), not Turbopack.
 
-1. Install dependencies:
+## Prerequisites
+
+- **Node.js ≥ 24** (see [`.nvmrc`](.nvmrc))
+- A **PostgreSQL** database (the project targets Supabase Postgres)
+- npm
+
+## Getting started
+
 ```bash
+# 1. Install dependencies
 npm install
-```
 
-2. Set up environment variables:
-```bash
+# 2. Configure environment
 cp .env.example .env
-# Edit .env with your database URL and other secrets
-```
+# then fill in the values (see comments in .env.example)
 
-3. Set up the database:
-```bash
-# Generate Prisma Client
+# 3. Generate the Prisma client + re-export shim
 npm run db:generate
+npm run postgenerate
 
-# Run migrations
-npm run db:migrate
+# 4. Apply the schema (choose one)
+npm run db:migrate   # migration history (dev)
+# or: npm run db:push   # push schema without migrations
 
-# (Optional) Seed the database
+# 5. (Optional) Seed reference/content data
 npm run db:seed
-```
+#   plus, as needed:
+#   npm run db:seed:generators db:seed:discipleship db:seed:counties \
+#           db:seed:catechisms db:seed:commentary
 
-4. Start the development server:
-```bash
+# 6. Run the dev server
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) to see the app.
+Open <http://localhost:3000>.
 
-## Project Structure
+## npm scripts
 
-- `src/app/` - Next.js App Router pages and layouts
-- `src/components/` - React components (Server Components by default)
-- `src/server/` - Server-side code (actions, database client)
-- `src/lib/` - Utility functions, schemas, and shared code
-- `src/types/` - TypeScript type definitions
-- `prisma/` - Prisma schema and migrations
-- `quill-standards/` - Academic standards data
+| Script | Purpose |
+|---|---|
+| `dev` | Start the Next.js dev server |
+| `build` | `prisma generate` → `postgenerate` shim → `next build --webpack` |
+| `start` | Start the production server |
+| `lint` | `eslint .` (flat config; see `eslint.config.mjs`) |
+| `test` | `vitest run` |
+| `db:generate` | `prisma generate` |
+| `db:push` | `prisma db push` |
+| `db:migrate` | `prisma migrate dev` |
+| `db:studio` | `prisma studio` |
+| `db:seed` | Seed base data (`prisma/seed.ts`) |
+| `db:seed:generators` | Seed generator content types |
+| `db:seed:discipleship` | Seed discipleship content |
+| `db:seed:counties` | Seed counties data |
+| `db:seed:catechisms` | Seed catechism corpus |
+| `db:seed:commentary` | Seed commentary corpus |
 
-## Tech Stack
+## Project layout
 
-### Core
-- **Framework:** Next.js 16 (App Router, Turbopack)
-- **Language:** TypeScript 5.9 (strict mode)
-- **Runtime:** Node.js ≥ 24
+- `src/app/` — App Router routes, layouts, and server actions (`src/app/actions/`)
+- `src/server/` — server-side data layer (Prisma client, actions, profiles)
+- `src/lib/` — utilities, AI/prompt builders, API clients, schemas
+- `src/components/` — React components (Server Components by default)
+- `src/generated/` — generated Prisma client (do not edit)
+- `prisma/` — schema, migrations, and seed scripts
+- `docs/codebase-map/` — the verified architecture map (read this first)
+- `public/` — static assets (`/assets/branding/*`)
 
-### Database & ORM
-- **Database:** PostgreSQL
-- **ORM:** Prisma v7
-- **Connection:** Prisma
-- **Authentication:** Auth.js / NextAuth v5
+## Configuration & secrets
 
-### Data Layer
-- **Server Actions:** Primary data mutation pattern (see `src/server/actions/README.md`)
-- **Validation:** Zod
+All runtime configuration is via environment variables — see
+[`.env.example`](.env.example) for the full list with grouped comments. Do not commit a
+populated `.env`.
 
-### UI & Styling
-- **Styling:** Tailwind CSS v4.1
-- **Components:** Radix UI (via shadcn)
-- **Icons:** Phosphor Icons
-- **Animations:** Framer Motion
+## CI
 
-### State Management
-- **URL State:** Nuqs (source of truth)
-- **Page State:** React Server Components (default)
-
-### Forms & Validation
-- **Forms:** React Hook Form
-- **Schema Validation:** Zod
-
-### Content & Features
-- **AI:** Vercel AI SDK
-  - Models: Gemini 2.0 Flash, Gemini 1.5 Pro
-- **Rich Text:** Tiptap
-- **Maps:** Leaflet + React Leaflet
-- **Drag & Drop:** dnd-kit
-
-## Development
-
-- `npm run dev` - Start development server
-- `npm run build` - Build for production
-- `npm run lint` - Run ESLint
-- `npm run db:studio` - Open Prisma Studio
-
-## Design System
-
-See `.cursor/CURSOR_RULES.mdc` for complete design system guidelines.
-
-Key design tokens:
-- Primary: `#3A3F76` (Indigo)
-- Secondary: `#D9A441` (Gold)
-- Background: `#F9F5EF` (Parchment)
-- Text: `#1C1E23` (Charcoal)
-
-## Status
-- [x] Direct Deployment Verified
-
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs on push/PR to `main`:
+`npm ci` → `prisma generate` → `postgenerate` → `tsc --noEmit` → `eslint .` → `vitest run`.
+No database or secrets are required (Prisma generate does not connect).

@@ -181,8 +181,7 @@ export const extractVideo = inngest.createFunction(
                 { organizationId, userId },
             );
             // Invalidate the org's library list so the new summary/metadata surfaces.
-            // @ts-ignore — matches the revalidateTag call site in process-document.ts
-            revalidateTag(`library-${organizationId}`);
+            revalidateTag(`library-${organizationId}`, {});
         });
 
         // 7. Best-effort transcript embedding. embedVideoChunks opens its OWN plain-db writes

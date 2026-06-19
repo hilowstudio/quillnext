@@ -118,10 +118,13 @@ function serializeFamilyContext(
   }
 
   if (includeDetails && context.environment) {
-    if (context.environment.goals.length > 0) {
+    // Defensive: environmentPreferences is a JSON column; the app write path Zod-validates it
+    // (blueprint.ts), but guard the read so a malformed legacy/hand-edited row degrades gracefully
+    // instead of throwing on .length/.join.
+    if (Array.isArray(context.environment.goals) && context.environment.goals.length > 0) {
       parts.push(`- Educational Goals: ${context.environment.goals.join(", ")}`);
     }
-    if (context.environment.challenges.length > 0) {
+    if (Array.isArray(context.environment.challenges) && context.environment.challenges.length > 0) {
       parts.push(`- Current Challenges: ${context.environment.challenges.join(", ")}`);
     }
   }

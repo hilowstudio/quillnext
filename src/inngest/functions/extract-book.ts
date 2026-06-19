@@ -202,8 +202,7 @@ export const extractBook = inngest.createFunction(
                 { organizationId, userId },
             );
             // Invalidate the org's library list so the new summary/TOC surfaces.
-            // @ts-ignore — matches the revalidateTag call site in process-document.ts
-            revalidateTag(`library-${organizationId}`);
+            revalidateTag(`library-${organizationId}`, {});
         });
 
         // 5. Best-effort embedding. generateBookEmbedding opens its OWN withTenant via ctx,

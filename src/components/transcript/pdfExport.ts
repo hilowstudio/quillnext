@@ -642,12 +642,6 @@ function generatePrintHTML(transcript: TranscriptData): string {
           <span class="info-value">${formatDate(transcript.studentInfo.birthDate)}</span>
         </div>
         ` : ''}
-        ${transcript.studentInfo.socialSecurityNumber ? `
-        <div class="info-item">
-          <span class="info-label">SOCIAL SECURITY NUMBER:</span>
-          <span class="info-value info-value-mono">${esc(transcript.studentInfo.socialSecurityNumber)}</span>
-        </div>
-        ` : ''}
         ${transcript.studentInfo.graduationDate ? `
         <div class="info-item">
           <span class="info-label">GRADUATION DATE:</span>

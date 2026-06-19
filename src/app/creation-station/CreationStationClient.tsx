@@ -41,17 +41,14 @@ export default function CreationStationClient({ organizationId, initialBundles }
     const handleCompile = async (values: any) => {
         setIsCompiling(true);
         try {
-            const result = await compileCurriculumAction(values);
-            if (result.success) {
-                toast.success("Compilation Started", {
-                    description: "Your curriculum bundle is being engineered. Check below for progress."
-                });
-                // In a real app we'd optimistically add the bundle or re-fetch
-                // For now, revalidatePath in the action should refresh the server component,
-                // but we might need to refresh this client view. 
-                // A simple refresh will pull the new server data.
-                window.location.reload();
-            }
+            // compileCurriculumAction returns {success:true} or throws — there is no failure branch
+            // to handle here (errors fall to the catch below).
+            await compileCurriculumAction(values);
+            toast.success("Compilation Started", {
+                description: "Your curriculum bundle is being engineered. Check below for progress."
+            });
+            // revalidatePath in the action refreshes the server component; reload to pull new data.
+            window.location.reload();
         } catch (error) {
             toast.error("Compilation Failed");
             console.error(error);

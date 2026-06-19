@@ -43,11 +43,9 @@ export async function assignResourceToStudent(resourceId: string, studentId: str
         await db.resourceAssignment.create({
             data: {
                 resourceId,
+                studentId,
                 assignedByUserId: userId,
-                student: {
-                    connect: { id: studentId }
-                }
-            } as any,
+            },
         });
     }
 

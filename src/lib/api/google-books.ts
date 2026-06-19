@@ -1,5 +1,3 @@
-import { Book } from "@/generated/client";
-
 const GOOGLE_BOOKS_API_BASE = "https://www.googleapis.com/books/v1/volumes";
 
 export interface BookMetadata {
@@ -33,7 +31,11 @@ export async function searchGoogleBooks(query: string, apiKey?: string): Promise
 
         if (!data.items) return [];
 
-        return data.items.map((item: any) => {
+        // Guard the trust boundary: skip items with no title so BookMetadata.title is never
+        // runtime-undefined (the upstream JSON is not schema-validated).
+        return data.items
+            .filter((item: any) => item?.volumeInfo?.title)
+            .map((item: any) => {
             const info = item.volumeInfo;
             const isbn = info.industryIdentifiers?.find((id: any) => id.type === "ISBN_13")?.identifier ||
                 info.industryIdentifiers?.find((id: any) => id.type === "ISBN_10")?.identifier;

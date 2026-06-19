@@ -83,19 +83,8 @@ export function ClassroomStep({
   const onSubmit = async (data: ClassroomFormData) => {
     setIsSaving(true);
     try {
-      // Get user org in client action
-      const response = await fetch("/api/auth/user-org", {
-        method: "GET",
-        credentials: "include",
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to get user organization");
-      }
-
-      const { userId, organizationId } = await response.json();
-
-      await saveClassroomStep(organizationId, userId, data);
+      // Identity is derived server-side from the session inside saveClassroomStep.
+      await saveClassroomStep(data);
       onSaveComplete();
     } catch (error) {
       console.error("Failed to save classroom step:", error);

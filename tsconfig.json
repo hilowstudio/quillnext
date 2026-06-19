@@ -38,8 +38,6 @@
   "exclude": [
     "node_modules",
     "prisma/seed*.ts",
-    "family-discipleship-export",
-    "debug-connect.ts",
-    "verify-seed.ts"
+    "family-discipleship-export"
   ]
 }

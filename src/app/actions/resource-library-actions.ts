@@ -362,12 +362,19 @@ async function deleteResource(id: string, model: "book" | "videoResource" | "art
 
     const { organizationId } = await getCurrentUserOrg();
 
-    // Removed defensive try/catch - authorization and delete errors should surface explicitly
-    const resource = await withTenant<any>(
-        // @ts-ignore - dynamic model access
-        (tx) => tx[model].findUnique({
-            where: { id },
-        }),
+    // Typed per-model access (no dynamic tx[model] / @ts-ignore). All five models carry
+    // organizationId, so we fetch just that for the ownership check, then delete.
+    const resource = await withTenant(
+        async (tx): Promise<{ organizationId: string } | null> => {
+            switch (model) {
+                case "book": return tx.book.findUnique({ where: { id }, select: { organizationId: true } });
+                case "videoResource": return tx.videoResource.findUnique({ where: { id }, select: { organizationId: true } });
+                case "article": return tx.article.findUnique({ where: { id }, select: { organizationId: true } });
+                case "documentResource": return tx.documentResource.findUnique({ where: { id }, select: { organizationId: true } });
+                case "resource": return tx.resource.findUnique({ where: { id }, select: { organizationId: true } });
+                default: throw new Error(`Unknown model: ${model}`);
+            }
+        },
         undefined,
         { organizationId, userId: null }
     );
@@ -381,10 +388,16 @@ async function deleteResource(id: string, model: "book" | "videoResource" | "art
     }
 
     await withTenant(
-        // @ts-ignore
-        (tx) => tx[model].delete({
-            where: { id },
-        }),
+        async (tx): Promise<void> => {
+            switch (model) {
+                case "book": await tx.book.delete({ where: { id } }); return;
+                case "videoResource": await tx.videoResource.delete({ where: { id } }); return;
+                case "article": await tx.article.delete({ where: { id } }); return;
+                case "documentResource": await tx.documentResource.delete({ where: { id } }); return;
+                case "resource": await tx.resource.delete({ where: { id } }); return;
+                default: throw new Error(`Unknown model: ${model}`);
+            }
+        },
         undefined,
         { organizationId, userId: null }
     );

@@ -9,7 +9,7 @@ import { StudentHeader } from "./_components/StudentHeader";
 import { PersonalityProfile } from "./_components/PersonalityProfile";
 import { LearningStyle } from "./_components/LearningStyle";
 import { InterestsPassions } from "./_components/InterestsPassions";
-import { ContextCompleteness } from "./_components/ContextCompleteness";
+import { PersonalizationContextCard } from "./_components/PersonalizationContextCard";
 import { EnrolledCourses } from "./_components/EnrolledCourses";
 import { CurrentObjectives } from "./_components/CurrentObjectives";
 import { RecommendedBooks } from "./_components/RecommendedBooks";
@@ -86,7 +86,7 @@ export default async function StudentProfilePage({
 
       {/* Context completeness */}
       <Suspense fallback={<CardSkeleton />}>
-        <ContextCompleteness student={student} relevantBooks={relevantBooks} />
+        <PersonalizationContextCard student={student} relevantBooks={relevantBooks} />
       </Suspense>
 
       {/* Course and objective data */}

@@ -90,13 +90,15 @@ export enum TaskComplexity {
  * Task type definitions with default model assignments
  */
 export enum AITaskType {
-  // Highest complexity - Use Gemini 3 Pro (only model that processes YouTube videos)
+  // Highest-complexity tier — gemini-2.5-pro (models.pro3); VIDEO_* require it (only Gemini model
+  // that processes YouTube). NOTE: PERSONALITY_PROFILING + LEARNING_STYLE_ANALYSIS are intentionally
+  // downgraded to flash in taskModelMap below (reliability).
   PERSONALITY_PROFILING = "personality_profiling",
   LEARNING_STYLE_ANALYSIS = "learning_style_analysis",
   COMPLEX_CONTENT_GENERATION = "complex_content_generation",
   MULTI_STEP_REASONING = "multi_step_reasoning",
   COURSE_STRUCTURE_DESIGN = "course_structure_design",
-  VIDEO_PROCESSING = "video_processing", // YouTube video analysis - REQUIRES Gemini 3 Pro
+  VIDEO_PROCESSING = "video_processing", // YouTube video analysis - REQUIRES gemini-2.5-pro
   VIDEO_BASED_CONTENT = "video_based_content", // Content generation from videos
 
   // Medium complexity - Use Flash
@@ -120,8 +122,8 @@ export enum AITaskType {
  * Model selection map: Task type -> Model
  */
 const taskModelMap: Record<AITaskType, typeof models.pro3 | typeof models.pro | typeof models.flash | typeof models.flashLite> = {
-  // Highest complexity tasks -> Gemini 3 Pro (most advanced reasoning)
-  // ⚠️ Video processing tasks MUST use Gemini 3 Pro (only model that supports YouTube)
+  // Highest complexity tasks -> gemini-2.5-pro (most advanced reasoning)
+  // ⚠️ Video processing tasks MUST use gemini-2.5-pro (only model that supports YouTube)
   [AITaskType.PERSONALITY_PROFILING]: models.flash, // Downgrade to Flash for reliability
   [AITaskType.LEARNING_STYLE_ANALYSIS]: models.flash, // Downgrade to Flash for reliability
   [AITaskType.COMPLEX_CONTENT_GENERATION]: models.pro3,
@@ -161,7 +163,7 @@ export function getModelForTask(taskType: AITaskType) {
 export function getModelByComplexity(complexity: TaskComplexity) {
   switch (complexity) {
     case TaskComplexity.HIGH:
-      return models.pro3; // Use Gemini 3 Pro for highest complexity
+      return models.pro3; // Use gemini-2.5-pro for highest complexity
     case TaskComplexity.MEDIUM:
       return models.flash;
     case TaskComplexity.LOW:
@@ -178,7 +180,7 @@ export function getDefaultModel() {
 }
 
 export function getStructuredModel() {
-  return models.pro3; // Structured outputs use Gemini 3 Pro for best quality
+  return models.pro3; // Structured outputs use gemini-2.5-pro for best quality
 }
 
 export function getGenerativeUIModel() {
@@ -209,7 +211,7 @@ export function embeddingProviderOptions(taskType: "RETRIEVAL_DOCUMENT" | "RETRI
 
 /**
  * Check if content contains YouTube URLs
- * Used to automatically select Gemini 3 Pro for video processing
+ * Used to automatically select gemini-2.5-pro for video processing
  */
 export function containsYouTubeUrl(content: string): boolean {
   const youtubeRegex = /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/;
@@ -218,7 +220,7 @@ export function containsYouTubeUrl(content: string): boolean {
 
 /**
  * Get model for task with automatic video detection
- * If content contains YouTube URLs, automatically uses Gemini 3 Pro
+ * If content contains YouTube URLs, automatically uses gemini-2.5-pro
  * 
  * @param taskType - The task type
  * @param content - Optional content to check for YouTube URLs
@@ -228,7 +230,7 @@ export function getModelForTaskWithVideoCheck(
   taskType: AITaskType,
   content?: string,
 ): typeof models.pro3 | typeof models.pro | typeof models.flash | typeof models.flashLite {
-  // If content contains YouTube URLs, MUST use Gemini 3 Pro
+  // If content contains YouTube URLs, MUST use gemini-2.5-pro
   if (content && containsYouTubeUrl(content)) {
     return models.pro3;
   }

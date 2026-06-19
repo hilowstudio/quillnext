@@ -182,10 +182,7 @@ export function ScheduleStep({
   const onSubmit: SubmitHandler<ScheduleFormData> = async (data) => {
     setIsSaving(true);
     try {
-      const response = await fetch("/api/auth/user-org", { method: "GET" });
-      if (!response.ok) throw new Error("Failed to get organization");
-      const { organizationId } = await response.json();
-
+      // Identity is derived server-side from the session inside saveScheduleStep.
       // Sanitization
       const payload = { ...data };
       if (variesWeekly) {
@@ -201,7 +198,7 @@ export function ScheduleStep({
         payload.hoursPerDay = undefined;
       }
 
-      await saveScheduleStep(organizationId, payload);
+      await saveScheduleStep(payload);
       onSaveComplete();
     } catch (error) {
       console.error("Failed to save schedule step:", error);
