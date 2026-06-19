@@ -124,6 +124,7 @@ export function ManageProfiles({ profiles }: { profiles: ProfileCard[] }) {
             <DialogDescription>Enter a 4-digit PIN. They&apos;ll need it to select this profile.</DialogDescription>
           </DialogHeader>
           <Input
+            type="password"
             inputMode="numeric"
             autoFocus
             maxLength={4}
