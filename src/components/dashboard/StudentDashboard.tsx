@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useStudentProfile } from "@/components/providers/StudentProfileProvider";
-import { getStudentAssignments } from "@/app/actions/student";
+import { getStudentAssignments, saveStudentAvatarConfig } from "@/app/actions/student";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, BookOpen, FileText, CheckCircle, Clock, PencilSimple, Users } from "@phosphor-icons/react";
@@ -197,7 +197,11 @@ export function StudentDashboard({ student, viewMode = "STANDARD" }: StudentDash
                 studentId={student.id}
                 initialName={student.preferredName || student.firstName}
                 initialConfig={avatarConfig}
-                onSave={setAvatarConfig}
+                onSave={async (newConfig) => {
+                    const res = await saveStudentAvatarConfig(student.id, newConfig);
+                    if (res.success) setAvatarConfig(newConfig);
+                    return { ok: res.success };
+                }}
             />
         </div>
     );

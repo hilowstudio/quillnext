@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { LockSimple } from "@phosphor-icons/react";
+import { useRouter } from "next/navigation";
+import { LockSimple, PencilSimple } from "@phosphor-icons/react";
 import { getStudentAvatarUrl } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -14,7 +15,10 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { AvatarCustomizer } from "@/components/profile/AvatarCustomizer";
 import { selectProfile, enterProfileManagement } from "@/app/select-profile/actions";
+import { verifyProfilePin } from "@/server/profiles/pin-actions";
+import { setProfileAvatar } from "@/server/profiles/avatar-actions";
 import type { ProfileCard } from "@/server/profiles/profile-card";
 
 export function ProfilePicker({ profiles }: { profiles: ProfileCard[] }) {
@@ -25,6 +29,11 @@ export function ProfilePicker({ profiles }: { profiles: ProfileCard[] }) {
   const [manageOpen, setManageOpen] = useState(false);
   const [managePin, setManagePin] = useState("");
   const [manageError, setManageError] = useState<string | null>(null);
+  const [avatarFor, setAvatarFor] = useState<ProfileCard | null>(null);
+  const [avatarPinFor, setAvatarPinFor] = useState<ProfileCard | null>(null);
+  const [avatarPin, setAvatarPin] = useState("");
+  const [avatarPinError, setAvatarPinError] = useState<string | null>(null);
+  const router = useRouter();
   const owner = profiles.find((p) => p.isOwner);
 
   function choose(p: ProfileCard) {
@@ -72,42 +81,79 @@ export function ProfilePicker({ profiles }: { profiles: ProfileCard[] }) {
     });
   }
 
+  function startAvatarEdit(p: ProfileCard) {
+    setAvatarPinError(null);
+    if (p.hasPin) {
+      setAvatarPin("");
+      setAvatarPinFor(p);
+    } else {
+      setAvatarFor(p);
+    }
+  }
+
+  function submitAvatarPin() {
+    if (!avatarPinFor || avatarPin.length !== 4) return;
+    const target = avatarPinFor;
+    startTransition(async () => {
+      const res = await verifyProfilePin(target.id, avatarPin);
+      if (res.ok) {
+        setAvatarPinFor(null);
+        setAvatarFor(target); // open the customizer; avatarPin is held for the save
+      } else {
+        setAvatarPinError(res.error);
+      }
+    });
+  }
+
   return (
     <div className="min-h-screen w-full flex flex-col items-center justify-center bg-qc-parchment px-4 py-16">
       <h1 className="font-display text-4xl md:text-5xl font-medium text-qc-charcoal mb-12 text-center">
-        Who&apos;s learning today?
+        Select a profile
       </h1>
 
       <div className="flex flex-wrap justify-center gap-10 max-w-4xl">
         {profiles.map((p) => (
-          <button
-            key={p.id}
-            type="button"
-            onClick={() => choose(p)}
-            disabled={pending}
-            className="group flex flex-col items-center gap-4 disabled:opacity-60 disabled:cursor-not-allowed"
-          >
-            <div className="relative h-28 w-28 rounded-full overflow-hidden ring-4 ring-white shadow-lg group-hover:ring-qc-primary/30 group-hover:shadow-xl transition-all duration-300 transform group-hover:scale-105">
-              <Avatar className="h-full w-full">
-                <AvatarImage
-                  src={getStudentAvatarUrl(p.displayName, p.avatarConfig)}
-                  alt={p.displayName}
-                  referrerPolicy="no-referrer"
-                />
-                <AvatarFallback className="text-4xl font-bold bg-qc-parchment-crumpled text-qc-primary">
-                  {p.displayName?.[0] ?? "?"}
-                </AvatarFallback>
-              </Avatar>
+          <div key={p.id} className="group relative flex flex-col items-center gap-4">
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => choose(p)}
+                disabled={pending}
+                aria-label={`Select ${p.displayName}`}
+                className="block h-28 w-28 rounded-full overflow-hidden ring-4 ring-white shadow-lg group-hover:ring-qc-primary/30 group-hover:shadow-xl transition-all duration-300 transform group-hover:scale-105 disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                <Avatar className="h-full w-full">
+                  <AvatarImage
+                    src={getStudentAvatarUrl(p.displayName, p.avatarConfig)}
+                    alt={p.displayName}
+                    referrerPolicy="no-referrer"
+                  />
+                  <AvatarFallback className="text-4xl font-bold bg-qc-parchment-crumpled text-qc-primary">
+                    {p.displayName?.[0] ?? "?"}
+                  </AvatarFallback>
+                </Avatar>
+              </button>
+              {/* Lock badge — sibling of the clipped circle so it overflows uncut. */}
               {p.hasPin && (
-                <span className="absolute bottom-1 right-1 rounded-full bg-white/90 p-1 shadow">
+                <span className="absolute -bottom-1 -right-1 z-10 rounded-full bg-white p-1.5 shadow ring-1 ring-qc-border-subtle">
                   <LockSimple className="h-4 w-4 text-qc-primary" weight="fill" />
                 </span>
               )}
+              {/* Edit this profile's avatar */}
+              <button
+                type="button"
+                onClick={() => startAvatarEdit(p)}
+                disabled={pending}
+                aria-label={`Edit ${p.displayName}'s avatar`}
+                className="absolute -top-1 -right-1 z-10 rounded-full bg-white p-1.5 shadow ring-1 ring-qc-border-subtle text-qc-text-muted opacity-0 group-hover:opacity-100 transition-opacity hover:text-qc-primary"
+              >
+                <PencilSimple className="h-4 w-4" />
+              </button>
             </div>
             <span className="font-display text-xl font-medium text-qc-charcoal group-hover:text-qc-primary transition-colors">
               {p.displayName}
             </span>
-          </button>
+          </div>
         ))}
       </div>
 
@@ -138,6 +184,7 @@ export function ProfilePicker({ profiles }: { profiles: ProfileCard[] }) {
             <DialogDescription>This profile is protected by a 4-digit PIN.</DialogDescription>
           </DialogHeader>
           <Input
+            type="password"
             inputMode="numeric"
             autoFocus
             maxLength={4}
@@ -176,6 +223,7 @@ export function ProfilePicker({ profiles }: { profiles: ProfileCard[] }) {
             <DialogDescription>Manage Profiles is protected by your parent profile&apos;s PIN.</DialogDescription>
           </DialogHeader>
           <Input
+            type="password"
             inputMode="numeric"
             autoFocus
             maxLength={4}
@@ -193,6 +241,62 @@ export function ProfilePicker({ profiles }: { profiles: ProfileCard[] }) {
               Cancel
             </Button>
             <Button onClick={submitManage} disabled={pending || managePin.length !== 4}>
+              Continue
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Avatar edit — opens after the (optional) PIN check; avatarPin is held for the save. */}
+      <AvatarCustomizer
+        studentId={avatarFor?.id ?? ""}
+        initialName={avatarFor?.displayName ?? "profile"}
+        initialConfig={avatarFor?.avatarConfig}
+        open={avatarFor != null}
+        onOpenChange={(o) => {
+          if (!o) setAvatarFor(null);
+        }}
+        onSave={async (config) => {
+          if (!avatarFor) return { ok: false, error: "No profile selected." };
+          const res = await setProfileAvatar(avatarFor.id, config, avatarFor.hasPin ? avatarPin : undefined);
+          if (res.ok) router.refresh();
+          return res;
+        }}
+      />
+
+      <Dialog
+        open={avatarPinFor != null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setAvatarPinFor(null);
+            setAvatarPinError(null);
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Enter {avatarPinFor?.displayName}&apos;s PIN</DialogTitle>
+            <DialogDescription>This profile is PIN-protected — enter the PIN to edit its avatar.</DialogDescription>
+          </DialogHeader>
+          <Input
+            type="password"
+            inputMode="numeric"
+            autoFocus
+            maxLength={4}
+            value={avatarPin}
+            onChange={(e) => setAvatarPin(e.target.value.replace(/\D/g, "").slice(0, 4))}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") submitAvatarPin();
+            }}
+            placeholder="••••"
+            className="text-center text-2xl tracking-[0.5em]"
+          />
+          {avatarPinError && <p className="text-sm text-qc-error">{avatarPinError}</p>}
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setAvatarPinFor(null)} disabled={pending}>
+              Cancel
+            </Button>
+            <Button onClick={submitAvatarPin} disabled={pending || avatarPin.length !== 4}>
               Continue
             </Button>
           </DialogFooter>

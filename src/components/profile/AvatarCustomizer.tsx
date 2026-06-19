@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { saveStudentAvatarConfig } from "@/app/actions/student";
 import { toast } from "sonner";
 import {
     Dialog,
@@ -22,7 +21,7 @@ interface AvatarCustomizerProps {
     studentId: string;
     initialConfig?: any;
     initialName?: string;
-    onSave?: (newConfig: any) => void;
+    onSave: (newConfig: any) => Promise<{ ok: boolean; error?: string }>;
     open: boolean;
     onOpenChange: (open: boolean) => void;
 }
@@ -286,14 +285,13 @@ export function AvatarCustomizer({
         setIsSaving(true);
         try {
             const finalConfig = cleanConfig({ ...config, seed: config.seed || initialName });
-            const result = await saveStudentAvatarConfig(studentId, finalConfig);
+            const result = await onSave(finalConfig);
 
-            if (result.success) {
+            if (result.ok) {
                 toast.success("Avatar updated!");
-                onSave?.(finalConfig);
                 onOpenChange(false);
             } else {
-                toast.error("Failed to save avatar");
+                toast.error(result.error || "Failed to save avatar");
             }
         } catch (error) {
             toast.error("An error occurred");
