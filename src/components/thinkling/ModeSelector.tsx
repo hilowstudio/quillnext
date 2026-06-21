@@ -2,7 +2,7 @@
 
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import { GraduationCap, MagnifyingGlass, Scales, Compass } from "@phosphor-icons/react";
+import { GraduationCap, MagnifyingGlass, Compass, type Icon } from "@phosphor-icons/react";
 import { ThinklingMode } from "@/lib/thinkling";
 
 interface ModeSelectorProps {
@@ -35,7 +35,7 @@ const MODES = [
         color: "text-green-500",
         bg: "bg-green-50"
     }
-];
+] as const satisfies readonly { id: ThinklingMode; label: string; description: string; icon: Icon; color: string; bg: string }[];
 
 export function ModeSelector({ selectedMode, onSelectMode }: ModeSelectorProps) {
     return (

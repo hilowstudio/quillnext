@@ -36,9 +36,25 @@ async function main() {
   const startTime = Date.now();
 
   try {
-    // 0. Clear existing ResourceKinds, then rebuild from the YAML. Idempotent
-    //    re-seed (safe while no Resource/BookGeneratedMaterial rows reference them;
-    //    this is a provisioning seeder, not for a DB with generated content).
+    // 0. Clear existing ResourceKinds, then rebuild from the YAML. This is a
+    //    provisioning seeder, intended for a DB without generated content.
+    //    resources.resource_kind_id and book_generated_materials.resource_kind_id are
+    //    NOT NULL + ON DELETE RESTRICT, so deleting kinds out from under existing
+    //    content fails the FK. Preflight that explicitly and abort with a clear
+    //    message instead of crashing on a raw FK violation mid-delete.
+    const [resourceRefs, bookMaterialRefs] = await Promise.all([
+      prisma.resource.count(),
+      prisma.bookGeneratedMaterial.count(),
+    ]);
+    if (resourceRefs + bookMaterialRefs > 0) {
+      console.error(
+        `❌ Aborting: ${resourceRefs} Resource(s) and ${bookMaterialRefs} BookGeneratedMaterial(s) ` +
+          `reference existing ResourceKinds (FK is ON DELETE RESTRICT). This destructive re-seed is ` +
+          `only safe on a DB without generated content; refusing to deleteMany ResourceKinds.`
+      );
+      process.exit(1);
+    }
+
     const removed = await prisma.resourceKind.deleteMany({});
     console.log(`🧹 Cleared ${removed.count} existing ResourceKinds.`);
 

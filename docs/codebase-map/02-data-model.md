@@ -69,7 +69,7 @@ Legend for the **Scope** column: `ORG` = org-scoped (`account_id`/`organization_
 | `Learner` | `learners` | ORG | The student. `firstName/lastName/preferredName`, `birthdate`, `currentGrade`, `learningDifficulties`, adult/support fields (`support_intensity`, `support_labels[]`, `support_profile` Json — migration 15), `avatarConfig`, optional 1:1 `profileId`. Hub for progress, attempts, schedule, discipleship. |
 | `ClassroomStudent` | `classroom_students` | JOIN | Learner↔Classroom enrollment; PK `([classroomId, studentId])`. |
 | `LearnerProfile` | `learner_profiles` | STU | Personality/learning-style questionnaire results (Json blobs + `rawQuestionnaireResponses`, `questionnaireVersion`, `completedAt`). 1:1 with Learner. |
-| `SafetyFlag` | `safety_flags` | STU | AI-detected concern from chat/journals. `severity` (CONCERN/DANGER — **String, not enum**), `category` (BULLYING/SELF_HARM/GROOMING/VIOLENCE/OTHER — String), `message`, `reasoning`, `implicatedCaregiver`, `alertSent`, `isResolved`, `resolution`. |
+| `SafetyFlag` | `safety_flags` | STU | AI-detected concern from chat/journals. `severity` (CONCERN/DANGER/SAFE/TIER_1/TIER_2/TIER_3 — **String, not enum**), `category` (BULLYING/SELF_HARM/GROOMING/VIOLENCE/SEXUAL_CONTENT/INCEST/BYPASS_ATTEMPT/OTHER/NONE — String), `message`, `reasoning`, `implicatedCaregiver`, `alertSent`, `isResolved`, `resolution`. |
 
 ### C. Academic spine (GLOBAL reference)
 | Model | Table | Purpose |
@@ -206,13 +206,25 @@ Q-001  [HIGH]   DB Row-Level Security is gated OFF by default — the schema's R
    Impact:   the app layer (explicit `where: { organizationId }` + getCurrentUserOrg) is the ONLY
              live tenant boundary. Any org-scoped query missing an org predicate = cross-tenant
              read/write. Full per-query audit consolidated in 24-…. (Cross-ref 04-…)
-   Status:   documented (not fixed)
+   Status:   ⏳ OPEN [HIGH] — Q-001 is owned by ch.04 §7 (same finding, data-model angle). Re-verified
+             2026-06-19 (Session 8): reproduces at db.ts:9 + db.ts:114. There is NO code fix (the RLS
+             path is already written/dormant); cutover prep done — `app_user` cutover-readiness verified
+             read-only (0 GRANT gaps), and the ordered RLS-cutover runbook lives in 24-… §5/§8. Execution
+             deferred to a gated infra task; stays tracked-OPEN at HIGH. See ch.04 §7 + CHANGELOG.md round 11.
 
 Q-011  [LOW]    Inconsistent Organization-FK column naming.
    Evidence: org FK is `account_id` on ~all models, but `organization_id` on Transcript
              (schema.prisma:128) and CurriculumSpec (:1004).
    Impact:   cognitive overhead / easy to mis-write raw SQL. No functional bug.
-   Status:   documented
+   Status:   ⏳ DEFERRED (owner, 2026-06-19 Session 3). Re-verified: reproduces exactly at
+             schema.prisma:128 (Transcript `organization_id`) + :1004 (CurriculumSpec `organization_id`);
+             every other org model uses `account_id`. The app/Prisma layer is ALREADY uniform — the field
+             is `organizationId` everywhere; only the @map'd DB column differs — and a grep of src/ shows
+             only vector.ts + api/library/videos/route.ts touch these raw column names, both on `account_id`
+             tables, NOT the two exceptions. So a "fix" changes only the DB column name + the RLS-policy
+             migration SQL (ch.03 §3, lines 53-54): a column-rename migration. Owner deferred it into the
+             batched migration alongside Q-23-003 + Q-013; no code change this session. Stays tracked-open
+             in the LOW count. (see CHANGELOG.md)
 
 Q-012  [INFO]   Dual identity on spine models (`code` unique AND nullable `uuid` unique).
    Evidence: Subject/Strand/Topic/Subtopic/Objective each have `code` (used as the key) plus an
@@ -226,7 +238,23 @@ Q-013  [LOW]    Stringly-typed status/category fields bypass Prisma enums (no DB
              sectionsStatus, VideoExtraction.stage, TextbookDocument.status, CurriculumBundle.status,
              PrayerJournalEntry.status (schema.prisma:323-329, 703-721, 763, 1026, 1487).
    Impact:   typos/invalid values are accepted; harder to reason about valid states.
-   Status:   documented
+   Status:   ⏳ DEFERRED (owner, 2026-06-19 Session 3). Re-verified: all fields reproduce —
+             SafetyFlag.severity:323/category:324/resolution:329, BookExtraction.stage:703/
+             fullTextStatus:713/sectionsStatus:721/confidence:709, VideoExtraction.stage:929,
+             TextbookDocument.status:763, CurriculumBundle.status:1026, PrayerJournalEntry.status:1487/
+             type:1485. Impact confirmed REAL (not theoretical): CurriculumBundle.status is written as
+             bare string literals with no shared union/enum in compile-curriculum-action.ts:42,91 and
+             compile-curriculum.ts:61,420,421 (a typo there gets no compile-time OR DB catch); same for
+             PrayerJournalEntry.status:'ongoing' (prayer-journal.ts:97). A proper fix = an enum migration
+             (CREATE TYPE + column conversion + backfill) on the seeded DB. Owner deferred the whole finding
+             into the batched stringly-typed→enum migration that already holds Q-23-003; Q-011's column
+             rename rides along too. The SafetyFlag.severity/category subset's safety-downgrade hazard was
+             tracked separately at MED as Q-12-003 (ch.12 §7) — **✅ RESOLVED 2026-06-20 (Session 24)** at the
+             app layer (policy urgency no longer reads the severity label), so the *safety* risk is closed;
+             but Q-013's actual concern — the `String`→enum DB typing — stays **⏳ DEFERRED** here. Session 24
+             also corrected the stale plain-`//` comments on schema.prisma:323/324/329 to list the real
+             vocabularies (code-currency only; no migration; the columns are still `String`). No code change
+             to the typing this session; Q-013 stays tracked-open in the LOW count. (see CHANGELOG.md)
 
 Q-014  [INFO]   TextbookTopicCoverage.topicId has no FK to Topic (intentional, per schema comment).
    Evidence: schema.prisma:797-803.

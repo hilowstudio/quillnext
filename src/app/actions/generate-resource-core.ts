@@ -286,7 +286,6 @@ export async function generateResourceCore(params: GenerateResourceCoreParams) {
     let videoId: string | undefined;
     let genContext: any = undefined;
     let modelToUse = models.flash;
-    let tools: any = {};
     // Authoritative "canonical facts" block injected into the prompt + used by the
     // post-generation verify/revise pass (grounded-generation spec, Phase 1).
     let factsBlock = "";

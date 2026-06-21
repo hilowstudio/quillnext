@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { getCurrentUserOrg } from "@/lib/auth-helpers";
 import { withTenant } from "@/server/db";
+import { excludeParentLearners } from "@/server/queries/learner-filters";
 import { cacheQuery } from "@/lib/utils/prisma-cache";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -11,7 +12,7 @@ import { StudentCard } from "@/components/students/StudentCard";
 const getOrganizationStudents = cacheQuery(
   async (organizationId: string) => {
     return withTenant((tx) => tx.learner.findMany({
-      where: { organizationId },
+      where: { organizationId, ...excludeParentLearners },
       select: {
         id: true,
         firstName: true,

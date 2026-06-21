@@ -44,7 +44,7 @@ const LearningStyleSchema = z.object({
     .enum(["Visual", "Auditory", "Textual", "Kinesthetic"])
     .describe("Preferred method for receiving new information"),
   contentDensity: z
-    .enum(["Skimmer", "Deep Reader", "Mirco-Learning"])
+    .enum(["Skimmer", "Deep Reader", "Micro-Learning"])
     .describe("Preference for text length and formatting (Skimmer = bullet points)"),
   outputMode: z
     .enum(["Speaking", "Writing", "Building", "Testing"])

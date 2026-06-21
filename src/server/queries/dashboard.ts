@@ -1,5 +1,6 @@
 import "server-only";
 import { withTenant } from "@/server/db";
+import { excludeParentLearners } from "./learner-filters";
 import { analyzeContextCompleteness } from "@/lib/context/context-suggestions";
 
 export async function getStudentDashboardData(organizationId: string, studentId: string) {
@@ -33,9 +34,11 @@ export async function getStudentDashboardData(organizationId: string, studentId:
 }
 
 export async function getParentDashboardData(organizationId: string) {
-    // NOTE: analyzeContextCompleteness still queries via `db`; it is not yet tenant-threaded, so
-    // under RLS it returns empty until the full rollout. The student list (the thing that
-    // "disappeared") comes from the explicit-tx path below and is the real test.
+    // analyzeContextCompleteness threads the tenant itself: every org-scoped read inside it (and inside
+    // the getMasterContext it calls) runs via `withTenant(..., { organizationId })`, so it is RLS-safe
+    // and returns correct org data, not empty. Its only bare-`db` reads are the global academic spine
+    // (Objective, in CONTEXT_FREE_MODELS), which correctly run without the org GUC. Called here, outside
+    // the dashboard's own withTenant block below, because it opens its own transactions.
     const { completeness, suggestions } = await analyzeContextCompleteness(organizationId);
 
     return withTenant(
@@ -73,7 +76,7 @@ export async function getParentDashboardData(organizationId: string) {
             });
 
             const students = await tx.learner.findMany({
-                where: { organizationId },
+                where: { organizationId, ...excludeParentLearners },
                 select: {
                     id: true,
                     firstName: true,

@@ -320,13 +320,13 @@ model Learner {
 model SafetyFlag {
   id          String   @id @default(uuid())
   studentId   String   @map("student_id")
-  severity    String   // "CONCERN" | "DANGER"
-  category    String   // "BULLYING", "SELF_HARM", "GROOMING", "VIOLENCE", "OTHER"
+  severity    String   // CONCERN | DANGER | SAFE | TIER_1 | TIER_2 | TIER_3 (free String; enum migration deferred — see Q-013)
+  category    String   // BULLYING | SELF_HARM | GROOMING | VIOLENCE | SEXUAL_CONTENT | INCEST | BYPASS_ATTEMPT | OTHER | NONE
   message     String   // The content of the user message
   reasoning   String   // AI explanation
   isResolved  Boolean  @default(false) @map("is_resolved")
   alertSent   Boolean  @default(false) @map("alert_sent")
-  resolution  String?  @map("resolution") // "NO_ACTION", "PARENT_SUMMARY", etc.
+  resolution  String?  @map("resolution") // NO_ACTION | PARENT_SUMMARY_SAFETY_COACH | PARENT_SUMMARY_URGENT | SUPPORTIVE_ONLY | STUDENT_OPTIONAL_OUTREACH | INTERNAL_LOG_ONLY
   implicatedCaregiver Boolean @default(false) @map("implicated_caregiver")
   createdAt   DateTime @default(now()) @map("created_at")
   resolvedAt  DateTime? @map("resolved_at")

@@ -5,6 +5,7 @@ import { getBlueprintProgress } from "@/server/actions/blueprint";
 import { getMasterContext } from "@/lib/context/master-context";
 import { serializeMasterContext } from "@/lib/context/context-serializer";
 import { withTenant } from "@/server/db";
+import { excludeParentLearners } from "@/server/queries/learner-filters";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
@@ -34,11 +35,12 @@ export default async function BlueprintPage() {
 
   // Get counts for context completeness
   const [studentsCount, studentsWithProfilesCount, booksCount, coursesCount] = await Promise.all([
-    withTenant((tx) => tx.learner.count({ where: { organizationId } }), undefined, { organizationId, userId: null }),
+    withTenant((tx) => tx.learner.count({ where: { organizationId, ...excludeParentLearners } }), undefined, { organizationId, userId: null }),
     withTenant((tx) => tx.learner.count({
       where: {
         organizationId,
         learnerProfile: { isNot: null },
+        ...excludeParentLearners,
       },
     }), undefined, { organizationId, userId: null }),
     withTenant((tx) => tx.book.count({ where: { organizationId } }), undefined, { organizationId, userId: null }),

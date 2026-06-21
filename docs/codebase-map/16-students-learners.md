@@ -34,9 +34,11 @@
 | `src/app/student/dashboard/page.tsx` | ORPHANED schedule-viewer route (see Q-16-001). |
 | `src/server/queries/students.ts` | Cached student profile queries + objective/book selects. |
 | `src/server/queries/dashboard.ts` | `getStudentDashboardData`, `getParentDashboardData`. |
+| `src/server/queries/learner-filters.ts` | `excludeParentLearners` shared where-fragment — drops parent-as-learner rows (My-Learning self-enrollments) from student rosters/counts (Q-05-006). |
+| `src/server/queries/learner-filters.test.ts` | Locks the fragment shape (`NOT`-of-relation preserves null-profile learners). |
 | `src/lib/schemas/students.ts` | Zod `studentSchema` + `StudentFormData`. |
 
-NOTE: `_components/AIContextPreview.tsx` and `_components/ContextCompleteness.tsx` (imported by `[id]/page.tsx:12,16`) are owned by chapter 09 — skipped here.
+NOTE: `_components/AIContextPreview.tsx` and `_components/PersonalizationContextCard.tsx` (renamed 2026-06-19 from `ContextCompleteness.tsx`, Q-09-007) are owned by chapter 09 — skipped here.
 
 ## 2. Purpose / intent
 This area is the learner (a.k.a. "student") lifecycle and the two home dashboards. Parents create learners (`/students/new`), view a rich per-learner profile (`/students/[id]`), and run a 3-step calibration wizard (personality / learning style / interests) whose answers are sent to AI generators to populate `LearnerProfile.{personalityData,learningStyleData,interestsData}` — the data that drives Inkling personalization across the app. The home route (`/`, chapter 06) branches by active-profile type to render `ParentDashboard` (classroom overview, quick-create, recent activity, My Learning) or `StudentDashboard` (kid-facing courses/assignments/discipleship). A separate, orphaned `/student/dashboard` route shows a daily schedule checklist.
@@ -126,6 +128,7 @@ This area is the learner (a.k.a. "student") lifecycle and the two home dashboard
 - **Inngest jobs:** none in these files.
 - **Env vars:** none read directly here.
 - **Tenancy:** most reads use `withTenant(..., { organizationId, userId: null })` with an explicit `organizationId` predicate (`page.tsx:13`, `students.ts:180/218/299`, `dashboard.ts:9/41`); the raw-`db` paths (`assessment/route.ts:30`, `student.ts:9`, `student-actions.ts:24`, `assessment-actions.ts:20/32`) defend with explicit post-fetch org-ownership checks instead. Exceptions flagged in Findings: the create-student writes bypass the tenant tx (Q-16-002) and `getStudentObjectives` queries the raw `db` with NO org predicate at all (Q-16-008). RLS is OFF (`server/db.ts:9`) so these app-layer predicates are the only boundary. See 04-security-auth-tenancy.md.
+- **Student-roster filter (Q-05-006, owned by ch.05; resolved 2026-06-19):** org-wide learner list/count queries (`students.ts:listStudentsNeedingAssessment`, `dashboard.ts:getParentDashboardData`, and 10 more across chapters) spread the shared `excludeParentLearners` fragment (`learner-filters.ts`) to drop parent-as-learner rows (My-Learning self-enrollments). `data-export.ts` (data-sovereignty) and `getMyLearning` (the parent's own view) are deliberately NOT filtered.
 
 ## 7. Findings
 

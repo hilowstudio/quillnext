@@ -1,4 +1,4 @@
-import { db } from "@/server/db";
+import { withTenant } from "@/server/db";
 import { Resend } from "resend";
 
 const esc = (s: string) =>
@@ -8,6 +8,22 @@ export interface SafetyAlertResult {
     sent: boolean;
     error?: string;
     recipients?: string[];
+}
+
+/**
+ * Delivery-layer defense-in-depth for the caregiver hard-stop (T1-E). A caregiver email may be
+ * sent ONLY for an explicit parent-summary resolution AND only when the caregiver is not the
+ * implicated threat — so a caller bug (wrong resolution, or a hard-stop flag) can never email an
+ * implicated caregiver, independent of the policy gate. Mirrors `isCaregiverHardStop` (policy.ts)
+ * at the boundary.
+ *
+ * NOTE: `SafetyFlag` persists `implicatedCaregiver` but NOT `disclosureRisk`, so the
+ * fear-of-disclosure axis of the hard-stop cannot be re-checked here. That residual is covered by
+ * the child-safety hardening roadmap (alert-summary / storage hardening) — see ch.12 §7 / ch.24.
+ */
+export function isAlertDeliverable(flag: { resolution: string | null; implicatedCaregiver: boolean }): boolean {
+    if (flag.implicatedCaregiver) return false;
+    return flag.resolution === "PARENT_SUMMARY_URGENT" || flag.resolution === "PARENT_SUMMARY_SAFETY_COACH";
 }
 
 /**
@@ -21,23 +37,47 @@ export interface SafetyAlertResult {
  * Required env: RESEND_API_KEY, SAFETY_ALERT_FROM (a Resend-verified sender,
  * e.g. "Quill & Compass Safety <safety@quillandcompass.com>").
  */
-export async function sendSafetyAlert(flagId: string): Promise<SafetyAlertResult> {
-    const flag = await db.safetyFlag.findUnique({
-        where: { id: flagId },
-        include: {
-            student: {
+export async function sendSafetyAlert(flagId: string, organizationId: string): Promise<SafetyAlertResult> {
+    // Org-scoped read on the trusted-job path: the explicit `student.organizationId` predicate
+    // is the live boundary today (RLS off; SafetyFlag has no org column of its own — it scopes
+    // through the student relation, mirroring the RLS policy `student_id IN (… account_id = org)`),
+    // and the explicit-ctx withTenant wrap is the reliable RLS-ready path — matching how the rest
+    // of the safety job stamps the tenant (safety-scan.ts).
+    const flag = await withTenant(
+        (tx) =>
+            tx.safetyFlag.findFirst({
+                where: { id: flagId, student: { organizationId } },
                 include: {
-                    organization: {
-                        include: { users: true },
+                    student: {
+                        include: {
+                            organization: {
+                                include: { users: true },
+                            },
+                        },
                     },
                 },
-            },
-        },
-    });
+            }),
+        undefined,
+        { organizationId, userId: null },
+    );
 
     if (!flag) {
         console.error(`[SAFETY ALERT] Flag not found: ${flagId}`);
         return { sent: false, error: "Flag not found" };
+    }
+
+    // Delivery-layer hard-stop (T1-E): refuse to email unless this is an explicit parent-summary
+    // resolution with no implicated caregiver. In normal operation the policy + job already
+    // guarantee this; the guard exists so a caller bug can never email a feared/implicated
+    // caregiver. Log loudly and leave alertSent=false.
+    if (!isAlertDeliverable(flag)) {
+        console.error(
+            `[SAFETY ALERT BLOCKED] Refusing to send for flag ${flagId} ` +
+            `(student ${flag.studentId}): resolution=${flag.resolution}, ` +
+            `implicatedCaregiver=${flag.implicatedCaregiver}. A caregiver alert must be a ` +
+            `PARENT_SUMMARY_* resolution with no implicated caregiver (delivery-layer hard-stop, T1-E).`,
+        );
+        return { sent: false, error: "Alert not deliverable (delivery-layer hard-stop)" };
     }
 
     // Responsible adults in the student's organization.
@@ -144,7 +184,11 @@ ${guidanceText}
         }
 
         // Only now is it true.
-        await db.safetyFlag.update({ where: { id: flagId }, data: { alertSent: true } });
+        await withTenant(
+            (tx) => tx.safetyFlag.update({ where: { id: flagId }, data: { alertSent: true } }),
+            undefined,
+            { organizationId, userId: null },
+        );
         return { sent: true, recipients };
     } catch (e) {
         console.error(`[SAFETY ALERT FAILED] Exception while sending flag ${flagId}:`, e);

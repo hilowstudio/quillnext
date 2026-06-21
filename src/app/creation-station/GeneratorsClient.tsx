@@ -47,16 +47,18 @@ export default function GeneratorsClient({ organizationId }: { organizationId: s
   const [kinds, setKinds] = useState<ResourceKind[]>([]);
   const [selectedKindId, setSelectedKindId] = useState<string>("");
 
-  // Generic Source ID (Book ID, Video ID, Course ID)
+  // Generic Source ID (Book ID, Video ID, Course ID). The library "Use in Generator" deep-links
+  // (BookList/VideoList/CourseList/DocumentList/ArticleList) pass it as `sourceId`; the older
+  // book/video/course links pass type-specific keys — accept either so the source pre-selects.
   const [sourceId, setSourceId] = useState<string>(
-    searchParams.get("bookId") || searchParams.get("videoId") || searchParams.get("courseId") || ""
+    searchParams.get("bookId") || searchParams.get("videoId") || searchParams.get("courseId") || searchParams.get("sourceId") || ""
   );
   const [sourceTitle, setSourceTitle] = useState<string>("");
 
   // Specific Data for new types
   const [topicText, setTopicText] = useState("");
   const [spineSelection, setSpineSelection] = useState<SpineSelection | null>(null);
-  const [url, setUrl] = useState("");
+  const [url, setUrl] = useState(() => searchParams.get("url") || "");
   const [file, setFile] = useState<File | null>(null);
   const [fileContent, setFileContent] = useState("");
 

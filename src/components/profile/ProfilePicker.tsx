@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { LockSimple, PencilSimple } from "@phosphor-icons/react";
 import { getStudentAvatarUrl } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -18,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { AvatarCustomizer } from "@/components/profile/AvatarCustomizer";
 import { selectProfile, enterProfileManagement, enterAssessment } from "@/app/select-profile/actions";
 import { verifyProfilePin } from "@/server/profiles/pin-actions";
+import { requestOwnerPinReset, resetChildPinWithParentPin } from "@/server/profiles/pin-reset";
 import { setProfileAvatar } from "@/server/profiles/avatar-actions";
 import type { ProfileCard } from "@/server/profiles/profile-card";
 import type { PendingAssessments } from "@/server/queries/students";
@@ -43,8 +45,62 @@ export function ProfilePicker({
   const [assessFor, setAssessFor] = useState<{ id: string; name: string } | null>(null);
   const [assessPin, setAssessPin] = useState("");
   const [assessError, setAssessError] = useState<string | null>(null);
+  const [resetSent, setResetSent] = useState(false);
+  const [resetError, setResetError] = useState<string | null>(null);
+  const [childResetFor, setChildResetFor] = useState<ProfileCard | null>(null);
+  const [childResetPin, setChildResetPin] = useState("");
+  const [childResetError, setChildResetError] = useState<string | null>(null);
   const router = useRouter();
   const owner = profiles.find((p) => p.isOwner);
+
+  // Emails the owner a single-use link to clear a forgotten parent PIN (Q-05-010). Recovery is
+  // gated by the owner's own inbox, since the shared family login can't prove owner-vs-student.
+  function requestReset() {
+    setResetError(null);
+    startTransition(async () => {
+      const res = await requestOwnerPinReset();
+      if (res.ok) setResetSent(true);
+      else setResetError(res.error);
+    });
+  }
+
+  // A locked-out CHILD: the parent clears the child's PIN by entering the parent PIN (the parent is the
+  // authority above the child — no email needed). If the owner has no PIN, reset directly.
+  function startChildReset(child: ProfileCard) {
+    setError(null);
+    setPinFor(null); // close the child's PIN prompt
+    setChildResetError(null);
+    if (owner?.hasPin) {
+      setChildResetPin("");
+      setChildResetFor(child);
+      return;
+    }
+    startTransition(async () => {
+      const res = await resetChildPinWithParentPin(child.id);
+      if (res.ok) {
+        toast.success(`PIN reset for ${child.displayName}.`);
+        router.refresh();
+      } else {
+        setError(res.error);
+      }
+    });
+  }
+
+  function submitChildReset() {
+    if (!childResetFor || childResetPin.length !== 4) return;
+    setChildResetError(null);
+    const target = childResetFor;
+    startTransition(async () => {
+      const res = await resetChildPinWithParentPin(target.id, childResetPin);
+      if (res.ok) {
+        setChildResetFor(null);
+        toast.success(`PIN reset for ${target.displayName}. They can select their profile now.`);
+        router.refresh();
+      } else {
+        setChildResetError(res.error);
+      }
+    });
+  }
 
   function choose(p: ProfileCard) {
     setError(null);
@@ -205,6 +261,26 @@ export function ProfilePicker({
       </button>
       {manageError && !manageOpen && <p className="mt-2 text-sm text-qc-error">{manageError}</p>}
 
+      {owner?.hasPin && (
+        <div className="mt-3 text-center">
+          {resetSent ? (
+            <p className="text-sm text-qc-text-muted">
+              Check your email for a link to reset your parent PIN.
+            </p>
+          ) : (
+            <button
+              type="button"
+              onClick={requestReset}
+              disabled={pending}
+              className="text-xs font-medium text-qc-text-muted hover:text-qc-primary transition-colors disabled:opacity-60"
+            >
+              Forgot your parent PIN?
+            </button>
+          )}
+          {resetError && <p className="mt-1 text-sm text-qc-error">{resetError}</p>}
+        </div>
+      )}
+
       {pendingAssessments.total > 0 && (
         <div className="mt-10 w-full max-w-2xl rounded-qc-md border border-qc-warning-border bg-qc-warning-bg/80 p-4 text-center shadow-qc-sm backdrop-blur-sm">
           <p className="font-body text-sm font-medium text-qc-warning-text mb-1">Pending Assessments</p>
@@ -259,12 +335,65 @@ export function ProfilePicker({
             className="text-center text-2xl tracking-[0.5em]"
           />
           {error && <p className="text-sm text-qc-error">{error}</p>}
+          {pinFor?.type === "STUDENT" && (
+            <button
+              type="button"
+              onClick={() => pinFor && startChildReset(pinFor)}
+              disabled={pending}
+              className="self-start text-xs font-medium text-qc-text-muted hover:text-qc-primary transition-colors disabled:opacity-60"
+            >
+              Forgot PIN? A parent can reset it.
+            </button>
+          )}
           <DialogFooter>
             <Button variant="ghost" onClick={() => setPinFor(null)} disabled={pending}>
               Cancel
             </Button>
             <Button onClick={submitPin} disabled={pending || pin.length !== 4}>
               Unlock
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Parent-PIN-gated reset of a locked-out child's PIN (clears it). */}
+      <Dialog
+        open={childResetFor != null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setChildResetFor(null);
+            setChildResetError(null);
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reset {childResetFor?.displayName}&apos;s PIN</DialogTitle>
+            <DialogDescription>
+              Enter your parent PIN to clear {childResetFor?.displayName}&apos;s PIN. They&apos;ll be able to select their
+              profile without one, and you can set a new PIN later in Manage Profiles.
+            </DialogDescription>
+          </DialogHeader>
+          <Input
+            type="password"
+            inputMode="numeric"
+            autoFocus
+            maxLength={4}
+            value={childResetPin}
+            onChange={(e) => setChildResetPin(e.target.value.replace(/\D/g, "").slice(0, 4))}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") submitChildReset();
+            }}
+            placeholder="••••"
+            className="text-center text-2xl tracking-[0.5em]"
+          />
+          {childResetError && <p className="text-sm text-qc-error">{childResetError}</p>}
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setChildResetFor(null)} disabled={pending}>
+              Cancel
+            </Button>
+            <Button onClick={submitChildReset} disabled={pending || childResetPin.length !== 4}>
+              Reset PIN
             </Button>
           </DialogFooter>
         </DialogContent>

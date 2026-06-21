@@ -75,7 +75,7 @@ export function serializeMasterContext(
 
   // Apply smart truncation if needed
   if (estimateTokenCount(result) > maxTokens) {
-    result = truncateContext(result, maxTokens, prioritize, context);
+    result = truncateContext(result, maxTokens, prioritize);
   }
 
   return result;
@@ -328,85 +328,83 @@ function estimateTokenCount(text: string): number {
 }
 
 /**
- * Truncate context intelligently based on priority
+ * Truncate context intelligently based on priority.
+ *
+ * Groups the rendered text into sections, sheds the lowest-priority sections
+ * first when over budget, but EMITS the kept sections in their ORIGINAL
+ * document order so each header stays above its own body.
+ *
+ * Headerless lines — section detail lines (e.g. "- Faith Background: …") and
+ * the injected multi-line PHILOSOPHY_PROMPTS blob, which carries no header —
+ * inherit the section they appear under via carry-forward classification, so a
+ * section is never fragmented and the philosophy block always travels with its
+ * FAMILY header. (Previously such lines were classified "other" → indexOf -1 →
+ * sorted FIRST, which hoisted detail lines above their headers and scrambled
+ * the whole prompt under truncation. Q-09-006, see docs/codebase-map/09.)
  */
 function truncateContext(
   text: string,
   maxTokens: number,
   priorities: string[],
-  context: MasterContext,
 ): string {
-  const currentTokens = estimateTokenCount(text);
-  if (currentTokens <= maxTokens) {
+  if (estimateTokenCount(text) <= maxTokens) {
     return text;
   }
 
-  // Calculate how much to truncate
-  const excessTokens = currentTokens - maxTokens;
-  const targetLength = text.length - excessTokens * 4;
+  const targetLength = maxTokens * 4;
 
-  // Try to preserve high-priority sections
+  // Group lines into sections, carrying the last seen header type forward so
+  // headerless detail/philosophy lines stay with their section, in source order.
   const lines = text.split("\n");
-  const sections: { priority: number; lines: string[]; start: number; end: number }[] = [];
+  const sections: { type: string; lines: string[] }[] = [];
+  let currentType = "other";
+  let current: { type: string; lines: string[] } | null = null;
 
-  let currentSection: { priority: number; lines: string[]; start: number } | null = null;
-  let sectionStart = 0;
-
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i]!;
-    const sectionType = getSectionType(line);
-    const priority = priorities.indexOf(sectionType);
-
-    if (currentSection === null || currentSection.priority !== priority) {
-      if (currentSection) {
-        sections.push({
-          ...currentSection,
-          end: i - 1,
-        });
-      }
-      currentSection = {
-        priority,
-        lines: [line],
-        start: i,
-      };
+  for (const line of lines) {
+    const detected = getSectionType(line);
+    if (detected !== "other") {
+      currentType = detected;
+    }
+    if (!current || current.type !== currentType) {
+      current = { type: currentType, lines: [line] };
+      sections.push(current);
     } else {
-      currentSection.lines.push(line);
+      current.lines.push(line);
     }
   }
 
-  if (currentSection) {
-    sections.push({
-      ...currentSection,
-      end: lines.length - 1,
-    });
-  }
+  // Rank by priority (lower index = higher priority); unknown/"other" sections
+  // rank LAST so they are shed first, never hoisted to the front.
+  const ranked = sections.map((section, idx) => {
+    const priorityIdx = priorities.indexOf(section.type);
+    return {
+      idx,
+      text: section.lines.join("\n"),
+      priority: priorityIdx === -1 ? priorities.length : priorityIdx,
+    };
+  });
 
-  // Sort sections by priority (lower index = higher priority)
-  sections.sort((a, b) => a.priority - b.priority);
-
-  // Build truncated text, keeping high-priority sections
-  const result: string[] = [];
-  let remainingLength = targetLength;
-
-  for (const section of sections) {
-    const sectionText = section.lines.join("\n");
-    const sectionTokens = estimateTokenCount(sectionText);
-
-    if (remainingLength >= sectionText.length) {
-      result.push(sectionText);
-      remainingLength -= sectionText.length;
-    } else if (remainingLength > 100) {
-      // Truncate this section
-      const truncated = truncateText(sectionText, remainingLength);
-      result.push(truncated);
+  // Decide which sections to keep within budget, highest priority first.
+  const keep = new Set<number>();
+  let remaining = targetLength;
+  for (const section of [...ranked].sort((a, b) => a.priority - b.priority || a.idx - b.idx)) {
+    if (remaining >= section.text.length) {
+      keep.add(section.idx);
+      remaining -= section.text.length;
+    } else if (remaining > 100) {
+      section.text = truncateText(section.text, remaining);
+      keep.add(section.idx);
       break;
     } else {
-      // Skip this section
       break;
     }
   }
 
-  return result.join("\n\n");
+  // Emit kept sections in ORIGINAL order so headers stay attached to bodies.
+  return ranked
+    .filter((section) => keep.has(section.idx))
+    .map((section) => section.text)
+    .join("\n");
 }
 
 /**

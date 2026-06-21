@@ -1,6 +1,7 @@
 "use server";
 
 import { withTenant } from "@/server/db";
+import { excludeParentLearners } from "@/server/queries/learner-filters";
 import { addDays, isSameDay, startOfDay } from "date-fns";
 import { revalidateTag, unstable_cache } from "next/cache";
 import { getCurrentUserOrg } from "@/lib/auth-helpers";
@@ -170,7 +171,7 @@ export async function getWeeklySchedule(
             return withTenant(
                 async (tx) => {
                     const students = await tx.learner.findMany({
-                        where: { organizationId },
+                        where: { organizationId, ...excludeParentLearners },
                         select: { id: true, firstName: true, preferredName: true }
                     });
 

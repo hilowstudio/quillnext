@@ -99,8 +99,12 @@ export default async function GeneratorPage(
         firstName: true,
         lastName: true,
         preferredName: true,
+        organizationId: true,
       },
     }), undefined, { organizationId, userId: null });
+    // RLS is OFF (db.ts:9) so withTenant doesn't filter — enforce the tenant boundary in app
+    // code so a foreign-org id in the URL can't leak another org's student PII. (Q-10-012)
+    if (student && student.organizationId !== organizationId) student = null;
   }
 
   if (objectiveId) {
@@ -130,8 +134,11 @@ export default async function GeneratorPage(
       select: {
         id: true,
         title: true,
+        organizationId: true,
       },
     }), undefined, { organizationId, userId: null });
+    // Same-org guard — RLS off, so a foreign-org bookId would otherwise leak its title. (Q-10-012)
+    if (book && book.organizationId !== organizationId) book = null;
   }
 
   if (videoId) {
@@ -140,9 +147,11 @@ export default async function GeneratorPage(
       select: {
         id: true,
         title: true,
+        organizationId: true,
       },
     }), undefined, { organizationId, userId: null });
-    if (v) {
+    // Same-org guard — RLS off, so a foreign-org videoId would otherwise leak its title. (Q-10-012)
+    if (v && v.organizationId === organizationId) {
       video = { id: v.id, title: v.title || "Untitled Video" };
     }
   }

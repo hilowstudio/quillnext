@@ -1,6 +1,7 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { db as prisma, withTenant } from "@/server/db";
+import { excludeParentLearners } from "@/server/queries/learner-filters";
 import { getLibraryResources } from "@/app/actions/resource-library-actions";
 import { LibraryClient } from "@/app/living-library/LibraryClient";
 
@@ -35,7 +36,7 @@ export default async function LibraryPage(
   const students = await withTenant(
     (tx) =>
       tx.learner.findMany({
-        where: { organizationId },
+        where: { organizationId, ...excludeParentLearners },
         select: { id: true, firstName: true, lastName: true, preferredName: true },
         orderBy: { createdAt: "desc" },
       }),

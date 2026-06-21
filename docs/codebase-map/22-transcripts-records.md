@@ -29,7 +29,7 @@ Lets a parent/admin produce an "Official High School Transcript" for each learne
 - **PrintLayout**: `src/components/print/PrintLayout.tsx` is an unrelated, unused generic print component set (see §5, finding Q-22-001).
 
 ## 4. Data flow
-1. `/transcripts` (`page.tsx:13-43`): `auth()` → `getCurrentUserOrg` → `withTenant` learner.findMany scoped by `organizationId`, including latest transcript. Renders cards.
+1. `/transcripts` (`page.tsx:13-43`): `auth()` → `getCurrentUserOrg` → `withTenant` learner.findMany scoped by `organizationId` (excludes parent-as-learner rows via `excludeParentLearners` — Q-05-006), including latest transcript. Renders cards.
 2. `/transcripts/[studentId]` (`[studentId]/page.tsx:20-30`): `getTranscripts(studentId)`; if a saved transcript exists, uses `savedTranscripts[0].data` and injects `.id` so saves update the same row; else `generateTranscriptData(studentId)`.
 3. Edit: `TranscriptBuilder` mutates local state. Save → `handleSave` (`TranscriptBuilder.tsx:45`) → `saveTranscript(studentId, transcript, transcript.id)` (`transcript.ts:138`) → tenant checks (`assertStudentInOrg` + transcript-org check) → `transcript.upsert` where `id: transcriptId || "new"` → `revalidatePath("/transcripts")`.
 4. Export: `handleExport` (`TranscriptBuilder.tsx:62`) → `exportToPDF(transcript)` → `window.open` + `document.write(generatePrintHTML(...))` → `print()` (`pdfExport.ts:29-47`).

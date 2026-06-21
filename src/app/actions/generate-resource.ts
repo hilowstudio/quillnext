@@ -3,6 +3,7 @@
 import { auth } from "@/auth";
 import { getCurrentUserOrg } from "@/lib/auth-helpers";
 import { revalidatePath } from "next/cache";
+import { generateResourceSchema } from "@/lib/schemas/actions";
 import { generateResourceCore, type GenerateResourceCoreParams } from "./generate-resource-core";
 
 /**
@@ -28,6 +29,21 @@ export async function generateResource(
 
     const { organizationId } = await getCurrentUserOrg(session);
     if (!organizationId) throw new Error("No organization found");
+
+    // Validate the browser-supplied request shape before it reaches the AI pipeline + DB
+    // writes. This wrapper is the ONLY client-reachable generation entry — the Inngest
+    // compiler calls generateResourceCore directly (compile-curriculum.ts:76-91), so trusted
+    // background input is unaffected. Bounds instructions/fileContent (token cost) and
+    // enum-checks sourceType (fail fast, not fail-slow on a paid model call). See Q-10-004
+    // (docs/codebase-map/10-resource-generation-creation-station.md).
+    const parsed = generateResourceSchema.safeParse({
+        sourceId,
+        sourceType,
+        resourceKindId,
+        instructions,
+        additionalData,
+    });
+    if (!parsed.success) throw new Error("Invalid generation request");
 
     const result = await generateResourceCore({
         organizationId,

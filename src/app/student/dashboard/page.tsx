@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { getCurrentUserOrg } from "@/lib/auth-helpers";
 import { getStudentDailySchedule } from "@/server/actions/scheduling";
 import { withTenant } from "@/server/db";
+import { excludeParentLearners } from "@/server/queries/learner-filters";
 import { redirect } from "next/navigation";
 import { DailyScheduleList } from "@/components/dashboard/DailyScheduleList";
 import { format } from "date-fns";
@@ -25,7 +26,7 @@ export default async function StudentDashboardPage({
 
     // 1. Get Students
     const students = await withTenant((tx) => tx.learner.findMany({
-        where: { organizationId },
+        where: { organizationId, ...excludeParentLearners },
         select: { id: true, firstName: true, preferredName: true }
     }), undefined, { organizationId, userId: null });
 

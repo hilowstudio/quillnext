@@ -18,9 +18,10 @@ management, and family discipleship.
 
 **DB Row-Level Security is provisioned but the running app bypasses it.** All 67 tables have RLS +
 98 policies and an `app_user` role exists, but the app runs `RLS_ENABLED=false` and connects as a
-`BYPASSRLS` role, so **the application layer (explicit `organizationId` filters + `getCurrentUserOrg`)
-is the only live tenant boundary today.** Every "raw `db` with a manual org check" is therefore
-load-bearing. See **04** and **24 §8**.
+`BYPASSRLS` role (`postgres`), so **the application layer (explicit `organizationId` filters +
+`getCurrentUserOrg`) is the only live tenant boundary today.** Every "raw `db` with a manual org check"
+is therefore load-bearing. The fix is an infra cutover, not code — `app_user` cutover-readiness was
+verified read-only 2026-06-19 (Q-001, Session 8); see the **RLS-cutover runbook** in **24 §5/§8** and **04**.
 
 ## Conventions
 
@@ -48,7 +49,7 @@ load-bearing. See **04** and **24 §8**.
 | 08 | `08-ai-core.md` | Gemini model routing/config, guardrails, AI output schemas, personality AI, Thinkling system prompt; the **two prompt-builders**; dead OpenAI/retirement machinery. |
 | 09 | `09-context-engine.md` | `MasterContext` assembly + serialization (the real AI prompt path), completeness scoring, smart defaults, the `/context` inspector. |
 | 10 | `10-resource-generation-creation-station.md` | Creation Station UI + `generateResourceCore` pipeline, the generative-UI path, the curriculum compiler trigger/explode. |
-| 11 | `11-thinkling-chat.md` | Student AI tutoring chat: `/api/chat` streaming, tenant guard, safety-event emission; unused tool schemas. |
+| 11 | `11-thinkling-chat.md` | Student AI tutoring chat: `/api/chat` streaming, tenant guard, safety-event emission. |
 | 12 | `12-safety.md` | Child-safety detect→decide→escalate→store→act pipeline; Resend email alerts; **fails-open** risk. |
 | 13 | `13-oer-sources-corpus.md` | OER source adapters (by-title vs by-subject registries), metadata APIs (Google Books/OpenLibrary/YouTube), transcript scrape, ISBN dedup, commentary parser. |
 | 14 | `14-living-library.md` | Per-org resource catalog UI + library API routes + add/extract flows; dead routes & write-path trust gaps. |
@@ -66,9 +67,12 @@ load-bearing. See **04** and **24 §8**.
 
 ## Findings at a glance
 
-0 CRITICAL · **10 HIGH** · 35 MED · 71 LOW · 44 INFO (chapter findings) + foundational `Q-0NN` from
-02/04. The HIGH set clusters around **tenancy/IDOR on raw `db`** (Q-10-001/002/003, Q-14-001/004),
-**safety fail-open** (Q-12-001), **a broken activity flow** (Q-17-001), **an unvalidated grading API**
+0 CRITICAL · **8 HIGH** · 27 MED · 40 LOW open · 44 INFO (chapter findings) + foundational `Q-0NN` from
+02/04 (`Q-001` [HIGH] open — cutover prep verified 2026-06-19 (Session 8), execution deferred to a gated
+infra task; `Q-011`/`Q-013` [LOW] deferred to the batched migration; foundational MED now
+fully closed — `Q-004` was the last, resolved 2026-06-19). The remaining HIGH set clusters around **tenancy/IDOR on raw `db`** (Q-14-001/004 — the ch.10 cluster Q-10-001/002/003 was ✅ resolved 2026-06-20, Session 20),
+**child-safety** (Q-12-001 fail-open + Q-12-007 no in-the-moment layer — Session 24 minted the latter from the owner's hardening brief; see 24 §5),
+**a broken activity flow** (Q-17-001), **an unvalidated grading API**
 (Q-18-001), and **unauthenticated + broken discipleship paths** (Q-20-001/002). See **24 §5/§7** for
 the prioritized roadmap and the full register.
 

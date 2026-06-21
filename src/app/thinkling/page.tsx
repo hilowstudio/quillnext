@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { getCurrentUserOrg } from "@/lib/auth-helpers";
 import { withTenant } from "@/server/db";
+import { excludeParentLearners } from "@/server/queries/learner-filters";
 import { ThinklingClient } from "@/components/thinkling/ThinklingClient";
 
 export const metadata = {
@@ -22,7 +23,7 @@ export default async function ThinklingPage() {
     }
 
     const students = await withTenant((tx) => tx.learner.findMany({
-        where: { organizationId },
+        where: { organizationId, ...excludeParentLearners },
         select: {
             id: true,
             preferredName: true,

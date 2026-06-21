@@ -24,20 +24,11 @@ interface ThinklingChatProps {
 }
 
 export function ThinklingChat({ studentId, mode, onModeChange }: ThinklingChatProps) {
-    // Construct URL with query params to ensure context is passed even if body is ignored
-    const apiUrl = `/api/chat?studentId=${studentId}&mode=${mode}`;
-
     const { messages, setMessages, sendMessage, status, stop } = useChat({
-        // api: apiUrl, // Defaulting to /api/chat. 'api' property is invalid in this SDK version types.
-        // body: { studentId, mode }, // Removed: passed manually in sendMessage
-        // body: { studentId, mode }, // Removed: passed manually in sendMessage
         onError: (e) => console.error("ThinklingChat API Error:", e),
         onFinish: (event) => {
-            console.log("ThinklingChat Finished Event:", event);
-
             // The onFinish callback provides an event object containing the final UIMessage.
             const { message } = event;
-            console.log("ThinklingChat Finished Message Extracted:", message);
 
             // Fallback: If for some reason the stream didn't update the UI, append the final message manually
             // This handles cases where intermediate state updates might have been suppressed
@@ -112,9 +103,6 @@ export function ThinklingChat({ studentId, mode, onModeChange }: ThinklingChatPr
                 )}
 
                 {messages.map((m: any, index: number) => {
-                    // DEBUG: Log assistant messages to see why they are blank
-                    if (m.role !== 'user') console.log("Rendering Assistant Message:", m);
-
                     return (
                         <div key={`${m.id}-${index}`} className={`flex gap-3 ${m.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
                             <Avatar className={`w-8 h-8 mt-1 ${m.role !== 'user' ? 'rounded-none border-0' : 'border'}`}>

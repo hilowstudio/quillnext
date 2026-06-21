@@ -15,14 +15,6 @@ const safetySchema = z.object({
     coercion: z.enum(["NONE", "POSSIBLE", "LIKELY", "CONFESSED"]),
     ageGap: z.enum(["UNKNOWN", "SIMILAR", "OLDER_OTHER", "OLDER_SELF"]),
     disclosureRisk: z.enum(["LOW", "MEDIUM", "HIGH"]).describe("HIGH if notifying parents increases risk (fear of retaliation/shame)."),
-    recommendedResolution: z.enum([
-        "NO_ACTION",
-        "PARENT_SUMMARY_SAFETY_COACH",
-        "PARENT_SUMMARY_URGENT",
-        "SUPPORTIVE_ONLY",
-        "STUDENT_OPTIONAL_OUTREACH",
-        "INTERNAL_LOG_ONLY"
-    ]).optional()
 });
 
 type SafetyCategory = z.infer<typeof safetySchema>['category'];
@@ -36,10 +28,14 @@ interface SafetyPattern {
     label: string;
     // Optional overrides for fast-path
     evidenceLevel?: "THOUGHT" | "INTENT" | "PLAN" | "ACTION" | "VICTIM_DISCLOSURE";
+    // When true, the academic-context whitelist may NOT suppress this pattern. Reserved for
+    // explicit first-person self-harm phrases and concrete abuse/incest ACTION disclosures —
+    // no classroom/homework context makes those benign (Q-12-004).
+    exemptFromWhitelist?: boolean;
 }
 
-// Redundancy: Sophisticated Regex Engine
-class SafetyRegexEngine {
+// Redundancy: Sophisticated Regex Engine. Exported for unit testing of the regex fast-path.
+export class SafetyRegexEngine {
 
     private static whitelist = [
         /\b(health class|biology|education|safety lesson|history|literature|novel|book|article)\b/i,
@@ -52,35 +48,57 @@ class SafetyRegexEngine {
     private static fearRegex = /\b(don'?t tell).{0,30}\b(mom|dad|parents|will hurt|kick me out|beat me|kill me)\b/i;
 
     private static patterns: SafetyPattern[] = [
-        // 1. SELF_HARM
+        // 1. SELF_HARM — explicit first-person intent. Exempt from the academic whitelist: no
+        //    classroom/homework context makes "I want to kill myself" benign (Q-12-004).
         {
             label: "Self-Harm Intent (Tier 1)",
-            regex: [/\b(kill myself|end my life|want to die|suicide)\b/i],
+            regex: [/\b(kill myself|end my life|want to die)\b/i],
+            category: "SELF_HARM", severity: "TIER_1", tier: 1, evidenceLevel: "INTENT",
+            exemptFromWhitelist: true
+        },
+        // SELF_HARM — bare reference "suicide". Stays whitelist-gated: it legitimately appears in
+        //    academic / awareness text ("an article about suicide rates"), unlike "kill myself".
+        {
+            label: "Self-Harm Reference",
+            regex: [/\bsuicide\b/i],
             category: "SELF_HARM", severity: "TIER_1", tier: 1, evidenceLevel: "INTENT"
         },
+        // SELF_HARM — explicit first-person behaviour. Exempt from the whitelist.
         {
             label: "Self-Harm Behavior (Tier 2)",
-            regex: [/\b(hurt myself|cut myself|cut my wrists|self harm|self-harm)\b/i],
+            regex: [/\b(hurt myself|cut myself|cut my wrists)\b/i],
+            category: "SELF_HARM", severity: "TIER_2", tier: 2, evidenceLevel: "ACTION",
+            exemptFromWhitelist: true
+        },
+        // SELF_HARM — bare reference "self harm". Stays whitelist-gated (awareness/curriculum text).
+        {
+            label: "Self-Harm Behavior Reference",
+            regex: [/\b(self harm|self-harm)\b/i],
             category: "SELF_HARM", severity: "TIER_2", tier: 2, evidenceLevel: "ACTION"
         },
-        // 2. BULLYING & ABUSE
+        // 2. BULLYING & ABUSE — stays whitelist-gated ("the ball hit me in gym class" is benign).
         {
             label: "Physical Abuse",
             regex: [/\b(hit me|punched me|beating me up|kicked me)\b/i],
             category: "BULLYING", severity: "TIER_1", tier: 1, evidenceLevel: "VICTIM_DISCLOSURE"
         },
         // 3. INCEST / SIBLING (Distinguish Thought vs Action)
+        // Thought-only stays whitelist-gated (may be academic/curiosity discussion).
         {
             label: "Incest/Sibling Thought",
             regex: [/\b(mom|dad|stepmom|stepdad|stepsister|stepbrother|brother|sister).{0,40}\b(crush|attracted|like|love|thinking about)\b/i],
             category: "INCEST", severity: "TIER_1", tier: 1, evidenceLevel: "THOUGHT"
         },
+        // Explicit abuse/incest ACTION disclosure. Exempt from the whitelist: "my brother touched
+        //    me in class" must flag — an academic word must not cloak a concrete disclosure
+        //    (Q-12-004, INCEST scope).
         {
             label: "Incest/Sibling Action",
             regex: [/\b(mom|dad|stepmom|stepdad|stepsister|stepbrother|brother|sister).{0,40}\b(spied|peeked|watched|touched|asked to touch|tried to)\b/i],
-            category: "INCEST", severity: "TIER_1", tier: 1, evidenceLevel: "ACTION"
+            category: "INCEST", severity: "TIER_1", tier: 1, evidenceLevel: "ACTION",
+            exemptFromWhitelist: true
         },
-        // 4. VIOLENCE
+        // 4. VIOLENCE — stays whitelist-gated (historical/news/fiction discussion is common).
         {
             label: "Threat",
             regex: [/\b(shoot|stab|kill).{0,40}\b(them|him|her|people|school)\b/i],
@@ -93,14 +111,20 @@ class SafetyRegexEngine {
     }
 
     static scan(text: string): SafetyAssessment | null {
-        // Negation Check
+        // Negation Check (de-escalation): a genuine retraction ("I don't want to kill myself")
+        // must not flag. Kept whole-message and applied to ALL patterns; narrowing its scope
+        // (e.g. "I don't want to kill anyone but myself") is a tracked follow-up (Q-12-004).
         if (/\b(not|never|don'?t want to).{0,10}\b(kill|hurt|suicide)\b/i.test(text)) {
             return null;
         }
 
-        if (this.isWhitelisted(text)) {
-            return null;
-        }
+        // Academic-context whitelist. It suppresses AMBIGUOUS patterns (anatomy/history/fiction
+        // discussion) but must NOT null an explicit first-person self-harm phrase or a concrete
+        // abuse/incest ACTION disclosure — those patterns carry `exemptFromWhitelist`, so
+        // "for my project, I want to kill myself" still flags (Q-12-004). Computed once here and
+        // applied per-pattern in the loop below (was a blanket early-return that disabled the
+        // entire fast path on any benign academic word).
+        const whitelisted = this.isWhitelisted(text);
 
         // Caregiver Implication Check
         const caregiverImplicated = this.caregiverRegex.test(text);
@@ -110,6 +134,9 @@ class SafetyRegexEngine {
         const disclosureRisk = (caregiverImplicated || fearDetected) ? "HIGH" : "LOW";
 
         for (const pattern of this.patterns) {
+            if (whitelisted && !pattern.exemptFromWhitelist) {
+                continue;
+            }
             for (const re of pattern.regex) {
                 if (re.test(text)) {
                     // If we match a pattern, return immediately

@@ -108,15 +108,26 @@ export const deleteStudentSchema = z.object({
 
 export const generateResourceSchema = z.object({
     sourceId: z.string().min(1),
-    sourceType: z.enum(["BOOK", "VIDEO", "COURSE", "TOPIC", "URL", "FILE", "YOUTUBE_PLAYLIST"]),
+    sourceType: z.enum([
+        "BOOK", "VIDEO", "COURSE", "TOPIC", "URL", "FILE", "YOUTUBE_PLAYLIST",
+        // Spine-driven generation at ANY academic-spine level (sourceId = the node id).
+        "SUBJECT", "STRAND", "TOPIC_NODE", "SUBTOPIC", "OBJECTIVE",
+    ]),
     resourceKindId: z.string().uuid("Invalid resource kind ID"),
-    instructions: z.string().max(2000).optional(),
+    instructions: z.string().max(8000).optional(),
     additionalData: z.object({
-        topicText: z.string().optional(),
-        url: z.string().url().optional(),
-        fileContent: z.string().optional(),
-        fileName: z.string().optional(),
+        topicText: z.string().max(2000).optional(),
+        // NOT .url(): the URL field has no client validation and the core embeds it
+        // verbatim into the prompt (it even tolerates scheme-less domains / topic phrases,
+        // generate-resource-core.ts:626-631), so a strict URL check would reject valid input.
+        url: z.string().max(2000).optional(),
+        fileContent: z.string().max(200000).optional(),
+        fileName: z.string().max(500).optional(),
         studentId: z.string().uuid().optional(),
+        // Phase-2 book-chapter scoping + OBJECTIVE textbook-grounding subject override
+        // (match GenerateResourceCoreParams.additionalData in generate-resource-core.ts:221-233).
+        sectionNumber: z.number().int().optional(),
+        subject: z.string().max(200).optional(),
     }).optional(),
 });
 

@@ -54,7 +54,7 @@ The Living Library is the per-organization catalog of teaching source material: 
 - **Detail views:** `[id]/page.tsx` (book; self-heals stuck EXTRACTING at :83-104) and `resource/[id]/page.tsx` (generated resource).
 
 ## 4. Data flow (concrete traces)
-**Catalog render:** `living-library/page.tsx:13` `auth()` → `:20` load `user.organizationId` via plain `prisma` (no withTenant) → `:32` `getLibraryResources(organizationId)` → `:35` students via `withTenant` → `:55` generated `resource.findMany` via `withTenant` with `where` built from raw `searchParams` (`:47-52`) → `LibraryClient` (`:119`).
+**Catalog render:** `living-library/page.tsx:13` `auth()` → `:20` load `user.organizationId` via plain `prisma` (no withTenant) → `:32` `getLibraryResources(organizationId)` → `:35` students via `withTenant` (excludes parent-as-learner rows — Q-05-006) → `:55` generated `resource.findMany` via `withTenant` with `where` built from raw `searchParams` (`:47-52`) → `LibraryClient` (`:119`).
 
 **Add book (cover scan):** `BookScanner.handleCoverScan` `:168` → `processImageForOcr(file)` (`image-processing.ts:5`, canvas grayscale/contrast) → strip `data:` prefix → `POST /api/library/scan/vision` (`scan/vision/route.ts:19`) → `generateObject` with `models.pro3` + `BookExtractionSchema` (`:36`) → returns metadata → `handleSave` `:202` `POST /api/library/books` → `books/route.ts:73` `withTenant(book.create)` → best-effort `generateBookEmbedding` (`:112`) → optional Hi-Low ingest (`:123-157`) → redirect to `/living-library/{book.id}`.
 

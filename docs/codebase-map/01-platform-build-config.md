@@ -89,7 +89,7 @@ Seed flow (`package.json:13-22`): `db:seed*` scripts invoke `tsx prisma/seed*.ts
 
 - **Importers of `globals.css`**: `src/app/layout.tsx` (the only consumer; verified).
 - **Toolchain consumed by**: every TS/TSX file (tsconfig), all source (eslint/vitest), all components (Tailwind/globals.css), Prisma CLI (prisma.config.ts), shadcn CLI (components.json).
-- **External services / APIs referenced in code** (per env grep): Google OAuth, Google Gemini (Vercel AI SDK), OpenAI (`@ai-sdk/openai`), Supabase (`@supabase/supabase-js`, MCP), Firebase Admin/Storage, Resend (email), Joshua Project, Bible API, Google Books, YouTube, Inngest, Hi-Low ingest endpoint.
+- **External services / APIs referenced in code** (per env grep): Google OAuth, Google Gemini (Vercel AI SDK), Supabase (Postgres via Prisma/`DATABASE_URL` + dev-time MCP — the `@supabase/supabase-js` JS SDK was removed 2026-06-19, Q-002), Firebase Admin/Storage, Resend (email), Joshua Project, Bible API, Google Books, YouTube, Inngest, Hi-Low ingest endpoint. *(The previously-listed `@ai-sdk/openai` was uninstalled in Session 2, Q-08-006 — quillnext is Gemini-only.)*
 - **Inngest**: jobs wired via `src/app/api/inngest/route.ts` plus producers in `chat` and `library/.../extract` routes (out of this chapter's scope; cross-ref the AI/jobs chapter).
 - **Prisma models used**: none directly in this chapter (config only). Data model = see `02-data-model.md`.
 - **Tenancy/RLS**: not configured here. `RLS_ENABLED` read in `src/server/db.ts:10` — see `04-security-auth-tenancy.md`.
@@ -99,8 +99,8 @@ Seed flow (`package.json:13-22`): `db:seed*` scripts invoke `tsx prisma/seed*.ts
 Auth/session: `AUTH_SECRET`, `NEXTAUTH_SECRET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`.
 DB: `DATABASE_URL`, `DIRECT_DATABASE_URL`, `RLS_ENABLED`, `PRISMA_CLIENT_ENGINE_TYPE`.
 AI: `GOOGLE_GENERATIVE_AI_API_KEY`, `GEMINI_API_KEY`.
-Supabase: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SERVICE_ROLE_KEY`.
 Firebase: `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, `FIREBASE_PRIVATE_KEY`, `FIREBASE_STORAGE_BUCKET`.
+*(The three `SUPABASE_*` keys were removed 2026-06-19 with the dead Supabase JS clients (Q-002); the Supabase Postgres connection uses `DATABASE_URL`/`DIRECT_DATABASE_URL` above.)*
 Email: `RESEND_API_KEY`, `SAFETY_ALERT_FROM`.
 3rd-party content: `YOUTUBE_API_KEY`, `GOOGLE_BOOKS_API_KEY`, `NEXT_PUBLIC_GOOGLE_BOOKS_API_KEY`, `JOSHUA_PROJECT_API_KEY`, `BIBLE_API_KEY`.
 Hi-Low ingest: `HILOW_INGEST_URL`, `HILOW_INGEST_KEY`.
@@ -114,7 +114,7 @@ Q-01-001  [MED]  ✅ RESOLVED 2026-06-19 (Session 2, 01-MED) — owner chose "fr
   Impact: Onboarding docs were removed from the tree and the committed copies contained build/stack drift; treat as claims, not facts. design.md is the live design doc.
   Status: ✅ RESOLVED (README rewritten + `.env.example` added; QSF docs removed; not pushed)
 
-Q-01-002  [MED]  ✅ RESOLVED 2026-06-19 (Session 2, 01-MED) — set `images.remotePatterns: []`. A multi-modal sweep (verified by hand) confirmed the only `next/image` `<Image>` usages are 3 local `/assets/branding/*` ([Sidebar.tsx:67], [MainNav.tsx:49], [InklingToolkit.tsx:46]) — zero remote hosts via the optimizer; every remote image (Google-OAuth/DiceBear avatars, YouTube `i.ytimg.com` / Google-Books / OpenLibrary thumbnails, scraped article og:images) renders via plain `<img>`/Radix `AvatarImage`, which bypass `remotePatterns`. Empty allowlist closes the `/_next/image` open-proxy surface with no functional impact (owner-confirmed posture: don't route 3rd-party images through the optimizer; `Article.imageUrl`'s arbitrary host is moot since it's an `<img>`). See CHANGELOG.md. — `images.remotePatterns` allows every https host — next.config.js:18-19
+Q-01-002  [MED]  ✅ RESOLVED 2026-06-19 (Session 2, 01-MED) — set `images.remotePatterns: []`. A multi-modal sweep (verified by hand) confirmed the only `next/image` `<Image>` usages are local `/assets/branding/*` — at the time 3 sites ([Sidebar.tsx:67], `MainNav.tsx:49`, [InklingToolkit.tsx:46]); `MainNav.tsx` was deleted 2026-06-19 (ch.06 Q-06-003), leaving **2** ([Sidebar.tsx:67], [InklingToolkit.tsx:46]) — still zero remote hosts via the optimizer; every remote image (Google-OAuth/DiceBear avatars, YouTube `i.ytimg.com` / Google-Books / OpenLibrary thumbnails, scraped article og:images) renders via plain `<img>`/Radix `AvatarImage`, which bypass `remotePatterns`. Empty allowlist closes the `/_next/image` open-proxy surface with no functional impact (owner-confirmed posture: don't route 3rd-party images through the optimizer; `Article.imageUrl`'s arbitrary host is moot since it's an `<img>`). See CHANGELOG.md. — `images.remotePatterns` allows every https host — next.config.js:18-19
   Evidence: `{ protocol: 'https', hostname: '**' }` permitted Next image optimization to fetch/proxy from ANY https origin.
   Impact: SSRF/abuse surface via `/_next/image` (open image proxy) and no allowlist on remote image sources.
   Status: ✅ RESOLVED (`remotePatterns: []`; not pushed)

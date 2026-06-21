@@ -1,6 +1,19 @@
 import { SafetyAssessment, SafetyResolution } from "./types";
 
 /**
+ * Hard-stop predicate (Minimum Social Responsibility): never escalate toward caregiver
+ * notification when the caregiver is the implicated threat OR the child fears
+ * disclosure/retaliation. The single source of truth for this invariant — shared by the
+ * policy matrix below and the job's independent escalation guard (safety-scan.ts), so the
+ * two sites can never drift on what "caregiver hard-stop" means.
+ */
+export function isCaregiverHardStop(
+    assessment: Pick<SafetyAssessment, "implicatedCaregiver" | "disclosureRisk">,
+): boolean {
+    return assessment.implicatedCaregiver || assessment.disclosureRisk === "HIGH";
+}
+
+/**
  * Deterministic Policy Decision Matrix
  * Maps an Assessment to a Resolution.
  * 
@@ -11,7 +24,7 @@ import { SafetyAssessment, SafetyResolution } from "./types";
 export function decideSafetyResolution(assessment: SafetyAssessment): SafetyResolution {
     // 1. HARD STOPS (Highest Precedence)
     // If caregiver is implicated OR child fears retaliation, do not notify.
-    if (assessment.implicatedCaregiver || assessment.disclosureRisk === "HIGH") {
+    if (isCaregiverHardStop(assessment)) {
         if (assessment.severity === "DANGER" || assessment.severity === "TIER_1") {
             return "SUPPORTIVE_ONLY"; // Bot offers help lines but keeps secret
         }
@@ -27,10 +40,15 @@ export function decideSafetyResolution(assessment: SafetyAssessment): SafetyReso
         return "PARENT_SUMMARY_URGENT";
     }
 
-    // Plan/Action regarding Self-Harm or Violence
-    if (["PLAN", "ACTION", "VICTIM_DISCLOSURE"].includes(assessment.evidenceLevel) &&
+    // Intent / Plan / Action of self-harm or violence toward self or another child.
+    // Urgency is keyed on (category, evidenceLevel, target) — NOT on the severity label. The
+    // classifier is given no severity-vocabulary guidance, so a genuine concern it happens to
+    // label "CONCERN"/"TIER_3" must still escalate rather than fall through to a soft default
+    // (Q-12-003). INTENT is included so explicit ideation ("I want to kill myself") and a stated
+    // threat reach the urgent path instead of a gentle coach email. The caregiver hard-stop above
+    // still takes precedence, so a child who fears the caregiver is never escalated toward them.
+    if (["INTENT", "PLAN", "ACTION", "VICTIM_DISCLOSURE"].includes(assessment.evidenceLevel) &&
         ["SELF", "OTHER_CHILD"].includes(assessment.target) &&
-        ["TIER_1", "TIER_2"].includes(assessment.severity) &&
         ["SELF_HARM", "VIOLENCE"].includes(assessment.category)) {
         return "PARENT_SUMMARY_URGENT";
     }

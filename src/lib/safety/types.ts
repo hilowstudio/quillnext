@@ -20,5 +20,4 @@ export interface SafetyAssessment {
     coercion: "NONE" | "POSSIBLE" | "LIKELY" | "CONFESSED";
     ageGap: "UNKNOWN" | "SIMILAR" | "OLDER_OTHER" | "OLDER_SELF";
     disclosureRisk: "LOW" | "MEDIUM" | "HIGH";
-    recommendedResolution?: SafetyResolution;
 }

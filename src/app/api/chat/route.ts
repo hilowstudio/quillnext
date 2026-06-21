@@ -10,46 +10,37 @@ import { inngest } from "@/inngest/client";
 export const maxDuration = 30;
 
 export async function POST(req: Request) {
-    console.log("Thinkling API: Request Received");
     const session = await auth();
-    console.log("Thinkling API: Session User:", session?.user?.email || "None");
 
     if (!session?.user) {
-        console.log("Thinkling API: Unauthorized (No Session)");
         return new Response("Unauthorized", { status: 401 });
     }
 
     const json = await req.json();
-    console.log("Thinkling API Request MATCHED:", json);
-    let { messages, studentId, mode } = json;
-
-    console.log("Using Model:", models.flash ? "Defined" : "UNDEFINED");
-
-    // Fallback to Query Params if not in body
-    if (!studentId || !mode) {
-        const url = new URL(req.url);
-        if (!studentId) studentId = url.searchParams.get("studentId");
-        if (!mode) mode = url.searchParams.get("mode");
-    }
+    const { messages, studentId, mode } = json;
 
     if (!studentId || !mode) {
-        console.error("Missing params:", { studentId, mode, json });
-        return new Response(JSON.stringify({
-            error: "Missing studentId or mode",
-            received: json,
-            params: { studentId, mode }
-        }), {
+        console.error("Thinkling API: missing studentId or mode");
+        return new Response(JSON.stringify({ error: "Missing studentId or mode" }), {
             status: 400,
             headers: { 'Content-Type': 'application/json' }
         });
     }
 
     try {
-        // Multi-tenant guard: the student (whose full learner profile drives the
-        // system prompt) must belong to the caller's organization.
+        // Multi-tenant guard: the student (whose full learner profile drives the system prompt)
+        // must belong to the caller's org. RLS is OFF (db.ts:9), so the explicit organizationId
+        // predicate in the query is the live tenant boundary — not a droppable post-fetch
+        // comparison. Mirrors getSourceMetadata (Q-10-001).
         const { organizationId } = await getCurrentUserOrg();
-        const student = await db.learner.findUnique({ where: { id: studentId }, select: { organizationId: true } });
-        if (!student || student.organizationId !== organizationId) {
+        if (!organizationId) {
+            return new Response("Forbidden", { status: 403 });
+        }
+        const student = await db.learner.findFirst({
+            where: { id: studentId, organizationId },
+            select: { id: true },
+        });
+        if (!student) {
             return new Response("Forbidden", { status: 403 });
         }
 
@@ -83,8 +74,8 @@ export async function POST(req: Request) {
                         studentId,
                         message: lastMessage.content,
                         // org carried so the background safety scan has RLS tenant context
-                        // (non-null: the student-in-org guard above guarantees it)
-                        organizationId: organizationId!,
+                        // (non-null: the `if (!organizationId)` guard above guarantees it)
+                        organizationId: organizationId,
                     }
                 });
             } catch (sendErr) {
@@ -92,7 +83,6 @@ export async function POST(req: Request) {
             }
         }
 
-        console.log("StreamText: Starting stream configuration...");
         const result = streamText({
             model: models.flash, // Use Gemini Flash for speed and efficiency
             system: systemPrompt,
@@ -103,11 +93,7 @@ export async function POST(req: Request) {
         return result.toUIMessageStreamResponse();
     } catch (error: any) {
         console.error("Thinkling Error:", error);
-        return new Response(JSON.stringify({
-            error: "Internal Server Error",
-            details: error.message || String(error),
-            stack: error.stack
-        }), {
+        return new Response(JSON.stringify({ error: "Internal Server Error" }), {
             status: 500,
             headers: { 'Content-Type': 'application/json' }
         });

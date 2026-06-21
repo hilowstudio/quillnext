@@ -1,4 +1,5 @@
 import { db, withTenant } from "@/server/db";
+import { excludeParentLearners } from "@/server/queries/learner-filters";
 
 /**
  * Get smart defaults for context parameters
@@ -89,7 +90,7 @@ export async function getSmartDefaults(organizationId: string, courseId?: string
     const students = await withTenant(
       (tx) =>
         tx.learner.findMany({
-          where: { organizationId },
+          where: { organizationId, ...excludeParentLearners },
           take: 2,
         }),
       undefined,

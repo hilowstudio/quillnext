@@ -12,7 +12,7 @@ import {
     FormItem,
     FormLabel,
     FormMessage,
-} from "../../../components/ui/form";
+} from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea"; // Assuming you have this or use Input
 import { Checkbox } from "@/components/ui/checkbox";

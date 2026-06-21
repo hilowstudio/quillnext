@@ -5,11 +5,7 @@ import { getCurrentUserOrg } from "@/lib/auth-helpers";
 import { withTenant } from "@/server/db";
 import { assertParentProfile } from "@/server/profiles/guards";
 import { pinSchema } from "@/lib/schemas/pin";
-import {
-  checkProfilePinThrottle,
-  recordProfilePinFailure,
-  clearProfilePinThrottle,
-} from "@/server/profiles/pin-throttle";
+import { verifyPinWithThrottle } from "@/server/profiles/pin-verify";
 
 export type PinActionResult = { ok: true } | { ok: false; error: string };
 
@@ -74,15 +70,6 @@ export async function verifyProfilePin(profileId: string, pin: string): Promise<
     { organizationId, userId: null },
   );
   if (!profile || profile.organizationId !== organizationId) return { ok: false, error: "Profile not found." };
-  if (!profile.pinHash) return { ok: true };
 
-  const gate = await checkProfilePinThrottle(profile.id, organizationId, Date.now());
-  if (!gate.allowed) return { ok: false, error: `Too many attempts. Try again in ${Math.ceil(gate.retryAfterMs / 1000)}s.` };
-  const ok = await bcrypt.compare(pin, profile.pinHash);
-  if (!ok) {
-    await recordProfilePinFailure(profile.id, organizationId, Date.now());
-    return { ok: false, error: "Incorrect PIN." };
-  }
-  await clearProfilePinThrottle(profile.id, organizationId);
-  return { ok: true };
+  return verifyPinWithThrottle(profile.id, organizationId, profile.pinHash, pin);
 }

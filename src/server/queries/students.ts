@@ -1,6 +1,7 @@
 import { cache } from "react";
 import { Prisma } from "@/generated/client";
 import { db, withTenant } from "@/server/db";
+import { excludeParentLearners } from "./learner-filters";
 import { getMasterContext } from "@/lib/context/master-context";
 
 /**
@@ -213,6 +214,7 @@ export const listStudentsNeedingAssessment = cache(
         const where = {
             organizationId,
             learnerProfile: { is: null },
+            ...excludeParentLearners,
         } satisfies Prisma.LearnerWhereInput;
 
         return withTenant(

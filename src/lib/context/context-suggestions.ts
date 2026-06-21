@@ -1,4 +1,5 @@
 import { withTenant } from "@/server/db";
+import { excludeParentLearners } from "@/server/queries/learner-filters";
 import { getMasterContext } from "./master-context";
 import type { MasterContext } from "./master-context";
 import { ContextSuggestion } from "./context-types";
@@ -96,7 +97,7 @@ export async function analyzeContextCompleteness(
   } else {
     // Check if any students exist for the organization
     const studentCount = await withTenant(
-      (tx) => tx.learner.count({ where: { organizationId } }),
+      (tx) => tx.learner.count({ where: { organizationId, ...excludeParentLearners } }),
       undefined,
       { organizationId, userId: null },
     );

@@ -1,6 +1,7 @@
 import { auth } from "@/auth";
 import { getCurrentUserOrg } from "@/lib/auth-helpers";
 import { withTenant } from "@/server/db";
+import { excludeParentLearners } from "@/server/queries/learner-filters";
 import { Learner, Transcript } from "@/generated/client";
 import { format } from "date-fns";
 import Link from "next/link";
@@ -30,7 +31,7 @@ export default async function TranscriptsPage() {
 
         const students = await withTenant(
             (tx) => (tx as any).learner.findMany({
-                where: { organizationId },
+                where: { organizationId, ...excludeParentLearners },
                 include: {
                     transcripts: {
                         orderBy: { updatedAt: "desc" },

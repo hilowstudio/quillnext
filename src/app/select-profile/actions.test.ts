@@ -10,6 +10,7 @@ const recordProfilePinFailure = vi.fn();
 const clearProfilePinThrottle = vi.fn();
 const redirect = vi.fn((_: string) => { throw new Error("REDIRECT"); });
 
+vi.mock("server-only", () => ({}));
 vi.mock("@/lib/auth-helpers", () => ({ getCurrentUserOrg: () => getCurrentUserOrg() }));
 vi.mock("@/server/db", () => ({ withTenant: (...a: unknown[]) => withTenant(...a) }));
 vi.mock("@/server/profiles/active-profile", () => ({
@@ -23,7 +24,7 @@ vi.mock("@/server/profiles/pin-throttle", () => ({
 }));
 vi.mock("next/navigation", () => ({ redirect: (p: string) => redirect(p) }));
 
-import { selectProfile } from "./actions";
+import { selectProfile, enterAssessment } from "./actions";
 
 const CTX = { userId: "u1", organizationId: "o1" };
 
@@ -72,5 +73,30 @@ describe("selectProfile", () => {
     expect(res.error).toMatch(/Too many attempts/);
     expect(recordProfilePinFailure).not.toHaveBeenCalled(); // gated before the bcrypt check
     expect(setActiveProfile).not.toHaveBeenCalled();
+  });
+});
+
+describe("enterAssessment", () => {
+  it("rejects a non-id-charset studentId before any DB read", async () => {
+    const res = await enterAssessment("../etc/passwd");
+    expect(res).toEqual({ ok: false, error: "Invalid student." });
+    expect(withTenant).not.toHaveBeenCalled();
+    expect(setActiveProfile).not.toHaveBeenCalled();
+  });
+
+  it("rejects a well-formed id that is not a learner in the caller's org (Q-05-004)", async () => {
+    withTenant.mockResolvedValueOnce(null); // learner existence check → not found
+    const res = await enterAssessment("not-a-real-learner");
+    expect(res).toEqual({ ok: false, error: "Invalid student." });
+    expect(setActiveProfile).not.toHaveBeenCalled();
+  });
+
+  it("becomes the owner PARENT and redirects when the learner exists in-org", async () => {
+    withTenant
+      .mockResolvedValueOnce({ id: "s1" }) // learner existence check → found
+      .mockResolvedValueOnce({ id: "owner1", pinHash: null }); // owner lookup (no PIN)
+    await expect(enterAssessment("s1")).rejects.toThrow("REDIRECT");
+    expect(setActiveProfile).toHaveBeenCalledWith({ profileId: "owner1", type: "PARENT" });
+    expect(redirect).toHaveBeenCalledWith("/students/s1/assessment");
   });
 });

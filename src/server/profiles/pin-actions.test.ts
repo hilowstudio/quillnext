@@ -8,6 +8,7 @@ const checkProfilePinThrottle = vi.fn();
 const recordProfilePinFailure = vi.fn();
 const clearProfilePinThrottle = vi.fn();
 
+vi.mock("server-only", () => ({}));
 vi.mock("@/server/profiles/guards", () => ({ assertParentProfile: () => assertParentProfile() }));
 vi.mock("@/lib/auth-helpers", () => ({ getCurrentUserOrg: () => getCurrentUserOrg() }));
 vi.mock("@/server/db", () => ({ withTenant: (...a: unknown[]) => withTenant(...a) }));

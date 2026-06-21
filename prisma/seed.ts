@@ -97,7 +97,7 @@ async function main() {
       if (existingObjectiveCount > 0) {
         console.log(`  ↪ Spine already present (${existingObjectiveCount} objectives) — skipping spine reload.`);
       } else if (standards.subjects) {
-        for (const subject of standards.subjects) {
+        for (const [subjectIndex, subject] of standards.subjects.entries()) {
           // Map JSON "id" to database "code" (e.g., "ART" -> code)
           const subjectCode = subject.id || subject.code;
 
@@ -107,13 +107,17 @@ async function main() {
             update: {
               name: subject.name,
               description: subject.description,
+              sortOrder: subjectIndex,
             },
             create: {
               code: subjectCode,
               name: subject.name,
               description: subject.description,
               uuid: subject.uuid,
-              sortOrder: 0, // Will be updated from sequenced data
+              // Preserve master-JSON array order. There is no explicit order field
+              // anywhere in the spine JSON, and the sequenced pass below only sets
+              // gradeLevel/complexity — array position is the sole ordering signal.
+              sortOrder: subjectIndex,
             },
           });
 
@@ -121,7 +125,7 @@ async function main() {
 
           // Process SubSubjects (JSON calls them "sub_subjects", schema calls them "strands")
           if (subject.sub_subjects) {
-            for (const strand of subject.sub_subjects) {
+            for (const [strandIndex, strand] of subject.sub_subjects.entries()) {
               const strandCode = strand.id || strand.code;
 
               const dbStrand = await prisma.strand.upsert({
@@ -134,6 +138,7 @@ async function main() {
                 update: {
                   name: strand.name,
                   description: strand.description,
+                  sortOrder: strandIndex,
                 },
                 create: {
                   subjectId: dbSubject.id,
@@ -142,13 +147,13 @@ async function main() {
                   name: strand.name,
                   description: strand.description,
                   uuid: strand.uuid,
-                  sortOrder: 0,
+                  sortOrder: strandIndex,
                 },
               });
 
               // Process Topics
               if (strand.topics) {
-                for (const topic of strand.topics) {
+                for (const [topicIndex, topic] of strand.topics.entries()) {
                   const topicCode = topic.id || topic.code;
 
                   const dbTopic = await prisma.topic.upsert({
@@ -161,6 +166,7 @@ async function main() {
                     update: {
                       name: topic.name,
                       description: topic.description,
+                      sortOrder: topicIndex,
                     },
                     create: {
                       strandId: dbStrand.id,
@@ -169,13 +175,13 @@ async function main() {
                       name: topic.name,
                       description: topic.description,
                       uuid: topic.uuid,
-                      sortOrder: 0,
+                      sortOrder: topicIndex,
                     },
                   });
 
                   // Process Subtopics
                   if (topic.sub_topics) {
-                    for (const subtopic of topic.sub_topics) {
+                    for (const [subtopicIndex, subtopic] of topic.sub_topics.entries()) {
                       const subtopicCode = subtopic.id || subtopic.code;
 
                       const dbSubtopic = await prisma.subtopic.upsert({
@@ -188,6 +194,7 @@ async function main() {
                         update: {
                           name: subtopic.name,
                           description: subtopic.description,
+                          sortOrder: subtopicIndex,
                         },
                         create: {
                           topicId: dbTopic.id,
@@ -196,19 +203,20 @@ async function main() {
                           name: subtopic.name,
                           description: subtopic.description,
                           uuid: subtopic.uuid,
-                          sortOrder: 0,
+                          sortOrder: subtopicIndex,
                         },
                       });
 
                       // Process Objectives
                       if (subtopic.objectives) {
-                        for (const objective of subtopic.objectives) {
+                        for (const [objectiveIndex, objective] of subtopic.objectives.entries()) {
                           const objectiveCode = objective.id || objective.code;
 
                           await prisma.objective.upsert({
                             where: { code: objectiveCode },
                             update: {
                               text: objective.text,
+                              sortOrder: objectiveIndex,
                             },
                             create: {
                               subtopicId: dbSubtopic.id,
@@ -216,7 +224,9 @@ async function main() {
                               shortCode: objective.short_code,
                               text: objective.text,
                               uuid: objective.uuid,
-                              sortOrder: 0, // Will be updated from sequenced data
+                              // Preserve master-JSON array order (the sequenced pass
+                              // below only sets gradeLevel/complexity, never sortOrder).
+                              sortOrder: objectiveIndex,
                             },
                           });
                         }

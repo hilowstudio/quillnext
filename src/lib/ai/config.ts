@@ -1,90 +1,23 @@
 import { google } from "@ai-sdk/google";
-import { wrapLanguageModel, APICallError, NoSuchModelError } from "ai";
 
 // Shim for API Key: AI SDK expects GOOGLE_GENERATIVE_AI_API_KEY, but user has GEMINI_API_KEY
 if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY && process.env.GEMINI_API_KEY) {
   process.env.GOOGLE_GENERATIVE_AI_API_KEY = process.env.GEMINI_API_KEY;
 }
 
-type GoogleModel = ReturnType<typeof google>;
-
-/**
- * True only when an error looks like the model was RETIRED / removed by the provider
- * (404 / "not found" / NoSuchModelError) — not a transient, rate-limit, or content error.
- * We fall back ONLY on this so genuine failures still surface loudly instead of being masked.
- */
-export function isModelRetiredError(error: unknown): boolean {
-  if (NoSuchModelError.isInstance(error)) return true;
-  if (APICallError.isInstance(error)) {
-    if (error.statusCode === 404) return true;
-    const body = `${error.message} ${error.responseBody ?? ""}`.toLowerCase();
-    if (/not found|not supported for|no such model|does not exist|deprecated|model_not_found|unsupported model/.test(body)) {
-      return true;
-    }
-  }
-  // Last-resort duck typing for wrapped/unknown error shapes.
-  const e = error as { statusCode?: number; status?: number; message?: string; responseBody?: string; cause?: { statusCode?: number; message?: string } };
-  if ((e?.statusCode ?? e?.status ?? e?.cause?.statusCode) === 404) return true;
-  const text = `${e?.message ?? ""} ${e?.responseBody ?? ""} ${e?.cause?.message ?? ""}`.toLowerCase();
-  return /not found|not supported for|no such model|does not exist/.test(text);
-}
-
-/**
- * Wrap a (possibly preview) primary model so that if a call fails because the model was
- * retired, the SAME call is transparently retried against a stable fallback model. Callers
- * keep using the returned model exactly like any other LanguageModel.
- * Covers errors thrown at request time (a 404 retirement fails fast before streaming);
- * it does not retry an error emitted mid-stream.
- */
-export function withRetirementFallback(primary: GoogleModel, fallback: GoogleModel) {
-  return wrapLanguageModel({
-    model: primary,
-    middleware: {
-      wrapGenerate: async ({ doGenerate, params }) => {
-        try {
-          return await doGenerate();
-        } catch (error) {
-          if (!isModelRetiredError(error)) throw error;
-          console.error(`[ai/config] Model "${primary.modelId}" generate failed (likely retired) — falling back to "${fallback.modelId}".`, error);
-          return await fallback.doGenerate(params);
-        }
-      },
-      wrapStream: async ({ doStream, params }) => {
-        try {
-          return await doStream();
-        } catch (error) {
-          if (!isModelRetiredError(error)) throw error;
-          console.error(`[ai/config] Model "${primary.modelId}" stream failed (likely retired) — falling back to "${fallback.modelId}".`, error);
-          return await fallback.doStream(params);
-        }
-      },
-    },
-  });
-}
-
 // pro/pro3 use the STABLE gemini-2.5-pro. (Was gemini-3.1-pro-preview — a preview model that
 // intermittently returned empty, content-filtered responses, silently breaking grounded and
-// structured generation. Replaced with stable gemini-2.5-pro 2026-06-17.) The
-// withRetirementFallback helper remains available but is no longer needed for a stable model.
+// structured generation. Replaced with stable gemini-2.5-pro 2026-06-17.)
 const proModel = google("gemini-2.5-pro");
 
 // Model instances
 export const models = {
-  pro3: proModel, // structured / high-complexity tier (getStructuredModel, COMPLEX_CONTENT_GENERATION, COURSE_STRUCTURE_DESIGN, video tasks). Stable gemini-2.5-pro.
+  pro3: proModel, // structured / high-complexity tier (COMPLEX_CONTENT_GENERATION, COURSE_STRUCTURE_DESIGN, video tasks). Stable gemini-2.5-pro.
   pro: proModel, // identical to pro3 (same instance)
-  flash: google("gemini-3.5-flash"), // DEFAULT model — getDefaultModel() + getModelForTask fallback + most task mappings. Stable. Live-verified 2026-06-16.
+  flash: google("gemini-3.5-flash"), // DEFAULT model — getModelForTask fallback + most task mappings. Stable. Live-verified 2026-06-16.
   flashLite: google("gemini-3.1-flash-lite"), // low-complexity tier + safety-scan generateObject (lib/safety/guard.ts). Stable. Live-verified 2026-06-16.
   imageGen: google("gemini-3-pro-image"), // "Nano Banana Pro" — Gemini image-output model. Invoked via generateText + providerOptions.google.responseModalities:["IMAGE"] (see lib/services/image-generation.ts), NOT the Imagen generateImage API. Stable channel. Live-verified 2026-06-16. (Was imagen-3.0-generate-001.)
 } as const;
-
-/**
- * Task complexity levels for model selection
- */
-export enum TaskComplexity {
-  HIGH = "high", // Requires deep reasoning, multi-step analysis
-  MEDIUM = "medium", // Moderate complexity, structured outputs
-  LOW = "low", // Simple tasks, quick responses
-}
 
 /**
  * Task type definitions with default model assignments
@@ -155,36 +88,6 @@ const taskModelMap: Record<AITaskType, typeof models.pro3 | typeof models.pro | 
  */
 export function getModelForTask(taskType: AITaskType) {
   return taskModelMap[taskType] || models.flash; // Default to Flash if unknown
-}
-
-/**
- * Get model by complexity level
- */
-export function getModelByComplexity(complexity: TaskComplexity) {
-  switch (complexity) {
-    case TaskComplexity.HIGH:
-      return models.pro3; // Use gemini-2.5-pro for highest complexity
-    case TaskComplexity.MEDIUM:
-      return models.flash;
-    case TaskComplexity.LOW:
-      return models.flashLite;
-  }
-}
-
-/**
- * Legacy functions for backward compatibility
- * These now use intelligent model selection
- */
-export function getDefaultModel() {
-  return models.flash; // Default to Flash for general use
-}
-
-export function getStructuredModel() {
-  return models.pro3; // Structured outputs use gemini-2.5-pro for best quality
-}
-
-export function getGenerativeUIModel() {
-  return models.flash; // Generative UI uses Flash for speed
 }
 
 /**

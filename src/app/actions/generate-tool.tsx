@@ -6,7 +6,7 @@ import { z } from "zod";
 import { buildMasterPrompt } from "@/lib/utils/prompt-builder";
 import { getCurrentUserOrg } from "@/lib/auth-helpers";
 import { getMasterContext } from "@/lib/context/master-context";
-import { db } from "@/server/db";
+import { withTenant } from "@/server/db";
 
 /**
  * Generative UI Server Action
@@ -115,26 +115,32 @@ export async function generateLearningTool(
             </div>
           );
 
-          // 2. Save to DB with lineage tracking
+          // 2. Save to DB with lineage tracking. Org-scoped write — route through the
+          // withTenant GUC path (org/user from session) like generate-resource-core.ts:763,
+          // not plain db, so it's consistent with the rest of the area and RLS-ready. (Q-10-010)
           if (resourceKindId) {
             try {
-              await db.resource.create({
-                data: {
-                  organizationId,
-                  createdByUserId: userId,
-                  resourceKindId,
-                  title: quizData.title,
-                  description: `Quiz with ${quizData.questions.length} questions`,
-                  storageType: "JSON",
-                  content: quizData,
-                  generatedForStudentId: studentId || null,
-                  generatedFromBookId: bookId || null,
-                  generatedFromVideoId: videoId || null,
-                  generatedFromArticleId: articleId || null,
-                  generatedFromDocumentId: documentId || null,
-                  generationContext: masterContext as any,
-                },
-              });
+              await withTenant(
+                (tx) => tx.resource.create({
+                  data: {
+                    organizationId,
+                    createdByUserId: userId,
+                    resourceKindId,
+                    title: quizData.title,
+                    description: `Quiz with ${quizData.questions.length} questions`,
+                    storageType: "JSON",
+                    content: quizData,
+                    generatedForStudentId: studentId || null,
+                    generatedFromBookId: bookId || null,
+                    generatedFromVideoId: videoId || null,
+                    generatedFromArticleId: articleId || null,
+                    generatedFromDocumentId: documentId || null,
+                    generationContext: masterContext as any,
+                  },
+                }),
+                undefined,
+                { organizationId, userId },
+              );
             } catch (error) {
               console.error("Failed to save resource:", error);
               // Don't fail the generation if saving fails
@@ -193,26 +199,31 @@ export async function generateLearningTool(
             </div>
           );
 
-          // Save to DB with lineage tracking
+          // Save to DB with lineage tracking. Org-scoped write — route through the withTenant
+          // GUC path (org/user from session), consistent with the rest of the area + RLS-ready. (Q-10-010)
           if (resourceKindId) {
             try {
-              await db.resource.create({
-                data: {
-                  organizationId,
-                  createdByUserId: userId,
-                  resourceKindId,
-                  title: worksheetData.title,
-                  description: worksheetData.instructions,
-                  storageType: "JSON",
-                  content: worksheetData,
-                  generatedForStudentId: studentId || null,
-                  generatedFromBookId: bookId || null,
-                  generatedFromVideoId: videoId || null,
-                  generatedFromArticleId: articleId || null,
-                  generatedFromDocumentId: documentId || null,
-                  generationContext: masterContext as any,
-                },
-              });
+              await withTenant(
+                (tx) => tx.resource.create({
+                  data: {
+                    organizationId,
+                    createdByUserId: userId,
+                    resourceKindId,
+                    title: worksheetData.title,
+                    description: worksheetData.instructions,
+                    storageType: "JSON",
+                    content: worksheetData,
+                    generatedForStudentId: studentId || null,
+                    generatedFromBookId: bookId || null,
+                    generatedFromVideoId: videoId || null,
+                    generatedFromArticleId: articleId || null,
+                    generatedFromDocumentId: documentId || null,
+                    generationContext: masterContext as any,
+                  },
+                }),
+                undefined,
+                { organizationId, userId },
+              );
             } catch (error) {
               console.error("Failed to save resource:", error);
             }

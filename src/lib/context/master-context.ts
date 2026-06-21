@@ -106,11 +106,6 @@ export interface StudentContext {
     completedAssessments: number;
     overallCompletionPercentage: number | null;
   };
-  bookPreferences: Array<{
-    id: string;
-    title: string;
-    subject: string;
-  }>;
 }
 
 export interface AcademicContext {
@@ -504,25 +499,6 @@ export async function getStudentContext(
     orderBy: { sortOrder: "asc" },
   });
 
-  // Get books associated with student's courses
-  const bookIds = await withTenant(
-    (tx) =>
-      tx.book.findMany({
-        where: {
-          organizationId,
-          subjectId: {
-            in: student.courseEnrollments
-              .map((ce) => ce.course.subjectId)
-              .filter((id): id is string => id !== null),
-          },
-        },
-        select: { id: true },
-        take: 10,
-      }),
-    undefined,
-    { organizationId, userId: null },
-  );
-
   return {
     student: {
       id: student.id,
@@ -563,11 +539,6 @@ export async function getStudentContext(
           ? Number(student.courseProgress[0].overallCompletionPercentage)
           : null,
     },
-    bookPreferences: bookIds.map((b) => ({
-      id: b.id,
-      title: "", // Would need to fetch full book data
-      subject: "",
-    })),
   };
 }
 

@@ -1,6 +1,6 @@
 import { inngest } from "@/inngest/client";
 import { assessMessageSafety } from "@/lib/safety/guard";
-import { decideSafetyResolution } from "@/lib/safety/policy";
+import { decideSafetyResolution, isCaregiverHardStop } from "@/lib/safety/policy";
 import { withTenant } from "@/server/db";
 import { sendSafetyAlert } from "@/lib/notifications/safety-alert";
 import { SafetyResolution } from "@/lib/safety/types";
@@ -33,8 +33,7 @@ export const scanMessage = inngest.createFunction(
             !result.isSafe &&
             resolution !== "INTERNAL_LOG_ONLY" &&
             resolution !== "SUPPORTIVE_ONLY" &&
-            !result.implicatedCaregiver &&
-            result.disclosureRisk !== "HIGH"
+            !isCaregiverHardStop(result)
         ) {
 
             // Check last 10 days
@@ -102,7 +101,7 @@ export const scanMessage = inngest.createFunction(
 
             // 5. ACT (Gated by Policy)
             if (resolution === "PARENT_SUMMARY_SAFETY_COACH" || resolution === "PARENT_SUMMARY_URGENT") {
-                const alert = await sendSafetyAlert(flag.id);
+                const alert = await sendSafetyAlert(flag.id, organizationId);
                 if (!alert.sent) {
                     console.error(`[SAFETY] Alert delivery FAILED for flag ${flag.id}: ${alert.error}`);
                 }

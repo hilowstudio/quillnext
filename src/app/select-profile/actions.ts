@@ -1,15 +1,10 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import bcrypt from "bcryptjs";
 import { getCurrentUserOrg } from "@/lib/auth-helpers";
 import { withTenant } from "@/server/db";
 import { setActiveProfile, clearActiveProfile } from "@/server/profiles/active-profile";
-import {
-  checkProfilePinThrottle,
-  recordProfilePinFailure,
-  clearProfilePinThrottle,
-} from "@/server/profiles/pin-throttle";
+import { verifyPinWithThrottle } from "@/server/profiles/pin-verify";
 
 export type SelectProfileResult = { ok: false; error: string };
 
@@ -37,18 +32,8 @@ export async function selectProfile(profileId: string, pin?: string): Promise<Se
     return { ok: false, error: "Profile not found." };
   }
 
-  if (profile.pinHash) {
-    const gate = await checkProfilePinThrottle(profile.id, organizationId, Date.now());
-    if (!gate.allowed) {
-      return { ok: false, error: `Too many attempts. Try again in ${Math.ceil(gate.retryAfterMs / 1000)}s.` };
-    }
-    const ok = pin ? await bcrypt.compare(pin, profile.pinHash) : false;
-    if (!ok) {
-      await recordProfilePinFailure(profile.id, organizationId, Date.now());
-      return { ok: false, error: "Incorrect PIN." };
-    }
-    await clearProfilePinThrottle(profile.id, organizationId);
-  }
+  const verified = await verifyPinWithThrottle(profile.id, organizationId, profile.pinHash, pin);
+  if (!verified.ok) return verified;
 
   await setActiveProfile({ profileId: profile.id, type: profile.type });
   redirect("/");
@@ -74,18 +59,8 @@ async function enterAsOwnerParent(pin?: string): Promise<{ ok: true } | SelectPr
   );
   if (!owner) return { ok: false, error: "No owner profile." };
 
-  if (owner.pinHash) {
-    const gate = await checkProfilePinThrottle(owner.id, organizationId, Date.now());
-    if (!gate.allowed) {
-      return { ok: false, error: `Too many attempts. Try again in ${Math.ceil(gate.retryAfterMs / 1000)}s.` };
-    }
-    const ok = pin ? await bcrypt.compare(pin, owner.pinHash) : false;
-    if (!ok) {
-      await recordProfilePinFailure(owner.id, organizationId, Date.now());
-      return { ok: false, error: "Incorrect PIN." };
-    }
-    await clearProfilePinThrottle(owner.id, organizationId);
-  }
+  const verified = await verifyPinWithThrottle(owner.id, organizationId, owner.pinHash, pin);
+  if (!verified.ok) return verified;
 
   await setActiveProfile({ profileId: owner.id, type: "PARENT" });
   return { ok: true };
@@ -110,6 +85,20 @@ export async function enterProfileManagement(pin?: string): Promise<SelectProfil
  */
 export async function enterAssessment(studentId: string, pin?: string): Promise<SelectProfileResult> {
   if (!/^[A-Za-z0-9_-]+$/.test(studentId)) return { ok: false, error: "Invalid student." };
+
+  // Defense-in-depth (Q-05-004): the charset guard above blocks redirect-path smuggling, and the
+  // assessment API enforces tenancy on submit — but confirm the learner actually exists in the
+  // caller's org BEFORE becoming the owner PARENT and redirecting, so a well-formed bogus id can't
+  // set the parent session and land on an empty wizard.
+  const { organizationId } = await getCurrentUserOrg();
+  if (!organizationId) return { ok: false, error: "No organization." };
+  const learner = await withTenant(
+    (tx) => tx.learner.findFirst({ where: { id: studentId, organizationId }, select: { id: true } }),
+    undefined,
+    { organizationId, userId: null },
+  );
+  if (!learner) return { ok: false, error: "Invalid student." };
+
   const res = await enterAsOwnerParent(pin);
   if (!res.ok) return res;
   redirect(`/students/${studentId}/assessment`);

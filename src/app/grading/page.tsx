@@ -3,6 +3,7 @@ import Link from "next/link";
 import { auth } from "@/auth";
 import { getCurrentUserOrg } from "@/lib/auth-helpers";
 import { withTenant } from "@/server/db";
+import { excludeParentLearners } from "@/server/queries/learner-filters";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { NewAttemptForm } from "@/components/grading/NewAttemptForm";
@@ -36,7 +37,7 @@ export default async function GradingIndexPage() {
             orderBy: { createdAt: "desc" },
         }), undefined, { organizationId, userId: null }),
         withTenant((tx) => tx.learner.findMany({
-            where: { organizationId },
+            where: { organizationId, ...excludeParentLearners },
             select: { id: true, firstName: true, lastName: true, preferredName: true },
             orderBy: { firstName: "asc" },
         }), undefined, { organizationId, userId: null }),

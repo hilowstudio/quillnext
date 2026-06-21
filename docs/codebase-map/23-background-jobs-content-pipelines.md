@@ -52,7 +52,7 @@ This chapter is the asynchronous spine of quillnext: heavy/slow work that must n
 
 **Document processing** — `resource-library-actions.ts:295` sends `resource/process.document` → `process-document.ts:34`. `download-file` (`:42`: fetch if `http`, else Firebase Admin `bucket.file(fileUrl).download()`) → `extract-text` (`:76`: `pdf2json` for PDF else utf-8) → `update-db` (`:87`: one `withTenant` tx finds doc org, writes `extractedText`, then `revalidateTag('library-'+org)`).
 
-**Safety scan** — `chat/route.ts:75` sends `chat/message.sent` → `safety-scan.ts:12`. `assessMessageSafety` (`:22`) → `decideSafetyResolution` (`:25`) → pattern-escalation over last-10-day `safetyFlag`s (`:44`, hard-stops when caregiver implicated or disclosureRisk HIGH `:36-37`; ≥2 same-category prior or evidence escalation upgrades resolution `:69`) → store flag with snippet-only message (`:85`) → `sendSafetyAlert(flag.id)` only for `PARENT_SUMMARY_*` (`:104`). See chapter 12/20.
+**Safety scan** — `chat/route.ts:71` sends `chat/message.sent` → `safety-scan.ts:12`. `assessMessageSafety` (`:22`) → `decideSafetyResolution` (`:25`) → pattern-escalation over last-10-day `safetyFlag`s (`:43`, hard-stops when caregiver implicated or disclosureRisk HIGH via the shared `isCaregiverHardStop()` predicate `:36` — Q-12-006; ≥2 same-category prior or evidence escalation upgrades resolution `:68`) → store flag with snippet-only message (`:84`) → `sendSafetyAlert(flag.id, organizationId)` only for `PARENT_SUMMARY_*` (`:103`; the alert read/update are now org-scoped via `withTenant` — Q-12-005). See chapter 12/20.
 
 **Book extract** — `books/[id]/extract/route.ts:180` sends `book/extract.requested` → `extract-book.ts:78`. `load-metadata` (`:86`, plain-db extraction + withTenant book) → `extract-ground` (`:141`, `groundBook`, catches exhaustion → degrade) → `extract-structure` (`:146`, `structureBookResearch` or `degradedBookResult`) → `persist-global` (`:153`, plain db) → `sendEvent` kickoff-fulltext + kickoff-sections (`:177-184`) → `copy-down` (`:188`, withTenant book update + revalidate) → `embed` (`:211`, best-effort). `retries: 4`, `concurrency 2`. `onFailure` (`:20`) leaves the run alone if status already EXTRACTED (`:43`), else marks both rows FAILED.
 
@@ -71,9 +71,9 @@ This chapter is the asynchronous spine of quillnext: heavy/slow work that must n
 | `inngest` client | DONE | `client.ts:5`; imported by every function + route. |
 | event schema (`types.ts`) | DONE | `types.ts:111`; all 11 events bound, 9 have producers. |
 | `route.ts` serve handler | DONE | `route.ts:25-40`; 11 functions registered (`route.ts:28-38`). |
-| `compileCurriculum` | DONE | wired `route.ts:30`; producer `compile-curriculum-action.ts:43,83`. |
+| `compileCurriculum` | DONE | wired `route.ts:30`; producer `compile-curriculum-action.ts:51,100`. |
 | `processDocument` | DONE | wired `route.ts:28`; producer `resource-library-actions.ts:295`. |
-| `scanMessage` (id `scan-chat-message`) | DONE | wired `route.ts:29`; producer `chat/route.ts:75`. |
+| `scanMessage` (id `scan-chat-message`) | DONE | wired `route.ts:29`; producer `chat/route.ts:71`. |
 | `extractBook` | DONE | wired `route.ts:31`; producer `library/books/[id]/extract/route.ts:180`. |
 | `extractVideo` | DONE | wired `route.ts:34`; producer `library/videos/[id]/extract/route.ts:153`. |
 | `ingestBookFullText` | DONE | wired `route.ts:32`; producer `extract-book.ts:177`. |
@@ -133,7 +133,7 @@ Q-23-002  [MED]  Dead web-grounded section producers (`groundBookSections`, `str
   Impact: ~80 lines of dead AI code (plus `runBookGrounding`'s `abortMs`/`SectionGroundMeta`/`describeTableOfContents` machinery that exists only to serve them). Misleads readers into thinking web-grounded sections are live. Carries cost only if a future caller resurrects it.
   Status: documented (not fixed)
 
-Q-23-003  [LOW]  (re-graded INFO→LOW 2026-06-19, owner) ⏳ DEFERRED — owner deferred the DocumentResource.extractionStatus enum to a batched migration (see CHANGELOG.md). process-document has no `onFailure` and no per-step retry tuning  — `process-document.ts:31-32`
+Q-23-003  [LOW]  (re-graded INFO→LOW 2026-06-19, owner) ⏳ DEFERRED — owner deferred the DocumentResource.extractionStatus enum to a batched migration (see CHANGELOG.md). **That batch now also bundles ch.02 Q-011 (org-FK column rename) + Q-013 (stringly-typed→enum conversions), deferred together in Session 3, 2026-06-19.** process-document has no `onFailure` and no per-step retry tuning  — `process-document.ts:31-32`
   Evidence: `createFunction({ id: "process-document" }, ...)` — no `retries`, `concurrency`, or `onFailure`. On exhausted default retries the `DocumentResource` is left with empty `extractedText` and no FAILED marker (unlike extract-book/extract-video which mark FAILED).
   Impact: A document that fails extraction silently stays blank with no status signal to the UI; user cannot tell processing failed vs. is pending. Minor — the row still exists.
   Status: documented (not fixed)

@@ -80,7 +80,7 @@ Two product surfaces converge here. (1) **Onboarding/Blueprint**: the first-run 
 | `CourseBuilder` | PARTIAL | DnD is flat-only (no nesting); bundle add does `window.location.reload()` (CourseBuilder.tsx:698); passes `courseId` as `organizationId` to ResourcePicker (683). |
 | `CourseDistributor` | DONE | wired to `distributeCourse` (CourseDistributor.tsx:41). |
 | `ResourcePicker` | PARTIAL | functional, but library lists empty when given a courseId as orgId (see Q-17-002). |
-| `blueprint/page.tsx` | DONE | renders progress + completeness; 4 org-scoped counts via `withTenant` (blueprint/page.tsx:36-46). |
+| `blueprint/page.tsx` | DONE | renders progress + completeness; 4 org-scoped counts via `withTenant` (blueprint/page.tsx:36-46); the 2 learner counts exclude parent-as-learner rows (Q-05-006). |
 | `saveClassroomStep` | DONE | creates Organization + classroom + owner profile (blueprint.ts:28). |
 | `saveScheduleStep` | DONE | updates classroom + holidays (blueprint.ts:182). |
 | `saveEnvironmentStep` | DONE | stores `environmentPreferences` JSON (blueprint.ts:274,310). |
