@@ -123,7 +123,7 @@ export function SpecForm({ onSubmit, isLoading, initialContext }: SpecFormProps)
                         />
 
                         <div className="space-y-3 rounded-md border border-qc-parchment-dark/30 bg-qc-parchment/30 p-4">
-                            <FormLabel className="text-base font-semibold">Engineering Constraints</FormLabel>
+                            <p className="text-base font-semibold">Engineering Constraints</p>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <FormField
                                     control={form.control}

@@ -145,7 +145,7 @@ export function ParentDashboard({
                                 <CardDescription>Recently generated content</CardDescription>
                             </div>
                             <Button variant="outline" size="sm" asChild>
-                                <Link href="/resources">View All</Link>
+                                <Link href="/living-library">View All</Link>
                             </Button>
                         </div>
                     </CardHeader>

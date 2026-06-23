@@ -40,7 +40,7 @@ export function CurrentObjectives({ studentId, objectives }: CurrentObjectivesPr
                                     </p>
                                 </div>
                                 <Button variant="outline" size="sm" asChild>
-                                    <Link href={`/generators?studentId=${studentId}&objectiveId=${objective.id}`}>
+                                    <Link href={`/creation-station?studentId=${studentId}&objectiveId=${objective.id}`}>
                                         Generate
                                     </Link>
                                 </Button>

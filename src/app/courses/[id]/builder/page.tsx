@@ -331,12 +331,6 @@ export default async function CourseBuilderPage({
                   Generate Content for Course
                 </Link>
               </Button>
-              <Button variant="outline" className="w-full justify-start" asChild>
-                <Link href={`/courses/${course.id}/students`}>Manage Students</Link>
-              </Button>
-              <Button variant="outline" className="w-full justify-start" asChild>
-                <Link href={`/courses/${course.id}/assessments`}>View Assessments</Link>
-              </Button>
             </CardContent>
           </Card>
         </div>

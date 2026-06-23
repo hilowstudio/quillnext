@@ -23,7 +23,7 @@ export function StudentHeader({ student }: StudentHeaderProps) {
                 </div>
                 <div className="flex gap-2">
                     <Button asChild>
-                        <Link href={`/generators?studentId=${student.id}`}>
+                        <Link href={`/creation-station?studentId=${student.id}`}>
                             Generate Content for {student.preferredName || student.firstName}
                         </Link>
                     </Button>
