@@ -29,11 +29,6 @@ export async function POST(request: NextRequest) {
     studentId: str(body.studentId),
     objectiveId: str(body.objectiveId),
     courseId: str(body.courseId),
-    courseBlockId: str(body.courseBlockId),
-    bookId: str(body.bookId),
-    videoId: str(body.videoId),
-    articleId: str(body.articleId),
-    documentId: str(body.documentId),
   });
 
   return NextResponse.json(context);

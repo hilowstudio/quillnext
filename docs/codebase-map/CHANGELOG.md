@@ -3254,3 +3254,43 @@ crisis resources periodically (the shape-lock test guards the core contacts; ver
   findings program is now closed except those two by-design LOWs. Reconciles across 00-INDEX, ch.24 §7, ch.12 §7.
 - Doc-currency: ch.12 §1/§5 gained the crisis-resources / pre-check / affordance / review-UI units; the spec
   `Q-12-007-hybrid-safety-spec.md` is marked BUILT.
+
+---
+
+## Session 2026-06-23 (later) — Q-09-005 RESOLVED by consolidating generators onto generateResourceCore (owner-approved)
+
+The unbuilt "source-specific context-injection" half of source-anchored generation (Q-09-005) is closed by
+**consolidating the two generation pathways onto the source-aware one** rather than building a second.
+`generateResourceCore` turned out to be a near-superset of the generative-UI path (`generateLearningTool`/
+`streamUI`) — it already does source-grounded RAG, student personalization (`additionalData.studentId`),
+verify/revise, quote-grounding, and images; the only thing the weak path had was a `streamUI` live-render. The
+weak path was shared between the standalone `creation-station/[id]` page AND the course-builder's inline generator
+dialog (`CourseBuilder.tsx`), so the chokepoint was the shared `GeneratorForm`.
+
+**TDD; CI green: tsc 0 / eslint 0-err / vitest 218/218 (31 files; +6). Nothing pushed.**
+⚠️ **UI smoke-test owed** (no browser/component test in CI): exercise the course-builder inline generator dialog
++ the `/creation-station` generators after this change.
+
+### Changed
+- ✅ **Q-09-005** [LOW] RESOLVED (consolidated, not removed):
+  - **`GeneratorForm` now calls `generateResource`** (→ `generateResourceCore`) instead of `generateLearningTool`.
+    New pure mapper `lib/generators/resolve-source.ts` collapses the multi-dim context to one `(sourceType,
+    sourceId)` by precedence (book → video → objective → course → TOPIC-from-prompt), threading `studentId` via
+    `additionalData`. +`resolve-source.test.ts` (6). Output is now a saved Resource + a "view in Living Library"
+    link (replaces the streamed node), uniform for the (former) page and the course-builder dialog.
+  - **Deleted** the standalone `creation-station/[id]` page + its `[id]`-only components (`SmartDefaultsSuggestions`,
+    `ContextSuggestionsInline`, `lib/context/smart-defaults.ts`); **redirected** the course-builder tool links
+    (`courses/[id]/builder`) to `/creation-station`.
+  - **Deleted** `generateLearningTool` (`app/actions/generate-tool.tsx`) and **removed `@ai-sdk/rsc`** (its only
+    consumer). `streamUI` is no longer used anywhere.
+  - **Kept** `GeneratorForm` (now course-builder-only, on the source-aware backend), `ContextBadges` (shared),
+    `getMasterContext`/`serializeMasterContext`/`buildMasterPrompt` (still used by blueprint/students/grading/etc.).
+  - Deletion tail verified clean (no orphaned imports; `buildMasterPrompt` still feeds AI grading feedback;
+    corrected a stale `prompt-builder.ts` comment that named the removed `generate-tool`).
+  - **Known limitation:** `generateResourceCore` has no ARTICLE/DOCUMENT source type → an article/document-only
+    context falls back to TOPIC-from-prompt (ungrounded). Adding those source types is future work.
+
+### Reconcile (§4 partition)
+- **LOW 2 → 1:** Q-09-005 ✅ resolved; only **Q-01-004** (lint warn-ratchet, owner-accepted) remains.
+- **New open headline: 0 CRITICAL · 0 HIGH · 0 MED · 1 LOW (Q-01-004).** The findings backlog is now a single
+  owner-accepted LOW. Reconciles across 00-INDEX, ch.24 §7, ch.09 §7, ch.10 §5/§7.

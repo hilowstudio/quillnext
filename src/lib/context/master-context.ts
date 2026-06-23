@@ -11,11 +11,9 @@ export interface MasterContextParams {
   studentId?: string;
   objectiveId?: string;
   courseId?: string;
-  courseBlockId?: string;
-  bookId?: string;
-  videoId?: string;
-  articleId?: string;
-  documentId?: string;
+  // (Q-09-005, 2026-06-23) The per-source media ids (courseBlockId/bookId/videoId/articleId/documentId)
+  // were removed: they were never read by any sub-fetcher. Source-specific generation now flows through
+  // generateResourceCore (sourceType/sourceId), not this context object.
 }
 
 export interface FamilyContext {

@@ -299,7 +299,7 @@ export default async function CourseBuilderPage({
                       className="w-full justify-start"
                       asChild
                     >
-                      <Link href={`/creation-station/${tool.id}?courseId=${course.id}`}>
+                      <Link href={`/creation-station?courseId=${course.id}`}>
                         {tool.label}
                       </Link>
                     </Button>

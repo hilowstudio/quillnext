@@ -236,13 +236,25 @@ and many actions rely on hand-written org checks, the absence of tenancy tests i
 
 ## 7. Consolidated findings register
 
-0 CRITICAL · **0 HIGH** · **0 MED open** · **2 LOW open** · 44 INFO (chapter findings) + foundational findings
+0 CRITICAL · **0 HIGH** · **0 MED open** · **1 LOW open** · 44 INFO (chapter findings) + foundational findings
 from 02/04. Full evidence/impact for each is in the owning chapter's §7. *(**The entire findings program is now
-complete except 2 owner-accepted LOWs.** Foundational `Q-001` [HIGH] **✅ RESOLVED 2026-06-23** — RLS cutover LIVE.
+complete except 1 owner-accepted LOW (Q-01-004, the lint warn-ratchet).** Foundational `Q-001` [HIGH] **✅ RESOLVED 2026-06-23** — RLS cutover LIVE.
 **2026-06-23 (later): the child-safety hardening program shipped end-to-end** — Q-12-008/009/010/011/012 [MED] +
 Q-12-013 [LOW] (Phase 1) and **Q-12-007 [HIGH]** (the in-the-moment Hybrid layer, built after the owner's written
-legal sign-off), plus non-safety Q-10-010 + Q-16-001 [LOW]. Open HIGH = none; open MED = none; open LOW =
-Q-01-004, Q-09-005 — both owner-accepted / kept-open by design.)*
+legal sign-off), plus non-safety Q-10-010 + Q-16-001 [LOW]. **Q-09-005 [LOW] ✅ RESOLVED 2026-06-23** by
+consolidating the two generators onto the source-aware `generateResourceCore` (see ch.10 §5/§7). Open HIGH =
+none; open MED = none; open LOW = **Q-01-004** only (lint warn-ratchet, owner-accepted / kept-open by design).)*
+
+> **Disposition note (2026-06-23 later / Q-09-005 — generator consolidation).** Owner chose to consolidate rather
+> than build a second source-aware path. `GeneratorForm` now calls `generateResource` (→ `generateResourceCore`,
+> which already does source-grounded RAG + student personalization + verify/revise + images) via a new pure mapper
+> `lib/generators/resolve-source.ts` (precedence: book→video→objective→course→TOPIC-from-prompt). **Deleted** the
+> standalone `creation-station/[id]` page + its `[id]`-only components (`SmartDefaultsSuggestions`,
+> `ContextSuggestionsInline`, `smart-defaults.ts`) + `generateLearningTool` + the `@ai-sdk/rsc` dep (`streamUI`
+> gone repo-wide); **redirected** the course-builder tool links to `/creation-station`; **kept** `GeneratorForm`
+> (now course-builder-only, source-aware) + `ContextBadges`. Deletion tail verified clean. **LOW 2 → 1.** Known
+> limitation: no ARTICLE/DOCUMENT source type yet (those fall back to TOPIC-from-prompt). CI: tsc 0, eslint 0-err,
+> vitest **218/218** (+6). ⚠️ UI smoke-test owed (course-builder dialog + /creation-station). See CHANGELOG.md.
 
 > **Disposition note (2026-06-23 later / Q-12-007 BUILT — last open HIGH closed).** After the owner's written
 > sign-off (verified crisis resources + bot-wording redline + Hybrid architecture + KEEP the mandated-reporting

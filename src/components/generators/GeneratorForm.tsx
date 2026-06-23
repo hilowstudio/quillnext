@@ -1,12 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { generateLearningTool } from "@/app/actions/generate-tool";
+import { generateResource } from "@/app/actions/generate-resource";
+import { resolveGenerationSource } from "@/lib/generators/resolve-source";
 
 interface GeneratorFormProps {
   resourceKindId: string;
@@ -28,50 +28,40 @@ interface GeneratorFormProps {
   };
 }
 
-export function GeneratorForm({
-  resourceKindId,
-  resourceKindCode,
-  resourceKindLabel,
-  contentType,
-  contextParams,
-}: GeneratorFormProps) {
-  const router = useRouter();
+/**
+ * Generation form for the source-aware pipeline (Q-09-005 consolidation). Maps the multi-dimensional
+ * context to a single (sourceType, sourceId) via `resolveGenerationSource` and calls `generateResource`
+ * (→ `generateResourceCore`: source-grounded RAG + student personalization + verify/revise + images),
+ * which saves a Resource and returns its id. Replaces the old `generateLearningTool`/`streamUI` path.
+ */
+export function GeneratorForm({ resourceKindId, resourceKindLabel, contextParams }: GeneratorFormProps) {
   const [userPrompt, setUserPrompt] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
-  const [generatedContent, setGeneratedContent] = useState<React.ReactNode>(null);
+  const [resultId, setResultId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    if (!userPrompt.trim()) {
-      alert("Please enter a prompt");
-      return;
-    }
+    if (!userPrompt.trim()) return;
 
     setIsGenerating(true);
-    setGeneratedContent(null);
+    setResultId(null);
+    setError(null);
 
     try {
-      const result = await generateLearningTool({
-        toolType: resourceKindCode,
-        userPrompt: userPrompt.trim(),
-        studentId: contextParams.studentId,
-        objectiveId: contextParams.objectiveId,
-        organizationId: contextParams.organizationId,
-        courseId: contextParams.courseId,
-        courseBlockId: contextParams.courseBlockId,
-        bookId: contextParams.bookId,
-        videoId: contextParams.videoId,
-        articleId: contextParams.articleId,
-        documentId: contextParams.documentId,
-        resourceKindId: resourceKindId,
-      });
-
-      // The result from streamUI contains the component in .value
-      setGeneratedContent(result.value);
-    } catch (error) {
-      console.error("Generation error:", error);
-      alert("Failed to generate content. Please try again.");
+      const prompt = userPrompt.trim();
+      const src = resolveGenerationSource(contextParams, prompt);
+      const result = await generateResource(
+        src.sourceId,
+        src.sourceType,
+        resourceKindId,
+        prompt,
+        { studentId: contextParams.studentId, ...src.additionalData },
+      );
+      setResultId(result.resourceId);
+    } catch (err) {
+      console.error("Generation error:", err);
+      setError("Failed to generate content. Please try again.");
     } finally {
       setIsGenerating(false);
     }
@@ -81,10 +71,10 @@ export function GeneratorForm({
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle className="font-display text-xl">Generate Content</CardTitle>
+          <CardTitle className="font-display text-xl">Generate {resourceKindLabel}</CardTitle>
           <CardDescription>
-            Describe what you want to generate. Inkling will use all available context to
-            personalize the content.
+            Describe what you want to generate. Inkling uses the selected source + student context to
+            personalize it, then saves it to your Living Library.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -118,14 +108,25 @@ export function GeneratorForm({
         </CardContent>
       </Card>
 
-      {/* Generated Content */}
-      {generatedContent && (
+      {error && (
         <Card>
-          <CardHeader>
-            <CardTitle className="font-display text-xl">Generated Content</CardTitle>
-            <CardDescription>Your Inkling-generated content</CardDescription>
-          </CardHeader>
-          <CardContent>{generatedContent}</CardContent>
+          <CardContent className="py-4">
+            <p className="font-body text-sm text-red-600">{error}</p>
+          </CardContent>
+        </Card>
+      )}
+
+      {resultId && (
+        <Card>
+          <CardContent className="py-6 text-center space-y-3">
+            <p className="font-body text-qc-charcoal">✓ Generated and saved to your Living Library.</p>
+            <Link
+              href="/living-library"
+              className="inline-flex items-center justify-center rounded-qc-md border border-qc-border-subtle px-4 py-2 font-body text-sm text-qc-primary hover:bg-qc-primary/10 transition-colors"
+            >
+              View it in the Living Library
+            </Link>
+          </CardContent>
         </Card>
       )}
 
@@ -134,11 +135,9 @@ export function GeneratorForm({
           <CardContent className="py-12 text-center">
             <div className="flex flex-col items-center gap-4">
               <div className="h-8 w-8 animate-spin rounded-full border-4 border-qc-border-subtle border-t-qc-primary"></div>
-              <p className="font-body text-qc-text-muted">
-                Generating personalized content...
-              </p>
+              <p className="font-body text-qc-text-muted">Generating personalized content...</p>
               <p className="font-body text-xs text-qc-text-muted">
-                Using context from family blueprint, student profile, and academic spine
+                Using the selected source, student profile, and family blueprint
               </p>
             </div>
           </CardContent>
@@ -147,4 +146,3 @@ export function GeneratorForm({
     </div>
   );
 }
-

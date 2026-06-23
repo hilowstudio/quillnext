@@ -8,17 +8,18 @@
 | `src/app/creation-station/page.tsx` | RSC entry: auth + org gate, loads recent `CurriculumBundle`s, renders client shell |
 | `src/app/creation-station/CreationStationClient.tsx` | Tab shell: "Curriculum Compiler" (SpecForm+BundleView) and "Quick Create" (GeneratorsClient) |
 | `src/app/creation-station/GeneratorsClient.tsx` | Quick-create wizard: source-type → content → template → generate via `generateResource` |
-| `src/app/creation-station/[id]/page.tsx` | Per-ResourceKind generator page (context preview + `GeneratorForm` → `generateLearningTool`) |
+| ~~`src/app/creation-station/[id]/page.tsx`~~ | ✅ REMOVED 2026-06-23 (Q-09-005) — the standalone per-tool generative-UI page was retired; generation consolidated onto `generateResourceCore`. |
 | `src/app/creation-station/compiler/BundleView.tsx` | Lists recent bundles, status badges, artifact links, "Refine" patch dialog |
 | `src/app/creation-station/compiler/SpecForm.tsx` | react-hook-form spec form, validated by shared `curriculumSpecSchema` |
 | `src/app/actions/generate-resource.ts` | `"use server"` browser wrapper: auth → `getCurrentUserOrg` → `generateResourceCore` |
 | `src/app/actions/generate-resource-core.ts` | **Core generation pipeline** (784 lines): source load → grounding → AI → verify → persist |
-| `src/app/actions/generate-tool.tsx` | `"use server"` `generateLearningTool`: streamUI generative-UI (quiz/worksheet components) |
+| ~~`src/app/actions/generate-tool.tsx`~~ | ✅ REMOVED 2026-06-23 (Q-09-005) — `generateLearningTool`/`streamUI` retired; `@ai-sdk/rsc` uninstalled (no remaining consumer). |
 | `src/app/actions/generator-actions.ts` | `getSourceMetadata` (subject/strand lookup) + `SourceType` union |
 | `src/app/actions/suggest-blocks.ts` | `suggestCourseBlocks`: AI-suggest course Units/Modules, persist CourseBlocks |
 | `src/app/actions/explode-bundle.ts` | `explodeCurriculumBundle`: materialize a completed bundle into a Course as a Unit |
 | `src/app/actions/compile-curriculum-action.ts` | `compileCurriculumAction` + `patchCurriculumAction`: create spec/bundle → Inngest |
-| `src/components/generators/GeneratorForm.tsx` | Client form for `[id]` page → `generateLearningTool` |
+| `src/components/generators/GeneratorForm.tsx` | Client form (now course-builder-only) → `generateResource` (→ `generateResourceCore`) via `lib/generators/resolve-source.ts` (Q-09-005, 2026-06-23) |
+| `src/lib/generators/resolve-source.ts` | Pure mapper: generator context → one `(sourceType, sourceId)` for `generateResourceCore` (Q-09-005) |
 | `src/components/generators/SimpleInputs.tsx` | `UrlInput` (used) + `FileUpload` (imported, unrendered) |
 | `src/components/generators/SourceTypeSelector.tsx` | Tab strip of source types (SPINE/BOOK/VIDEO/COURSE/TOPIC/URL/FILE/YOUTUBE_PLAYLIST) |
 | `src/components/generators/SpineBrowser.tsx` | Cascading spine selector; reports deepest node as generation target |
@@ -52,7 +53,7 @@ Compiler (async):
 3. Inngest `compile-curriculum.ts` (23-) calls `generateResourceCore(...)` per artifact (`compile-curriculum.ts:83`) with the carried org/user.
 4. `window.location.reload()` (`CreationStationClient.tsx:53`) re-pulls bundles from `page.tsx:18-33`.
 
-Generative-UI ([id] page): `GeneratorForm.handleSubmit` → `generateLearningTool` (`generate-tool.tsx:17`) → `getCurrentUserOrg` (ignores `params.organizationId`, `:49`) → `getMasterContext`+`buildMasterPrompt` (09-) → `streamUI` with quiz/worksheet tools that write via `withTenant` `resource.create` (`:121`,`:199`; Q-10-010 — was plain `db`).
+Generator form (now course-builder-only, post-Q-09-005): `GeneratorForm.handleSubmit` → `resolveGenerationSource` (context → one `(sourceType, sourceId)` by precedence) → `generateResource` → `generateResourceCore` (source-grounded RAG + student personalization + verify/revise + image gen → saves a Resource). The old standalone `[id]` page + `generateLearningTool`/`streamUI` path was retired 2026-06-23 (Q-09-005).
 
 ## 5. Status table
 
@@ -64,7 +65,7 @@ Generative-UI ([id] page): `GeneratorForm.handleSubmit` → `generateLearningToo
 | SPINE / TOPIC textbook grounding | DONE | `:544-586`, `:587-626` |
 | YOUTUBE_PLAYLIST DEEP_VISION tier | PARTIAL (by-design) | `:642-651` — passes the playlist URL to `models.pro` ≡ `gemini-2.5-pro` (config.ts:11/15-16), the only Gemini model with native YouTube processing (config.ts:26,34,59), with a strong prompt; an explicit `google_search_retrieval`/Vertex grounding tool is a noted *future* enhancement, not a defect (Q-10-006 accepted 2026-06-20). |
 | `generate_image` (Nano Banana) tool | PARTIAL | `:730-742` returns base64 inline; `maxSteps` removed (`:744` "type definition mismatch") so multi-step image use is limited |
-| `generateLearningTool` (streamUI) | DONE | `GeneratorForm.tsx:55`; persists via `withTenant` `:121`,`:199` (Q-10-010, 2026-06-20) |
+| ~~`generateLearningTool` (streamUI)~~ | ✅ REMOVED | Retired 2026-06-23 (Q-09-005) — consolidated onto `generateResourceCore`; `GeneratorForm` now calls `generateResource`. |
 | `compileCurriculumAction` / `patchCurriculumAction` | DONE | `CreationStationClient.tsx:44`, `BundleView.tsx:120` |
 | `explodeCurriculumBundle` | DONE | `CourseBuilder.tsx:692` |
 | `suggestCourseBlocks` | DONE | `CourseBuilder.tsx:556` |
@@ -82,7 +83,7 @@ Generative-UI ([id] page): `GeneratorForm.handleSubmit` → `generateLearningToo
 ## 6. Integration points
 - **Imports in**: `@/server/db` (`db`,`withTenant`), `@/auth`, `@/lib/auth-helpers` (`getCurrentUserOrg`), `@/lib/ai/config` (`models`, `getModelForTaskWithVideoCheck`, `AITaskType`), `@/lib/ai/prompt-builder` (`PromptBuilder`), `@/lib/utils/prompt-builder` (`buildMasterPrompt`), `@/lib/ai/schemas` (`QuizSchema`,`WorksheetSchema`), `@/lib/ai/generation-guards`, `@/lib/utils/vector`, `@/lib/sources/registry`, `@/lib/services/image-generation`, `@/lib/context/*` (master-context, serializer, suggestions, smart-defaults), `@/inngest/client`, `@/app/actions/spine-actions`, `@/app/actions/youtube-actions`.
 - **Importers out**: `GeneratorsClient` ← CreationStationClient; `generateResourceCore` ← `generate-resource.ts` + `inngest/functions/compile-curriculum.ts`; `explodeCurriculumBundle`/`suggestCourseBlocks` ← `CourseBuilder.tsx`; `GeneratedResourceCard` ← `ResourceList.tsx`; `SourceType` ← SourceTypeSelector.
-- **APIs**: `fetch("/api/curriculum/resource-kinds")` (`GeneratorsClient.tsx:83`); Vercel AI SDK (`generateText`/`generateObject`/`streamUI`/`tool`); Gemini (`models.flash/pro/pro3`); Nano Banana image gen; YouTube (`getPlaylistDetails`).
+- **APIs**: `fetch("/api/curriculum/resource-kinds")` (`GeneratorsClient.tsx:83`); Vercel AI SDK (`generateText`/`generateObject`/`tool`; `streamUI`/`@ai-sdk/rsc` removed 2026-06-23, Q-09-005); Gemini (`models.flash/pro/pro3`); Nano Banana image gen; YouTube (`getPlaylistDetails`).
 - **Prisma models used**: `ResourceKind`, `Resource`, `Classroom`, `Learner`, `Book`/`BookExtraction`/`BookExtractionSection`, `VideoResource`, `Course`/`CourseBlock`, `Subject`/`Strand`/`Topic`/`Subtopic`/`Objective`, `CurriculumSpec`, `CurriculumBundle`. See 02-data-model.md.
 - **Inngest jobs**: emits `curriculum/compile` (compile-curriculum-action.ts:51,100) → consumed in 23-.
 - **Env**: none read directly here (AI keys live in `@/lib/ai/config`).

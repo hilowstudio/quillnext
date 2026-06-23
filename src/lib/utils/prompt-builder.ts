@@ -13,11 +13,6 @@ export async function buildMasterPrompt(
     studentId?: string;
     organizationId: string;
     courseId?: string;
-    courseBlockId?: string;
-    bookId?: string;
-    videoId?: string;
-    articleId?: string;
-    documentId?: string;
     userInstruction: string;
   },
   options?: SerializationOptions,
@@ -28,11 +23,6 @@ export async function buildMasterPrompt(
     studentId: params.studentId,
     objectiveId: params.objectiveId,
     courseId: params.courseId,
-    courseBlockId: params.courseBlockId,
-    bookId: params.bookId,
-    videoId: params.videoId,
-    articleId: params.articleId,
-    documentId: params.documentId,
   };
 
   const masterContext = await getMasterContext(contextParams);
@@ -46,7 +36,7 @@ export async function buildMasterPrompt(
   });
 
   // Combine with user instruction. The Inkling persona + ethical guardrails are sourced from the
-  // shared @/lib/constants/ai-guardrails so this master-context path (grading feedback, generate-tool)
+  // shared @/lib/constants/ai-guardrails so this master-context path (AI grading feedback)
   // carries the SAME safety bounds as the class PromptBuilder (Inkling resource generation). The
   // guardrails are prepended ABOVE the serialized context so the ethical bounds frame the family/
   // student data. See Q-08-001 (docs/codebase-map/08-ai-core.md).

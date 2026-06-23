@@ -68,13 +68,14 @@ Vercel↔Supabase integration's `POSTGRES_URL` (role swapped to `app_user` via `
 
 ## Findings at a glance
 
-0 CRITICAL · **0 HIGH** · 0 MED · 2 LOW open · 44 INFO (chapter findings) + foundational `Q-0NN` from
+0 CRITICAL · **0 HIGH** · 0 MED · 1 LOW open · 44 INFO (chapter findings) + foundational `Q-0NN` from
 02/04 (`Q-001` [HIGH] **✅ RESOLVED 2026-06-23** — RLS cutover LIVE; `Q-011`/`Q-013`/`Q-23-003` shipped in
 migrations 16/17; foundational MED fully closed). **The findings program is complete except 2 owner-accepted
 LOWs.** Child-safety Q-12-007 [HIGH] **✅ RESOLVED 2026-06-23** (in-the-moment Hybrid layer, built after the
 owner's legal sign-off; see 24 §5/§7). **2026-06-23
 (later): child-safety Phase 1 shipped** — Q-12-008/009/010/011/012 [MED] + Q-12-013 [LOW] all ✅ resolved
-(+ non-safety Q-10-010 / Q-16-001 [LOW]). Open **MED (0)**; open **LOW (2)** = Q-01-004, Q-09-005 (both
+(+ non-safety Q-10-010 / Q-16-001 [LOW]). **Q-09-005 ✅ resolved 2026-06-23** (generator consolidation onto
+`generateResourceCore`). Open **MED (0)**; open **LOW (1)** = **Q-01-004** only (lint warn-ratchet,
 owner-accepted / kept-open by design). See **24 §5/§7** for the roadmap + full register.
 
 ## Excluded from line-by-line reading (documented by shape)
