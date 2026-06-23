@@ -29,7 +29,32 @@ async function parsePdfBuffer(buffer: Buffer): Promise<string> {
 }
 
 export const processDocument = inngest.createFunction(
-    { id: "process-document" },
+    {
+        id: "process-document",
+        retries: 2,
+        // Q-23-003: a genuine extraction failure marks the document FAILED so it isn't left
+        // silently blank with no signal (mirrors extract-book/extract-video). DocumentResource is
+        // org-scoped, so the tenant must be stamped explicitly (ALS doesn't reach Prisma here).
+        onFailure: async ({ event }) => {
+            const orig = (event as any)?.data?.event?.data as
+                | { resourceId?: string; organizationId?: string }
+                | undefined;
+            const resourceId = orig?.resourceId;
+            const organizationId = orig?.organizationId;
+            if (!resourceId || !organizationId) return;
+            await withTenant(
+                (tx) =>
+                    tx.documentResource.update({
+                        where: { id: resourceId },
+                        data: { extractionStatus: "FAILED" },
+                    }),
+                undefined,
+                { organizationId, userId: null },
+            ).catch((e) =>
+                console.error("[process-document onFailure] failed to mark DocumentResource FAILED", e),
+            );
+        },
+    },
     { event: "resource/process.document" },
     async ({ event, step }) => {
         const { resourceId, fileUrl, fileType, organizationId } = event.data;
@@ -78,6 +103,7 @@ export const processDocument = inngest.createFunction(
                         where: { id: resourceId },
                         data: {
                             extractedText: extractedText,
+                            extractionStatus: "EXTRACTED",
                         },
                     });
 

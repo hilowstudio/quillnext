@@ -125,7 +125,7 @@ model Organization {
 model Transcript {
   id             String       @id @default(uuid())
   studentId      String       @map("student_id")
-  organizationId String       @map("organization_id")
+  organizationId String       @map("account_id")
   name           String
   data           Json         // Stores the full TranscriptData object
   isOfficial     Boolean      @default(false) @map("is_official")
@@ -320,13 +320,13 @@ model Learner {
 model SafetyFlag {
   id          String   @id @default(uuid())
   studentId   String   @map("student_id")
-  severity    String   // CONCERN | DANGER | SAFE | TIER_1 | TIER_2 | TIER_3 (free String; enum migration deferred — see Q-013)
-  category    String   // BULLYING | SELF_HARM | GROOMING | VIOLENCE | SEXUAL_CONTENT | INCEST | BYPASS_ATTEMPT | OTHER | NONE
+  severity    SafetySeverity
+  category    SafetyCategory
   message     String   // The content of the user message
   reasoning   String   // AI explanation
   isResolved  Boolean  @default(false) @map("is_resolved")
   alertSent   Boolean  @default(false) @map("alert_sent")
-  resolution  String?  @map("resolution") // NO_ACTION | PARENT_SUMMARY_SAFETY_COACH | PARENT_SUMMARY_URGENT | SUPPORTIVE_ONLY | STUDENT_OPTIONAL_OUTREACH | INTERNAL_LOG_ONLY
+  resolution  SafetyResolutionType?  @map("resolution")
   implicatedCaregiver Boolean @default(false) @map("implicated_caregiver")
   createdAt   DateTime @default(now()) @map("created_at")
   resolvedAt  DateTime? @map("resolved_at")
@@ -706,11 +706,11 @@ model BookExtraction {
   readingLevel    String?          @map("reading_level")
   mainThemes      String[]         @map("main_themes")
   sources         Json? // web grounding citations: [{ title, url }]
-  confidence       String?
+  confidence       ExtractionConfidence?
   publicDomain     Boolean          @default(false) @map("public_domain")
   fullTextSource   String?          @map("full_text_source") // gutenberg | standard-ebooks | wikisource | internet-archive
   fullTextSourceId String?          @map("full_text_source_id")
-  fullTextStatus   String?          @map("full_text_status") // INGESTED | INGESTING | UNAVAILABLE | null
+  fullTextStatus   FullTextStatus?  @map("full_text_status")
   // Transient holding area for the fetched raw text BETWEEN the fetch step (downloads it) and the
   // stage step (segments + chunks it), so the multi-MB body never crosses an Inngest step boundary
   // (which has an output-size limit). Cleared to NULL once the chunks are staged.
@@ -718,7 +718,7 @@ model BookExtraction {
   // Per-feature status for the SECTIONS facts-sheet, which ingests in its OWN function
   // (ingest-book-sections) decoupled from the core extraction: EXTRACTED | UNAVAILABLE | null
   // (pending). Lets a sections failure be recorded WITHOUT marking the book itself FAILED.
-  sectionsStatus   String?          @map("sections_status")
+  sectionsStatus   SectionsStatus?  @map("sections_status")
   extractedAt      DateTime?        @map("extracted_at")
   createdAt        DateTime         @default(now()) @map("created_at")
   updatedAt        DateTime         @updatedAt @map("updated_at")
@@ -760,7 +760,7 @@ model TextbookDocument {
   title      String
   subject    String? // K-12 subject, e.g. "Biology"
   category   String? // broad category, e.g. "Science"
-  status     String          @default("PENDING") // PENDING | INGESTED | UNAVAILABLE
+  status     TextbookStatus  @default(PENDING)
   chunkCount Int             @default(0) @map("chunk_count")
   createdAt     DateTime                @default(now()) @map("created_at")
   updatedAt     DateTime                @updatedAt @map("updated_at")
@@ -1001,7 +1001,7 @@ model Resource {
 
 model CurriculumSpec {
   id              String             @id @default(uuid())
-  organizationId  String             @map("organization_id")
+  organizationId  String             @map("account_id")
   title           String
   subject         String
   topic           String
@@ -1023,7 +1023,7 @@ model CurriculumBundle {
   parentBundleId  String?        // Lineage: ID of the bundle this was patched from
   feedback        String?        // The defect report/feedback that triggered this build
   
-  status          String   // "COMPILING", "COMPLETED", "FAILED"
+  status          CompileStatus
   failureReason   String?        @map("failure_reason") // populated on FAILED (truncated worker error)
   resources Resource[]
   createdAt DateTime       @default(now()) @map("created_at")
@@ -1317,6 +1317,79 @@ enum ExtractionStatus {
   FAILED
 }
 
+// --- Q-013: stringly-typed status/category fields promoted to DB enums (migration 16). ---
+// Lowercase members (high/ongoing/entry) intentionally match the existing DB string values so
+// the cast is a no-op and no app code changes. The two hyphenated `stage` fields are deferred.
+
+enum SafetySeverity {
+  CONCERN
+  DANGER
+  SAFE
+  TIER_1
+  TIER_2
+  TIER_3
+}
+
+enum SafetyCategory {
+  BULLYING
+  SELF_HARM
+  GROOMING
+  VIOLENCE
+  SEXUAL_CONTENT
+  INCEST
+  BYPASS_ATTEMPT
+  OTHER
+  NONE
+}
+
+enum SafetyResolutionType {
+  NO_ACTION
+  PARENT_SUMMARY_SAFETY_COACH
+  PARENT_SUMMARY_URGENT
+  SUPPORTIVE_ONLY
+  STUDENT_OPTIONAL_OUTREACH
+  INTERNAL_LOG_ONLY
+}
+
+enum FullTextStatus {
+  INGESTED
+  INGESTING
+  UNAVAILABLE
+}
+
+enum SectionsStatus {
+  EXTRACTED
+  UNAVAILABLE
+}
+
+enum ExtractionConfidence {
+  high
+  medium
+  low
+}
+
+enum TextbookStatus {
+  PENDING
+  INGESTING
+  INGESTED
+  UNAVAILABLE
+}
+
+enum CompileStatus {
+  COMPILING
+  COMPLETED
+  FAILED
+}
+
+enum PrayerEntryStatus {
+  ongoing
+  answered
+}
+
+enum PrayerEntryType {
+  entry
+}
+
 enum ResourceStorageType {
   TEXT
   MARKDOWN
@@ -1387,6 +1460,7 @@ model DocumentResource {
   fileType       String       @map("file_type") // pdf, txt, md
   fileSize       Int          @map("file_size")
   extractedText  String?      @map("extracted_text")
+  extractionStatus ExtractionStatus @default(NOT_EXTRACTED) @map("extraction_status")
   subjectId      String?      @map("subject_id")
   strandId       String?      @map("strand_id")
   createdAt      DateTime     @default(now()) @map("created_at")
@@ -1482,9 +1556,9 @@ model PrayerJournalEntry {
   date        DateTime  @db.Date
   tags        String[]  @default([])
   isPrivate   Boolean   @default(false) @map("is_private")
-  type        String    @default("entry")
+  type        PrayerEntryType    @default(entry)
   category    String?
-  status      String    @default("ongoing")
+  status      PrayerEntryStatus  @default(ongoing)
   answeredAt  DateTime? @map("answered_at")
   answerNotes String?   @map("answer_notes") @db.Text
   createdAt   DateTime  @default(now()) @map("created_at")

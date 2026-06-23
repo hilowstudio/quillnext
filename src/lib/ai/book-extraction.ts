@@ -35,7 +35,7 @@ export interface BookExtractionResult {
   readingLevel: string | null;
   mainThemes: string[];
   sources: Array<{ title?: string; url: string }>;
-  confidence: string | null;
+  confidence: "high" | "medium" | "low" | null;
   stage: BookExtractionStage;
 }
 

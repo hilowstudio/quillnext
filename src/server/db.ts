@@ -87,6 +87,15 @@ async function resolveTenant(): Promise<RlsContext | null> {
       where: { id: userId },
       select: { organizationId: true },
     });
+    // RLS-cutover observability (Q-001 runbook step 2): resolveTenant only runs with RLS on. An
+    // authenticated request that resolves a NULL org makes every org-scoped query fail closed to
+    // EMPTY results — which reads like data loss, not access-denied. Surface it so a lost
+    // request-context (ALS not reaching Prisma) is detectable instead of silent.
+    if (!user?.organizationId) {
+      console.warn(
+        `[rls] authenticated user ${userId} resolved a null org — org-scoped queries will fail closed (empty results)`,
+      );
+    }
     const ctx: RlsContext = { organizationId: user?.organizationId ?? null, userId };
     setRlsContext(ctx);
     return ctx;
