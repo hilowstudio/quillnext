@@ -7,8 +7,17 @@ import {
     summarizeVideoTranscript,
     watchVideoFallback,
     type VideoExtractionResult,
+    type VideoExtractionStage,
 } from "@/lib/ai/video-extraction";
 import { embedVideoChunks } from "@/lib/utils/vector";
+import type { VideoStage } from "@/generated/client";
+
+// Map the lib's hyphenated stage union to the DB enum member names (Q-013, migration 17).
+const VIDEO_STAGE: Record<VideoExtractionStage, VideoStage> = {
+    transcript: "TRANSCRIPT",
+    "gemini-fallback": "GEMINI_FALLBACK",
+    "manual-needed": "MANUAL_NEEDED",
+};
 
 export const extractVideo = inngest.createFunction(
     {
@@ -139,7 +148,7 @@ export const extractVideo = inngest.createFunction(
                 where: { id: videoExtractionId },
                 data: {
                     status: "EXTRACTED",
-                    stage: result.stage,
+                    stage: VIDEO_STAGE[result.stage],
                     title: metadata.title,
                     description: metadata.description,
                     thumbnailUrl: metadata.thumbnailUrl,

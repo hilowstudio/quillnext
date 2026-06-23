@@ -3070,3 +3070,62 @@ for partition honesty. No code changed.
 - **Nothing pushed.** **The consolidated final pass is COMPLETE** — see the completion report. Remaining open findings are
   all deferred / owner-accepted / kept-open by design (the batched migration, the RLS cutover, the child-safety brief, two
   unfinished features, the lint ratchet). Roadmap items unchanged.
+
+---
+
+## Session 2026-06-23 — RLS cutover + batched migrations (EXECUTED & DEPLOYED) 🚀
+
+**First code actually shipped to production** (every prior round was documented/staged only — "nothing
+pushed"). The owner directed the RLS cutover + the batched migration. Two migrations were applied to the
+live, seeded prod DB via forward-only `prisma migrate deploy` (never `dev`/`reset`); every column change is
+in-place (`ALTER COLUMN … TYPE … USING`) or a `RENAME`, and each was validated by a `BEGIN…ROLLBACK`
+dry-run on real data BEFORE applying — so no row was lost and no reseed. CI green throughout (tsc 0 /
+eslint 0-err / vitest 188·26). Commits `7b696b3`, `4a0ab98` on `main`.
+
+### Migration 0016 (`00000000000016_batched_enum_org_rename_taxonomy_insert`)
+- ✅ **Q-013** (10 of 12 cols) — stringly-typed → DB enums, in place: `SafetyFlag.severity/category/resolution`,
+  `CurriculumBundle.status`, `TextbookDocument.status`, `BookExtraction.confidence/fullTextStatus/sectionsStatus`,
+  `PrayerJournalEntry.status/type`. Enum member names = the existing literals, so app code needed no value
+  changes (only a `book-extraction.ts` interface-type tighten).
+- ✅ **Q-011** — org-FK column `organization_id` → `account_id` on `transcripts` + `curriculum_specs`; the 3
+  coupled RLS policies (`curriculum_specs`/`transcripts`/`curriculum_bundles`) recreated against `account_id`.
+- ✅ **Q-23-003** — `DocumentResource.extraction_status` (`ExtractionStatus` enum) added + `process-document`
+  got `onFailure`→FAILED, EXTRACTED-on-success, and `retries: 2`.
+- ✅ **Q-17-010** — `app_user` INSERT policies on `subjects/strands/topics/subtopics` so the `new:` custom-taxonomy
+  minting keeps working under RLS (was SELECT-only → would have failed closed). The RLS-cutover blocker, cleared.
+
+### Migration 0017 (`00000000000017_stage_enums`) — Q-013 remnant
+- ✅ **Q-013** (final 2 cols) — `book_extractions.stage` → `BookStage`, `video_extractions.stage` → `VideoStage`
+  (hyphenated `@map` labels; a typed `Record` maps the lib's stage unions to enum members at the 2 write-only
+  persist sites). **Q-013 is now FULLY resolved.**
+
+### Q-001 [HIGH, foundational] ✅ RESOLVED — RLS cutover LIVE
+- The app now connects as the non-bypass **`app_user`** role with **DB-side RLS ENFORCED** — validated on the
+  pooled prod path (fails closed with no org context, scopes to the org with it, globals readable). The app-layer
+  `where:{organizationId}` filters are now defense-in-depth, not the only boundary.
+- **Mechanism:** `db.ts` DERIVES the `app_user` connection from the Vercel↔Supabase integration's `POSTGRES_URL`
+  by swapping only role+password (`withRole`, `src/lib/db-url.ts`), gated on a new `APP_USER_PASSWORD` env var.
+  A fail-closed null-org `console.warn` was added (runbook step 2). `app_user` password set out-of-band.
+
+### ⚠️ Incident & fix (post-mortem)
+- The **first** flip set Vercel `DATABASE_URL` to a **hand-built `app_user` URL** (derived from local `.env`).
+  Because `db.ts` prefers `DATABASE_URL`, that **replaced the integration's `POSTGRES_URL`** and dropped its exact
+  pooler host + routing params → prod couldn't reach the DB (`"Can't reach database server at base"`) and the
+  Google OAuth callback's `prisma.account.findUnique` failed → **login broke.**
+- **Root cause:** hand-crafting the connection URL. **Fix (`4a0ab98`):** never override `DATABASE_URL`; derive
+  `app_user` from `POSTGRES_URL` in code (`withRole` + `APP_USER_PASSWORD`). +`src/lib/db-url.test.ts` (6 cases).
+  Auth restored, RLS re-enabled cleanly.
+
+### 👤 Owner follow-up / prod env (now in place)
+- Vercel Production: **no custom `DATABASE_URL`**, `APP_USER_PASSWORD` = the app_user password, `RLS_ENABLED=true`.
+  **Rollback** = set `RLS_ENABLED=false` (or remove `APP_USER_PASSWORD`) → falls back to the postgres `POSTGRES_URL`.
+  **Never** reintroduce a hand-built `DATABASE_URL` — that was the failure mode.
+
+### Reconcile (§4 partition)
+- **Q-001 [HIGH foundational] ✅ resolved** (cutover live) → open foundational HIGH 1 → **0**.
+- **Q-17-010 [MED] ✅ resolved** → MED **6 → 5** (remaining: Q-12-008/009/010/011/012).
+- **Q-011, Q-013, Q-23-003 [LOW] ✅ resolved** → LOW **8 → 5** (remaining: Q-01-004, Q-09-005, Q-10-010, Q-12-013, Q-16-001).
+- **New open headline: 0 CRITICAL · 1 HIGH (Q-12-007) · 5 MED · 5 LOW · 0 INFO.** Reconciles across 00-INDEX glance,
+  ch.24 §7 register, and the owning chapter §7 lines (ch.02 Q-011/Q-013, ch.04 Q-001, ch.17 Q-17-010, ch.23 Q-23-003).
+- The "Deferred migrations" bucket is now **empty** (Q-011/Q-013/Q-23-003 shipped). The child-safety brief
+  (Q-12-007 + Q-12-008..013) is the main remaining open program.

@@ -1,8 +1,10 @@
 # 04 — Security: Auth, Tenancy, RLS & Profile Gating
 
 > Source of truth: the files in §1, read end-to-end. Written against commit `b585c1e`.
-> **This is the most security-critical chapter.** The headline: **DB Row-Level Security is OFF**, so
-> the application layer is the *only* live tenant boundary. Read `Q-001` first.
+> **This is the most security-critical chapter.** Headline (updated 2026-06-23): **DB Row-Level Security
+> is now LIVE** (Q-001 ✅) — the app connects as `app_user` with `RLS_ENABLED=true`, so the DB policies
+> enforce tenant isolation and the app-layer org filters are defense-in-depth. Read `Q-001` (§6) + the
+> 2026-06-23 CHANGELOG round. *(The §3–§4 body below was written pre-cutover against `b585c1e`.)*
 
 ## 1. Scope
 
@@ -168,7 +170,7 @@ create/extract routes). The **completeness** of this coverage across all mutatin
 | Active-profile signed cookie + idle | DONE | `active-profile-cookie.ts` |
 | Parent gate on admin actions | PARTIAL | `guards.ts`; coverage across all mutations unverified → `24-…` |
 | `getCurrentUserOrg` tenant gate | DONE | `auth-helpers.ts`, 77 callers |
-| **DB Row-Level Security** | **PROVISIONED but app-bypassed** (cutover-ready) | `db.ts:9,114` (app off); DB has 98 policies on all 67 tables + `app_user` role (Phase C); app connects as `postgres` (BYPASSRLS). `app_user` verified Session 8: `BYPASSRLS=false`+`LOGIN=true`, 0 GRANT gaps → Q-001 runbook (`24-…`) |
+| **DB Row-Level Security** | **LIVE** (cutover 2026-06-23, Q-001 ✅) | app connects as `app_user` (`BYPASSRLS=false`) with `RLS_ENABLED=true`; DB-side RLS enforced (98 policies / 67 tables). Connection derived from `POSTGRES_URL` via `withRole`+`APP_USER_PASSWORD` (`db.ts`, `lib/db-url.ts`) → see 2026-06-23 CHANGELOG round |
 | `withTenant` GUC stamping | PARTIAL | `db.ts:98-111`; no-op until `RLS_ENABLED` |
 | Supabase JS clients | **REMOVED** | deleted 2026-06-19 (Q-002); were zero-importer `lib/supabase/*` wrappers + dep uninstalled — see CHANGELOG |
 | Firebase Admin (storage) | DONE | `firebase-admin.ts`; 2 callers |
@@ -192,7 +194,7 @@ create/extract routes). The **completeness** of this coverage across all mutatin
 ## 6. Findings (seed; consolidated in `24-…`)
 
 ```
-Q-001  [HIGH]   The running app bypasses DB Row-Level Security — app layer is the sole live boundary.
+Q-001  [HIGH]   ✅ RESOLVED 2026-06-23 — RLS cutover LIVE (app connects as `app_user`, DB-side RLS enforced; see the 2026-06-23 CHANGELOG round + the §5 runbook below for mechanism/rollback). *Original finding (history below):* the running app bypassed DB Row-Level Security — the app layer was the sole live boundary.
    Evidence: RLS_ENABLED default false (db.ts:9); bare client returned (db.ts:114), so no org GUC is
              stamped. DB-grounding (Phase C, 24-): all 67 public tables HAVE rls enabled + 98 policies,
              and an `app_user` (BYPASSRLS=false) role exists — but the app works with GUCs unset, which

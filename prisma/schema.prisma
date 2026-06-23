@@ -700,7 +700,7 @@ model BookExtraction {
   title           String
   authors         String[]
   status          ExtractionStatus @default(NOT_EXTRACTED)
-  stage           String? // perfect-parse | chapter-parse | manual-needed (graceful-degradation tier)
+  stage           BookStage? // graceful-degradation tier
   summary         String?
   tableOfContents Json?            @map("table_of_contents")
   readingLevel    String?          @map("reading_level")
@@ -926,7 +926,7 @@ model VideoExtraction {
   youtubeVideoId    String                 @unique @map("youtube_video_id")
   youtubeUrl        String                 @map("youtube_url")
   status            ExtractionStatus       @default(NOT_EXTRACTED)
-  stage             String? // "transcript" | "gemini-fallback" | "manual-needed"
+  stage             VideoStage? // transcript | gemini-fallback | manual-needed
   title             String?
   description       String?
   thumbnailUrl      String?                @map("thumbnail_url")
@@ -1388,6 +1388,20 @@ enum PrayerEntryStatus {
 
 enum PrayerEntryType {
   entry
+}
+
+// Graceful-degradation tier markers for the extraction pipelines (hyphenated DB labels via @map;
+// the Prisma client uses the UPPER_CASE member names). Q-013 follow-up (migration 17).
+enum BookStage {
+  PERFECT_PARSE   @map("perfect-parse")
+  CHAPTER_PARSE   @map("chapter-parse")
+  MANUAL_NEEDED   @map("manual-needed")
+}
+
+enum VideoStage {
+  TRANSCRIPT      @map("transcript")
+  GEMINI_FALLBACK @map("gemini-fallback")
+  MANUAL_NEEDED   @map("manual-needed")
 }
 
 enum ResourceStorageType {

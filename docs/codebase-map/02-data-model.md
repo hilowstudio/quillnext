@@ -216,15 +216,15 @@ Q-011  [LOW]    Inconsistent Organization-FK column naming.
    Evidence: org FK is `account_id` on ~all models, but `organization_id` on Transcript
              (schema.prisma:128) and CurriculumSpec (:1004).
    Impact:   cognitive overhead / easy to mis-write raw SQL. No functional bug.
-   Status:   ⏳ DEFERRED (owner, 2026-06-19 Session 3). Re-verified: reproduces exactly at
+   Status:   ✅ RESOLVED 2026-06-23 (migration 0016 — column rename + RLS-policy recreation; no app code change since the Prisma layer was already uniform). Orig deferred 2026-06-19 Session 3; re-verify then found it reproduces at
              schema.prisma:128 (Transcript `organization_id`) + :1004 (CurriculumSpec `organization_id`);
              every other org model uses `account_id`. The app/Prisma layer is ALREADY uniform — the field
              is `organizationId` everywhere; only the @map'd DB column differs — and a grep of src/ shows
              only vector.ts + api/library/videos/route.ts touch these raw column names, both on `account_id`
              tables, NOT the two exceptions. So a "fix" changes only the DB column name + the RLS-policy
-             migration SQL (ch.03 §3, lines 53-54): a column-rename migration. Owner deferred it into the
-             batched migration alongside Q-23-003 + Q-013; no code change this session. Stays tracked-open
-             in the LOW count. (see CHANGELOG.md)
+             migration SQL (ch.03 §3, lines 53-54): a column-rename migration — **executed 2026-06-23** in
+             migration 0016 (renamed the column + recreated the 3 coupled RLS policies). No app code change.
+             (see CHANGELOG.md 2026-06-23 round)
 
 Q-012  [INFO]   Dual identity on spine models (`code` unique AND nullable `uuid` unique).
    Evidence: Subject/Strand/Topic/Subtopic/Objective each have `code` (used as the key) plus an
@@ -238,7 +238,7 @@ Q-013  [LOW]    Stringly-typed status/category fields bypass Prisma enums (no DB
              sectionsStatus, VideoExtraction.stage, TextbookDocument.status, CurriculumBundle.status,
              PrayerJournalEntry.status (schema.prisma:323-329, 703-721, 763, 1026, 1487).
    Impact:   typos/invalid values are accepted; harder to reason about valid states.
-   Status:   ⏳ DEFERRED (owner, 2026-06-19 Session 3). Re-verified: all fields reproduce —
+   Status:   ✅ RESOLVED 2026-06-23 — migrations 0016 (10 cols) + 0017 (the 2 `stage` cols) converted ALL listed columns to DB enums (in-place `ALTER COLUMN … USING`, data preserved). Orig deferred 2026-06-19 Session 3; re-verify then found all fields reproduce —
              SafetyFlag.severity:323/category:324/resolution:329, BookExtraction.stage:703/
              fullTextStatus:713/sectionsStatus:721/confidence:709, VideoExtraction.stage:929,
              TextbookDocument.status:763, CurriculumBundle.status:1026, PrayerJournalEntry.status:1487/
@@ -251,10 +251,10 @@ Q-013  [LOW]    Stringly-typed status/category fields bypass Prisma enums (no DB
              rename rides along too. The SafetyFlag.severity/category subset's safety-downgrade hazard was
              tracked separately at MED as Q-12-003 (ch.12 §7) — **✅ RESOLVED 2026-06-20 (Session 24)** at the
              app layer (policy urgency no longer reads the severity label), so the *safety* risk is closed;
-             but Q-013's actual concern — the `String`→enum DB typing — stays **⏳ DEFERRED** here. Session 24
-             also corrected the stale plain-`//` comments on schema.prisma:323/324/329 to list the real
-             vocabularies (code-currency only; no migration; the columns are still `String`). No code change
-             to the typing this session; Q-013 stays tracked-open in the LOW count. (see CHANGELOG.md)
+             and Q-013's core concern — the `String`→enum DB typing — was **✅ RESOLVED 2026-06-23** (migrations
+             0016 + 0017). Session 24 had corrected the stale plain-`//` comments on schema.prisma:323/324/329 to
+             list the real vocabularies; the 2026-06-23 migrations then promoted every column to a real DB enum.
+             Q-013 is now fully closed. (see CHANGELOG.md 2026-06-23 round)
 
 Q-014  [INFO]   TextbookTopicCoverage.topicId has no FK to Topic (intentional, per schema comment).
    Evidence: schema.prisma:797-803.

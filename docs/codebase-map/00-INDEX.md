@@ -16,12 +16,13 @@ management, and family discipleship.
 
 ## The one thing to know first
 
-**DB Row-Level Security is provisioned but the running app bypasses it.** All 67 tables have RLS +
-98 policies and an `app_user` role exists, but the app runs `RLS_ENABLED=false` and connects as a
-`BYPASSRLS` role (`postgres`), so **the application layer (explicit `organizationId` filters +
-`getCurrentUserOrg`) is the only live tenant boundary today.** Every "raw `db` with a manual org check"
-is therefore load-bearing. The fix is an infra cutover, not code — `app_user` cutover-readiness was
-verified read-only 2026-06-19 (Q-001, Session 8); see the **RLS-cutover runbook** in **24 §5/§8** and **04**.
+**DB Row-Level Security is now LIVE — cutover executed 2026-06-23 (Q-001 ✅).** All 67 tables have RLS +
+98 policies; the running app connects as the non-bypass **`app_user`** role with `RLS_ENABLED=true`, so the
+DB-side policies enforce tenant isolation and the application layer's explicit `organizationId` filters +
+`getCurrentUserOrg` are now **defense-in-depth**, not the only boundary. The connection is derived from the
+Vercel↔Supabase integration's `POSTGRES_URL` (role swapped to `app_user` via `APP_USER_PASSWORD`; see
+`src/lib/db-url.ts` `withRole`). History, mechanism + rollback: the **RLS-cutover runbook** in **24 §5/§8** +
+**04**, and the **2026-06-23 CHANGELOG round** (incl. the auth-incident post-mortem).
 
 ## Conventions
 
@@ -67,14 +68,12 @@ verified read-only 2026-06-19 (Q-001, Session 8); see the **RLS-cutover runbook*
 
 ## Findings at a glance
 
-0 CRITICAL · **1 HIGH** · 6 MED · 8 LOW open · 44 INFO (chapter findings) + foundational `Q-0NN` from
-02/04 (`Q-001` [HIGH] open — cutover prep verified 2026-06-19 (Session 8), execution deferred to a gated
-infra task; `Q-011`/`Q-013` [LOW] deferred to the batched migration; foundational MED now
-fully closed — `Q-004` was the last, resolved 2026-06-19). The feature-chapter HIGH set has been worked down to **one**:
-the tenancy/IDOR cluster (ch.10 Q-10-001/002/003 ✅ Session 20, ch.14 Q-14-001/004 ✅ Session 29, ch.18 grading API
-Q-18-001/002 ✅ 2026-06-22, ch.20 discipleship Q-20-001/002 ✅ 2026-06-22) is fully resolved; the **only** open HIGH is
-**child-safety** Q-12-007 (no in-the-moment layer — ⏳ deferred/OPEN: a structural feature + legal `[DECISION]`; see 24 §5).
-See **24 §5/§7** for the prioritized roadmap and the full register.
+0 CRITICAL · **1 HIGH** · 5 MED · 5 LOW open · 44 INFO (chapter findings) + foundational `Q-0NN` from
+02/04 (`Q-001` [HIGH] **✅ RESOLVED 2026-06-23** — RLS cutover LIVE; `Q-011`/`Q-013`/`Q-23-003` shipped in
+migrations 16/17; foundational MED fully closed). The **only** open HIGH is **child-safety** Q-12-007 (no
+in-the-moment layer — ⏳ deferred/OPEN: a structural feature + legal `[DECISION]`; see 24 §5). Open **MED (5)**
+= the child-safety brief items Q-12-008/009/010/011/012; open **LOW (5)** = Q-01-004, Q-09-005, Q-10-010,
+Q-12-013, Q-16-001 (all owner-accepted / kept-open by design). See **24 §5/§7** for the roadmap + full register.
 
 ## Excluded from line-by-line reading (documented by shape)
 

@@ -1,8 +1,16 @@
 import { revalidateTag } from "next/cache";
 import { inngest } from "@/inngest/client";
 import { db, withTenant } from "@/server/db";
-import { groundBook, structureBookResearch, degradedBookResult } from "@/lib/ai/book-extraction";
+import { groundBook, structureBookResearch, degradedBookResult, type BookExtractionStage } from "@/lib/ai/book-extraction";
 import { generateBookEmbedding } from "@/lib/utils/vector";
+import type { BookStage } from "@/generated/client";
+
+// Map the lib's hyphenated stage union to the DB enum member names (Q-013, migration 17).
+const BOOK_STAGE: Record<BookExtractionStage, BookStage> = {
+    "perfect-parse": "PERFECT_PARSE",
+    "chapter-parse": "CHAPTER_PARSE",
+    "manual-needed": "MANUAL_NEEDED",
+};
 
 export const extractBook = inngest.createFunction(
     {
@@ -155,7 +163,7 @@ export const extractBook = inngest.createFunction(
                 where: { id: bookExtractionId },
                 data: {
                     status: "EXTRACTED",
-                    stage: result.stage,
+                    stage: BOOK_STAGE[result.stage],
                     summary: result.summary,
                     tableOfContents: result.tableOfContents as any,
                     readingLevel: result.readingLevel,

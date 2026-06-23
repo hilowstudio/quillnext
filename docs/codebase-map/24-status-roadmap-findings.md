@@ -130,9 +130,10 @@ The book pipeline already dedups extraction cross-org via the global `BookExtrac
   touch) — out of a findings-resolution session's scope; sequence it as dedicated work.
 
 **Hardening before a 2nd tenant (security/tenancy):**
-- Flip on RLS (`RLS_ENABLED=true` + `DATABASE_URL`→`app_user`) — today the app bypasses the DB's 98
-  policies (Q-001). **`app_user` cutover-readiness verified read-only 2026-06-19 (Session 8)** — the
-  GRANT/role side is ready; see the ordered **RLS-cutover runbook** immediately below.
+- ~~Flip on RLS~~ ✅ **DONE 2026-06-23 (Q-001)** — the app connects as `app_user` with `RLS_ENABLED=true` and
+  DB-side RLS enforced. The connection is **derived** from the integration's `POSTGRES_URL` via `withRole` +
+  `APP_USER_PASSWORD` (NOT a hand-built `DATABASE_URL` → that broke auth on the first attempt; see the
+  2026-06-23 CHANGELOG auth-incident post-mortem). The runbook below is retained as history + the rollback path.
 - Close write-path trust + IDOR gaps: ~~Q-10-001/002/003~~ (✅ Session 20), ~~Q-14-005~~ (✅ Session 28), ~~Q-16-002~~ (✅ Session 32 — RLS-readiness wrap), ~~Q-17-003/004~~ (✅ Session 34 — parent-gate+Zod; merged org predicate in all 6 course-REST handlers), ~~Q-18-001/002~~ (✅ 2026-06-22 — grading POST: Zod validation + server-side recompute + merged org predicate; consolidated pass).
 - **RLS-cutover blocker (NEW, Q-17-010, Session 34):** before flipping RLS, the `new:` taxonomy minting (`db.{subject,strand,topic,subtopic}.create` in `api/courses/route.ts` + `…/blocks/route.ts`) must be addressed — those reference tables are `app_user` **SELECT-only** (migration-2:139-144), so the creates fail-closed under RLS-on. Either add scoped INSERT policies in the batched migration, or move custom-taxonomy creation to a privileged/org-scoped path. NOT covered by Session 8's GRANT-level readiness check.
 - ~~Make child-safety **fail closed** (Q-12-001)~~ ✅ **done 2026-06-20 (Session 25)** — the LLM deep-path now
@@ -225,10 +226,11 @@ and many actions rely on hand-written org checks, the absence of tenancy tests i
 
 ## 7. Consolidated findings register
 
-0 CRITICAL · **1 HIGH** · **6 MED open** · **8 LOW open** · 44 INFO (chapter findings) + foundational findings
+0 CRITICAL · **1 HIGH** · **5 MED open** · **5 LOW open** · 44 INFO (chapter findings) + foundational findings
 from 02/04. Full evidence/impact for each is in the owning chapter's §7. *(The sole open HIGH is Q-12-007, ⏳ deferred —
-no in-the-moment child-safety layer; needs a feature + a legal `[DECISION]`. Foundational `Q-001` [HIGH] is also OPEN,
-deferred-with-prep, outside this headline.)*
+no in-the-moment child-safety layer; needs a feature + a legal `[DECISION]`. Foundational `Q-001` [HIGH] **✅ RESOLVED
+2026-06-23** — RLS cutover LIVE (see §5 + the 2026-06-23 CHANGELOG round). Open MED = Q-12-008/009/010/011/012; open
+LOW = Q-01-004, Q-09-005, Q-10-010, Q-12-013, Q-16-001 — all owner-accepted / kept-open by design.)*
 
 > **Disposition note (2026-06-22, Session 34 / 17-MED):** all **3** OPEN ch.17 MED closed (owner-approved;
 > 3-skeptic adversarial Workflow — one per finding, each tasked to REFUTE the draft — all reproduce / FIX,
@@ -568,8 +570,12 @@ deferred-with-prep, outside this headline.)*
 > See CHANGELOG.md round 21.
 
 ### Foundational (chapters 02 & 04)
-- `Q-001` [HIGH] **OPEN** — App bypasses DB RLS (RLS_ENABLED off + BYPASSRLS connection role);
-  app-layer org filters are the sole live boundary. *(refined by Phase C: DB has 98 policies on all 67
+- `Q-001` [HIGH] **✅ RESOLVED 2026-06-23 — RLS cutover LIVE.** The app now connects as the non-bypass
+  `app_user` role with `RLS_ENABLED=true` and DB-side RLS enforced; app-layer org filters are now
+  defense-in-depth. Connection is derived from the integration's `POSTGRES_URL` via `withRole` +
+  `APP_USER_PASSWORD` (`src/lib/db-url.ts`); see the 2026-06-23 CHANGELOG round incl. the auth-incident
+  post-mortem. *(Original finding: the app bypassed DB RLS — RLS_ENABLED off + BYPASSRLS connection role;
+  app-layer org filters were then the sole live boundary.)* *(refined by Phase C: DB has 98 policies on all 67
   tables + an `app_user` role — see §8.)* **Cutover prep done 2026-06-19 (Session 8):** there is no
   code fix (the RLS path is already written/dormant); `app_user` cutover-readiness verified read-only
   (0 GRANT gaps, `BYPASSRLS=false`+`LOGIN=true`); the ordered **RLS-cutover runbook** + the
@@ -746,7 +752,7 @@ deferred-with-prep, outside this headline.)*
   ~~Q-18-002~~ ✅ resolved 2026-06-22 (grading POST: org filter merged into the attempt lookup via the `assessment.course`
   relation — AssessmentAttempt has no direct org column — + fail-closed null-org guard, replacing the post-fetch `!==`;
   writes moved into a `withTenant` tx; no live vuln, RLS-readiness + refactor-safety; consolidated pass).
-- **RLS-cutover blocker — app writes to SELECT-only reference tables:** **Q-17-010** [MED] ⏳ deferred 2026-06-22
+- **RLS-cutover blocker — app writes to SELECT-only reference tables:** **Q-17-010** [MED] ✅ **RESOLVED 2026-06-23** (migration 0016 added scoped `app_user` INSERT policies on the taxonomy tables); *originally ⏳ deferred 2026-06-22*
   (minted Session 34) — the `new:` inline minting does `db.{subject,strand,topic,subtopic}.create` (4 sites:
   `api/courses/route.ts:35,59`, `api/courses/[id]/blocks/route.ts:132,167`) but migration-2:139-144 grants
   `app_user` **SELECT-only** on those reference tables (no INSERT policy → "writes only via migrations/seeds as
@@ -814,7 +820,7 @@ deferred-with-prep, outside this headline.)*
 ### LOW (78 total) + INFO (fully triaged 2026-06-19, see CHANGELOG.md)
 **INFO:** all 44 actioned — 28 resolved / 9 removed / 1 deferred / 1 partial / 1 verified / 1 accepted /
 3 re-graded→LOW (Q-13-005, Q-20-010, Q-23-003) / 0 open; chapter §7 entries are marked ✅ / ◑ / ⏳ / 🔻.
-**LOW: 78 total (71 original + 4 re-graded + 3 new: Q-10-011, Q-12-013, Q-13-009); 8 still open** (reconciled 2026-06-22 — the ch.23 pass set the base to 9; the end-of-pass straggler sweep then closed Q-13-009 → 8).
+**LOW: 78 total (71 original + 4 re-graded + 3 new: Q-10-011, Q-12-013, Q-13-009); 5 still open** (was 8 at the 2026-06-22 close; **Q-011, Q-013, Q-23-003 ✅ resolved 2026-06-23** in migrations 16/17 → 5).
 
 > **Count basis — open LOW is itemized (this list is the ground truth, like the MED by-theme list).** The
 > session-by-session prose *below* is **historical** and had silently drifted to **undercount** carried-forward
@@ -822,15 +828,15 @@ deferred-with-prep, outside this headline.)*
 > against each chapter's §7 `Status:` line on 2026-06-22 — was the **9** below; the end-of-pass straggler sweep then
 > closed Q-13-009 (✅ accepted), leaving **8**. (HIGH/MED reconcile fine via their own lists; this is the one grade whose
 > running tally was prose-only.)
-> **Open LOW set (authoritative, 8):**
+> **Open LOW set (authoritative, 5 — Q-011/Q-013/Q-23-003 closed 2026-06-23):**
 > 1. **Q-01-004** (ch.01) — lint rules downgraded to warnings; owner-accepted deliberate adoption ratchet → **kept-OPEN (owner)**.
 > 2. **Q-09-005** (ch.09) — the unbuilt source-specific context-injection half of source-anchored generation → **kept-OPEN (unfinished feature)**.
 > 3. **Q-10-010** (ch.10) — unverified caller-supplied lineage-id *write* on `generate-tool.tsx` (no cross-org *read* leak) → 🔻 re-graded MED→LOW, **⏳ deferred** with the Q-001 RLS-cutover audit.
-> 4. **Q-011** (ch.02, foundational) — org-FK column rename → **⏳ deferred** to the batched migration.
-> 5. **Q-013** (ch.02, foundational) — stringly-typed→enum conversions → **⏳ deferred** to the batched migration.
+> 4. ~~**Q-011**~~ ✅ **RESOLVED 2026-06-23** (ch.02 — migration 0016 renamed `organization_id`→`account_id` on transcripts + curriculum_specs + recreated the coupled RLS policies).
+> 5. ~~**Q-013**~~ ✅ **RESOLVED 2026-06-23** (ch.02 — migrations 0016 + 0017 converted all 12 stringly-typed columns to DB enums).
 > 6. **Q-12-013** (ch.12) — safety type/contract cleanups → **⏳ OPEN, deferred WITH the child-safety brief**. (2nd stray, surfaced this pass — minted in ch.12's MED cell after its LOW cell.) The straggler sweep re-verified it as **substantially overstated**: sub-claim (c) `isSafe`-is-unused is **refuted** (load-bearing store-the-flag gate at `safety-scan.ts:80`); `coercion` is by-design; `reasoning` dual-use is already handled (`[EVIDENCE:]` tag stripped at `notifications/safety-alert.ts:90`). Genuine residual = 2 minor safety refactors (z.infer-derive + reasoning split), deferred with Q-12-008..012 (§5). Evidence corrected in ch.12 §7.
 > 7. **Q-16-001** (ch.16) — built-but-unlinked per-student daily-schedule view → **kept-OPEN (unfinished)**; wire-an-inbound-link roadmapped §5.
-> 8. **Q-23-003** (ch.23) — `process-document` has no `onFailure`/retry tuning + the `extractionStatus` enum → **⏳ deferred** to the batched migration (bundled w/ Q-011/Q-013).
+> 8. ~~**Q-23-003**~~ ✅ **RESOLVED 2026-06-23** (ch.23 — migration 0016 added `DocumentResource.extraction_status`; `process-document` got `onFailure`→FAILED + EXTRACTED-on-success + retries).
 >
 > *Closed by the end-of-pass straggler sweep:* ~~Q-13-009~~ ✅ ACCEPTED 2026-06-22 (ch.13 — ISBN-first dedup is correct-by-design; cross-edition collapse = a roadmapped content-fingerprint feature, §5). **9 → 8 open.**
 
