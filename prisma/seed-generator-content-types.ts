@@ -5,13 +5,14 @@ import path from "path";
 import yaml from "js-yaml";
 
 import { PrismaPg } from "@prisma/adapter-pg";
+import { withoutSslParams } from "../src/lib/db-url";
 import { Pool } from "pg";
 
 // --- Configuration ---
 const BATCH_SIZE = 10; // Number of concurrent upserts
 const TIMEOUT_MS = 60000; // 60s timeout for script
 
-const connectionString = process.env.DIRECT_DATABASE_URL || process.env.POSTGRES_URL_NON_POOLING || process.env.DATABASE_URL || process.env.POSTGRES_URL;
+const connectionString = withoutSslParams(process.env.DIRECT_DATABASE_URL || process.env.POSTGRES_URL_NON_POOLING || process.env.DATABASE_URL || process.env.POSTGRES_URL);
 if (!connectionString) {
   console.error("❌ Error: DATABASE_URL or DIRECT_DATABASE_URL must be set.");
   process.exit(1);

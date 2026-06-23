@@ -1,6 +1,7 @@
 import "dotenv/config";
 import { PrismaClient } from "../src/generated/client";
 import { PrismaPg } from "@prisma/adapter-pg";
+import { withoutSslParams } from "../src/lib/db-url";
 import { Pool } from "pg";
 import fs from "fs";
 import path from "path";
@@ -9,7 +10,7 @@ import path from "path";
 // Prisma 7 requires a driver adapter (the bare `datasources` option no longer
 // connects); mirror src/server/db.ts so the seed uses the same pg adapter.
 const createPrismaClient = () => {
-  const databaseUrl = process.env.DIRECT_DATABASE_URL || process.env.POSTGRES_URL_NON_POOLING || process.env.DATABASE_URL || process.env.POSTGRES_URL;
+  const databaseUrl = withoutSslParams(process.env.DIRECT_DATABASE_URL || process.env.POSTGRES_URL_NON_POOLING || process.env.DATABASE_URL || process.env.POSTGRES_URL);
 
   if (!databaseUrl) {
     throw new Error("DATABASE_URL or DIRECT_DATABASE_URL environment variable is required");
