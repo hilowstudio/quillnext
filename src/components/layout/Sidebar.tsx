@@ -5,7 +5,6 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import {
     House,
-    Users,
     BookOpen,
     Heart,
     Student,
@@ -13,7 +12,9 @@ import {
     X,
     List,
     Lightbulb,
-    Sparkle
+    Sparkle,
+    CalendarCheck,
+    ShieldCheck
 } from "@phosphor-icons/react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
@@ -23,10 +24,12 @@ import { useState } from "react";
 const NAV_ITEMS = [
     { href: "/", label: "Dashboard", icon: House },
     { href: "/students", label: "Students", icon: Student },
+    { href: "/student/dashboard", label: "Daily Schedule", icon: CalendarCheck },
     { href: "/courses", label: "Courses", icon: ChalkboardTeacher },
     { href: "/living-library", label: "Living Library", icon: BookOpen },
     { href: "/creation-station", label: "Creation Station", icon: Sparkle },
     { href: "/thinkling", label: "Thinkling Chat", icon: Lightbulb },
+    { href: "/safety", label: "Safety", icon: ShieldCheck },
     { href: "/family-discipleship", label: "Discipleship", icon: Heart },
 ];
 

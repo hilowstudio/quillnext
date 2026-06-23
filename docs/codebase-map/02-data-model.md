@@ -6,7 +6,7 @@
 
 ## 1. Scope
 
-- `prisma/schema.prisma` — the entire Prisma data model: 1 datasource, 1 generator, **67 models**, **23 enums**.
+- `prisma/schema.prisma` — the entire Prisma data model: 1 datasource, 1 generator, **68 models**, **23 enums**. *(+`PendingSafetyScan` — migration 0018 / Q-12-010, 2026-06-23.)*
 
 Generator: `prisma-client` (new TS generator), output to `src/generated/client` (the generated
 client is documented by shape in `23-…`, not read line-by-line). Datasource: `postgresql` (URL via

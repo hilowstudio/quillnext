@@ -3,14 +3,14 @@ import { assessMessageSafety } from "@/lib/safety/guard";
 import { decideSafetyResolution, isCaregiverHardStop } from "@/lib/safety/policy";
 import { withTenant } from "@/server/db";
 import { sendSafetyAlert } from "@/lib/notifications/safety-alert";
-import { SafetyResolution } from "@/lib/safety/types";
+import { buildStoredFlagContent } from "@/lib/safety/flag-storage";
 import { setRlsContext } from "@/server/rls-context";
 
 export const scanMessage = inngest.createFunction(
     { id: "scan-chat-message" },
     { event: "chat/message.sent" },
     async ({ event }) => {
-        const { message, studentId, organizationId } = event.data;
+        const { message, studentId, organizationId, conversationContext } = event.data;
         // Background worker has no request — establish RLS tenant context from the event.
         setRlsContext({ organizationId, userId: null });
 
@@ -18,8 +18,8 @@ export const scanMessage = inngest.createFunction(
             return { skipped: true };
         }
 
-        // 1. DETECT
-        const result = await assessMessageSafety(message);
+        // 1. DETECT — pass recent conversation context so multi-turn patterns are visible (Q-12-011).
+        const result = await assessMessageSafety(message, conversationContext);
 
         // 2. DECIDE (Policy Layer - Initial)
         let resolution = decideSafetyResolution(result);
@@ -80,17 +80,18 @@ export const scanMessage = inngest.createFunction(
         if (!result.isSafe) {
             console.warn(`[SAFETY] Unsafe message detected for student ${studentId}:`, result);
 
-            // 4. STORE
+            // 4. STORE. Data-minimize the persisted content for caregiver hard-stop flags (Q-12-009):
+            // SafetyFlag is org-readable, so a child's disclosure naming/ fearing a caregiver is redacted
+            // before storage. The [EVIDENCE:LEVEL] tag is preserved for future pattern escalation.
+            const stored = buildStoredFlagContent(message, result);
             const flag = await withTenant(
                 (tx) => tx.safetyFlag.create({
                     data: {
                         studentId,
                         severity: result.severity,
                         category: result.category,
-                        // DATA MINIMIZATION: Store snippet only
-                        message: message.substring(0, 100) + (message.length > 100 ? "..." : ""),
-                        // Store evidence level in reasoning for future pattern matching
-                        reasoning: `[EVIDENCE:${result.evidenceLevel}] ${result.reasoning}`,
+                        message: stored.message,
+                        reasoning: stored.reasoning,
                         implicatedCaregiver: result.implicatedCaregiver,
                         resolution: resolution
                     }

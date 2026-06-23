@@ -118,6 +118,7 @@ model Organization {
   customEvents   CustomEvent[]
   transcripts    Transcript[]
   profiles       Profile[]
+  pendingSafetyScans PendingSafetyScan[]
 
   @@map("organizations")
 }
@@ -312,6 +313,7 @@ model Learner {
   bibleMemoryFolders    BibleMemoryFolder[]
   transcripts           Transcript[]
   safetyFlags           SafetyFlag[]
+  pendingSafetyScans    PendingSafetyScan[]
   profile               Profile?                   @relation(fields: [profileId], references: [id], onDelete: SetNull)
 
   @@map("learners")
@@ -334,6 +336,25 @@ model SafetyFlag {
   student     Learner  @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
   @@map("safety_flags")
+}
+
+// Durable dead-letter row for a dropped `chat/message.sent` safety-scan enqueue (Q-12-010). When
+// inngest.send fails, the chat route persists the scan here so the safety signal is never lost; the
+// org's next chat request re-enqueues and deletes these rows (RLS-clean, no cross-org background read).
+model PendingSafetyScan {
+  id             String       @id @default(uuid())
+  studentId      String       @map("student_id")
+  organizationId String       @map("account_id")
+  message        String // raw latest message to re-scan; transient (deleted once re-enqueued)
+  attempts       Int          @default(0)
+  createdAt      DateTime     @default(now()) @map("created_at")
+  lastAttemptAt  DateTime?    @map("last_attempt_at")
+
+  student        Learner      @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@map("pending_safety_scans")
 }
 
 model ClassroomStudent {

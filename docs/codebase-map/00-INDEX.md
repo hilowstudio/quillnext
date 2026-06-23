@@ -41,7 +41,7 @@ Vercel↔Supabase integration's `POSTGRES_URL` (role swapped to `app_user` via `
 |---|---|---|
 | 00 | `00-INDEX.md` | This index: conventions, status legend, chapter directory, coverage guarantee. |
 | 01 | `01-platform-build-config.md` | Toolchain, npm scripts, Next/TS/ESLint/PostCSS/Vitest/Prisma config, CI, Tailwind v4 entry, env-var appendix. |
-| 02 | `02-data-model.md` | `prisma/schema.prisma` — all **67 models / 23 enums**, the org-scoped vs global ownership partition, cross-cutting patterns (polymorphic CourseBlock, global dedup, spine cross-walks, pgvector). *Hand-written.* |
+| 02 | `02-data-model.md` | `prisma/schema.prisma` — all **68 models / 23 enums** (+`PendingSafetyScan`, migration 0018), the org-scoped vs global ownership partition, cross-cutting patterns (polymorphic CourseBlock, global dedup, spine cross-walks, pgvector). *Hand-written.* |
 | 03 | `03-migrations-seeds.md` | The 16 migrations (incl. the RLS-policy SQL), the 6 idempotent seeders + their data sources, schema↔migration drift. |
 | 04 | `04-security-auth-tenancy.md` | NextAuth v5 (Google/JWT), the `proxy.ts` route + profile gate, the signed active-profile cookie, the tenancy machinery (`getCurrentUserOrg`/`withTenant`/`CONTEXT_FREE_MODELS`), the RLS-bypass reality, Supabase/Firebase clients. *Hand-written.* |
 | 05 | `05-profiles.md` | Profile picker, PIN set/verify/throttle, avatar editing, parent-as-learner "My Learning", backfill, KID-view seam. (Best-tested subsystem.) |
@@ -68,12 +68,14 @@ Vercel↔Supabase integration's `POSTGRES_URL` (role swapped to `app_user` via `
 
 ## Findings at a glance
 
-0 CRITICAL · **1 HIGH** · 5 MED · 5 LOW open · 44 INFO (chapter findings) + foundational `Q-0NN` from
+0 CRITICAL · **0 HIGH** · 0 MED · 2 LOW open · 44 INFO (chapter findings) + foundational `Q-0NN` from
 02/04 (`Q-001` [HIGH] **✅ RESOLVED 2026-06-23** — RLS cutover LIVE; `Q-011`/`Q-013`/`Q-23-003` shipped in
-migrations 16/17; foundational MED fully closed). The **only** open HIGH is **child-safety** Q-12-007 (no
-in-the-moment layer — ⏳ deferred/OPEN: a structural feature + legal `[DECISION]`; see 24 §5). Open **MED (5)**
-= the child-safety brief items Q-12-008/009/010/011/012; open **LOW (5)** = Q-01-004, Q-09-005, Q-10-010,
-Q-12-013, Q-16-001 (all owner-accepted / kept-open by design). See **24 §5/§7** for the roadmap + full register.
+migrations 16/17; foundational MED fully closed). **The findings program is complete except 2 owner-accepted
+LOWs.** Child-safety Q-12-007 [HIGH] **✅ RESOLVED 2026-06-23** (in-the-moment Hybrid layer, built after the
+owner's legal sign-off; see 24 §5/§7). **2026-06-23
+(later): child-safety Phase 1 shipped** — Q-12-008/009/010/011/012 [MED] + Q-12-013 [LOW] all ✅ resolved
+(+ non-safety Q-10-010 / Q-16-001 [LOW]). Open **MED (0)**; open **LOW (2)** = Q-01-004, Q-09-005 (both
+owner-accepted / kept-open by design). See **24 §5/§7** for the roadmap + full register.
 
 ## Excluded from line-by-line reading (documented by shape)
 

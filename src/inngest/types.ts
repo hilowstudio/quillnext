@@ -14,6 +14,9 @@ type ChatMessageSentEvent = {
         studentId: string;
         message: string;
         organizationId: string; // carried for RLS tenant context in the background worker
+        // Bounded window of recent turns so the safety scanner can see multi-turn grooming/coercion
+        // (Q-12-011). Optional for back-compat; not persisted by the job (only the latest snippet is).
+        conversationContext?: { role: string; content: string }[];
     };
 };
 

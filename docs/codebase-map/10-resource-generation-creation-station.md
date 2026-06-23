@@ -184,7 +184,7 @@ Q-10-010  [MED→🔻LOW]  `generateLearningTool` plain-`db` write + unverified 
     `generate-resource-core.ts:763` and the rest of the area. Zero behavior change today (RLS off →
     `withTenant` is a no-op with explicit ctx) and the correct RLS-ready path. `db` import dropped
     (now `withTenant`-only).
-  • **Sub-claim 2 (unverified lineage ids) 🔻 RE-GRADED to LOW + ⏳ DEFERRED** with the ch.10 HIGH
+  • **Sub-claim 2 (unverified lineage ids) ✅ RESOLVED 2026-06-23 (Phase 3)** — was 🔻 LOW + deferred with the ch.10 HIGH
     tenancy cluster (Q-10-001/002/003) + the RLS-cutover audit (Q-001, ch.24 §5). A 3-way adversarial
     trace **refuted the "cross-org read leak" impact**: `getMasterContext` re-scopes `studentId`
     (`master-context.ts:450` → null cross-org), `objectiveId` is global `CONTEXT_FREE` spine,
@@ -197,7 +197,10 @@ Q-10-010  [MED→🔻LOW]  `generateLearningTool` plain-`db` write + unverified 
     integrity/unverified-FK *write* (no read leak; FK checks bypass RLS even when flipped). The proper
     fix is a uniform org-ownership sweep across the whole ch.10 tenancy cluster (one shared
     ownership-check primitive + a reject-vs-drop decision), not a piecemeal patch here
-    (partial-sweep-worse-than-uniform). Stays **tracked-OPEN at LOW** (deferred ≠ closed). (see CHANGELOG.md).
+    (partial-sweep-worse-than-uniform). **✅ RESOLVED 2026-06-23:** the 5 lineage ids are now validated
+    same-org (RLS-scoped existence check) before persist in `generate-tool.tsx`; non-matches are nulled, so
+    a crafted call can't write a cross-org/dangling lineage FK. Re-assessed benign under live RLS (read-back
+    is RLS-scoped) but closed cleanly per owner — closes the ch.10 tenancy cluster. (see CHANGELOG.md).
   Original evidence: identity correctly from session (`:49`, ignoring `params.organizationId`) + write
   stamps `organizationId`/`createdByUserId` from session — so the WRITE was never cross-tenant; but it
   ran on plain `db.resource.create` (sub-claim 1, fixed), and the lineage ids arrive from `GeneratorForm`

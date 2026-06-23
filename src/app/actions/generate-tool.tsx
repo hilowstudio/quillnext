@@ -6,7 +6,7 @@ import { z } from "zod";
 import { buildMasterPrompt } from "@/lib/utils/prompt-builder";
 import { getCurrentUserOrg } from "@/lib/auth-helpers";
 import { getMasterContext } from "@/lib/context/master-context";
-import { withTenant } from "@/server/db";
+import { db, withTenant } from "@/server/db";
 
 /**
  * Generative UI Server Action
@@ -48,6 +48,24 @@ export async function generateLearningTool(
   // it was used directly for resource writes + master-context lookups).
   const { userId, organizationId } = await getCurrentUserOrg();
   if (!organizationId) throw new Error("No organization found");
+
+  // Q-10-010: the lineage ids below are caller-supplied. Verify each belongs to THIS org before
+  // persisting it as an FK pointer; null out any that don't (RLS-scoped existence check), so a crafted
+  // call can't write a cross-org / dangling lineage FK. There is no read leak today (read-back is
+  // RLS-scoped), but this closes the residual and keeps the persisted lineage honest. The context-read
+  // args below are left untouched — getMasterContext/buildMasterPrompt already re-scope them per org.
+  const [okStudent, okBook, okVideo, okArticle, okDocument] = await Promise.all([
+    studentId ? db.learner.findFirst({ where: { id: studentId, organizationId }, select: { id: true } }) : null,
+    bookId ? db.book.findFirst({ where: { id: bookId, organizationId }, select: { id: true } }) : null,
+    videoId ? db.videoResource.findFirst({ where: { id: videoId, organizationId }, select: { id: true } }) : null,
+    articleId ? db.article.findFirst({ where: { id: articleId, organizationId }, select: { id: true } }) : null,
+    documentId ? db.documentResource.findFirst({ where: { id: documentId, organizationId }, select: { id: true } }) : null,
+  ]);
+  const lineageStudentId = okStudent?.id ?? null;
+  const lineageBookId = okBook?.id ?? null;
+  const lineageVideoId = okVideo?.id ?? null;
+  const lineageArticleId = okArticle?.id ?? null;
+  const lineageDocumentId = okDocument?.id ?? null;
 
   // Get master context for lineage tracking
   const masterContext = await getMasterContext({
@@ -130,11 +148,11 @@ export async function generateLearningTool(
                     description: `Quiz with ${quizData.questions.length} questions`,
                     storageType: "JSON",
                     content: quizData,
-                    generatedForStudentId: studentId || null,
-                    generatedFromBookId: bookId || null,
-                    generatedFromVideoId: videoId || null,
-                    generatedFromArticleId: articleId || null,
-                    generatedFromDocumentId: documentId || null,
+                    generatedForStudentId: lineageStudentId,
+                    generatedFromBookId: lineageBookId,
+                    generatedFromVideoId: lineageVideoId,
+                    generatedFromArticleId: lineageArticleId,
+                    generatedFromDocumentId: lineageDocumentId,
                     generationContext: masterContext as any,
                   },
                 }),
@@ -213,11 +231,11 @@ export async function generateLearningTool(
                     description: worksheetData.instructions,
                     storageType: "JSON",
                     content: worksheetData,
-                    generatedForStudentId: studentId || null,
-                    generatedFromBookId: bookId || null,
-                    generatedFromVideoId: videoId || null,
-                    generatedFromArticleId: articleId || null,
-                    generatedFromDocumentId: documentId || null,
+                    generatedForStudentId: lineageStudentId,
+                    generatedFromBookId: lineageBookId,
+                    generatedFromVideoId: lineageVideoId,
+                    generatedFromArticleId: lineageArticleId,
+                    generatedFromDocumentId: lineageDocumentId,
                     generationContext: masterContext as any,
                   },
                 }),

@@ -31,7 +31,7 @@
 | `src/components/dashboard/MyLearningCard.tsx` | Parent-as-learner self-enroll card (ParentDashboard). |
 | `src/components/dashboard/ParentDashboard.tsx` | Parent home dashboard view. |
 | `src/components/dashboard/StudentDashboard.tsx` | Student home dashboard view (avatar, courses, assignments). |
-| `src/app/student/dashboard/page.tsx` | UNFINISHED single-student daily-schedule view — fully built but not yet linked from any live nav (see Q-16-001). |
+| `src/app/student/dashboard/page.tsx` | Single-student daily-schedule view — now linked from the Sidebar ("Daily Schedule"); Q-16-001 ✅ 2026-06-23. |
 | `src/server/queries/students.ts` | Cached student profile queries + objective/book selects. |
 | `src/server/queries/dashboard.ts` | `getStudentDashboardData`, `getParentDashboardData`. |
 | `src/server/queries/learner-filters.ts` | `excludeParentLearners` shared where-fragment — drops parent-as-learner rows (My-Learning self-enrollments) from student rosters/counts (Q-05-006). |
@@ -107,8 +107,8 @@ This area is the learner (a.k.a. "student") lifecycle and the two home dashboard
 | `MyLearningCard` | DONE | rendered `ParentDashboard.tsx:99`. |
 | `ParentDashboard` | DONE | rendered `app/page.tsx:45`. |
 | `StudentDashboard` | DONE (KID branch STUB) | rendered `app/page.tsx:30,39`; KID branch falls through `StudentDashboard.tsx:39-41`. |
-| `DailyScheduleList` | DONE (only on the unfinished daily-schedule route) | rendered `student/dashboard/page.tsx:85`. |
-| `/student/dashboard` page | UNFINISHED (built, not yet linked) | `student/dashboard/page.tsx`; fully functional but the only inbound link is self-referential `:58` (see Q-16-001). |
+| `DailyScheduleList` | DONE | rendered `student/dashboard/page.tsx:85` (the Sidebar-linked daily route). |
+| `/student/dashboard` page | DONE | `student/dashboard/page.tsx`; now linked from the Sidebar ("Daily Schedule", Q-16-001 ✅) + the self-referential student-picker `:58`. |
 | `getStudentDashboardData` | DONE | `dashboard.ts:5`; called `app/page.tsx:29,38`. |
 | `getParentDashboardData` | DONE | `dashboard.ts:35`; called `app/page.tsx:42`. |
 | `getStudentById` | DONE | `students.ts:227`; used by getStudentProfileData `:375`. |
@@ -134,7 +134,7 @@ This area is the learner (a.k.a. "student") lifecycle and the two home dashboard
 Q-16-001  [LOW]  `/student/dashboard` is an UNFINISHED (built-but-unlinked) daily-schedule view  — `src/app/student/dashboard/page.tsx`
   Evidence: repo-wide grep for `student/dashboard` returns only the self-referential student-selector link at `page.tsx:58`; no nav, home page, or other component links to it. It is a complete, working single-student daily-checklist page (auth+org gated; reads `getStudentDailySchedule`, toggles via `DailyScheduleList`→`toggleItemStatus`). `DailyScheduleList` is used only here.
   Impact: Currently only reachable by typing the URL. NOT superseded — it is a different surface from the live `StudentDashboard` (courses/assignments via `/`) and the parent-facing WEEKLY `/planner`; there is no live per-student DAILY checklist elsewhere.
-  Status: ⏳ OPEN — re-verified 2026-06-22 (Session 31); re-documented from "orphaned/dead" to **unfinished feature** (owner: keep the built daily view; wire an inbound link later — roadmapped in 24 §5). Stays tracked-OPEN at LOW (deferred ≠ closed). Because the route is kept, its cascade-only dependencies (`getStudentDailySchedule`/`toggleItemStatus`, ch.21; INFO Q-21-010) remain live — no ch.21 change. (see CHANGELOG.md round 34)
+  Status: ✅ RESOLVED 2026-06-23 (Phase 3) — wired the inbound link: a "Daily Schedule" nav item (`/student/dashboard`, `CalendarCheck`) added to the Sidebar (`src/components/layout/Sidebar.tsx`; no collision with `/students` — the paths diverge at char 8). The built daily view is now reachable from live nav. (Earlier: re-verified 2026-06-22 (Session 31), re-documented orphaned→unfinished; owner chose to wire it.) Because the route is kept, its cascade-only dependencies (`getStudentDailySchedule`/`toggleItemStatus`, ch.21; INFO Q-21-010) remain live — no ch.21 change. (see CHANGELOG.md round 34)
 
 Q-16-002  [MED]  Create-student API path bypasses tenant transaction for the main writes  — `src/app/api/students/route.ts:23,33,48,65`
   Evidence: org self-heal (`db.organization.create` `:23`, `db.user.update` `:33`), `db.learner.create` (`:48`), and `db.learnerProfile.create` (`:65`) all use the raw `db` client. Only the trailing profile-link step uses `withTenant` (`:75-89`). The learner `create` sets `organization.connect`, so the row is correctly scoped, but the writes do not run under the tenant GUC tx the rest of the codebase relies on.

@@ -16,6 +16,9 @@ import "katex/dist/katex.min.css";
 
 import { ModeSelector } from "@/components/thinkling/ModeSelector";
 import { ThinklingMode } from "@/lib/thinkling";
+import { CrisisHelp } from "@/components/thinkling/CrisisHelp";
+import { precheckMessageSafety } from "@/app/actions/safety-precheck";
+import type { SafetyAssessment } from "@/lib/safety/types";
 
 interface ThinklingChatProps {
     studentId: string;
@@ -45,6 +48,11 @@ export function ThinklingChat({ studentId, mode, onModeChange }: ThinklingChatPr
     const [input, setInput] = useState("");
     const isLoading = status === "streaming" || status === "submitted";
 
+    // Q-12-007: in-the-moment crisis affordance. Always available; also auto-opens when the synchronous
+    // pre-check flags the student's message. It only SHOWS resources — it notifies no one.
+    const [helpOpen, setHelpOpen] = useState(false);
+    const [helpCategory, setHelpCategory] = useState<SafetyAssessment["category"] | undefined>(undefined);
+
     const scrollRef = useRef<HTMLDivElement>(null);
 
     // Scroll to bottom on new messages
@@ -71,6 +79,17 @@ export function ThinklingChat({ studentId, mode, onModeChange }: ThinklingChatPr
         const userMessage = input;
         setInput(""); // Clear input immediately
 
+        // In-the-moment safety pre-check (Q-12-007): runs in parallel, never blocks the reply, and on a
+        // detected concern surfaces the verified crisis-resources affordance immediately. Best-effort.
+        precheckMessageSafety(userMessage)
+            .then((r) => {
+                if (r.concern) {
+                    setHelpCategory(r.category);
+                    setHelpOpen(true);
+                }
+            })
+            .catch(() => {});
+
         // AI SDK v5: sendMessage takes a { text } message + per-call options (body merged into the request).
         await sendMessage(
             { text: userMessage },
@@ -85,6 +104,7 @@ export function ThinklingChat({ studentId, mode, onModeChange }: ThinklingChatPr
                     <div className="flex-1">
                         <ModeSelector selectedMode={mode} onSelectMode={onModeChange} />
                     </div>
+                    <CrisisHelp open={helpOpen} onOpenChange={setHelpOpen} category={helpCategory} />
                     <Button variant="ghost" size="icon" onClick={() => setMessages([])} title="Clear Chat">
                         <Trash />
                     </Button>

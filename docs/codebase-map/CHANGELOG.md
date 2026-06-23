@@ -3129,3 +3129,128 @@ eslint 0-err / vitest 188·26). Commits `7b696b3`, `4a0ab98` on `main`.
   ch.24 §7 register, and the owning chapter §7 lines (ch.02 Q-011/Q-013, ch.04 Q-001, ch.17 Q-17-010, ch.23 Q-23-003).
 - The "Deferred migrations" bucket is now **empty** (Q-011/Q-013/Q-23-003 shipped). The child-safety brief
   (Q-12-007 + Q-12-008..013) is the main remaining open program.
+
+---
+
+## Session 2026-06-23 (later) — child-safety hardening (Phase 1) + 2 non-safety LOWs (owner-approved)
+
+Kicked off the child-safety hardening program. Owner sign-offs: sequence = bounded hardening first / legal
+in parallel; Q-12-007 architecture = **Hybrid** (synchronous regex pre-check → in-the-moment child-facing
+affordance + a parent SafetyFlag review UI) — **gated on the owner's written legal sign-off, NOT yet given**;
+reporting policy = KEEP "Minimum Social Responsibility" + add verified non-US-inclusive crisis resources +
+reconcile the bot-promise wording; non-safety LOWs = DO Q-16-001 + Q-10-010, LEAVE Q-09-005 + Q-01-004.
+**TDD throughout; nothing pushed.** CI green at every cell — final: `tsc` 0 / `eslint` 0 errors / `vitest`
+**202/202** (28 files; +14 safety tests). Migration **0018** is the only schema change — **dry-run validated
+in a BEGIN…ROLLBACK transaction on the real DB (10/10 checks incl. app_user org-isolation), STAGED not
+pushed** (applies on the next deploy).
+
+### 👤 Owner follow-up (with deploy)
+- **Migration 0018 (`pending_safety_scans`)** ships with this code — `prisma migrate deploy` runs it in the
+  Vercel build, so the migration deploys WITH the code (runtime references `db.pendingSafetyScan`). No env
+  change; no rollback needed (purely additive table, RLS-scoped).
+- **Q-12-007 legal `[DECISION]` still owed:** verified crisis resources + a bot-wording redline + the Hybrid
+  design spec are the next deliverable and need written sign-off before any build.
+
+### Resolved — child-safety MED (brief Tier-1/2 app-layer items)
+- ✅ **Q-12-008** Per-pattern `target`/`relationshipToTarget` overrides on the regex fast-path (was a
+  fabricated `SELF`/`OTHER` on every match): violence-threat → `OTHER_CHILD` (stays in the urgent target set
+  {SELF,OTHER_CHILD} — relabeling ADULT/UNKNOWN would have *downgraded* a real threat), incest → `SIBLING`
+  (now hits the policy sibling branch). Files: `src/lib/safety/guard.ts` (+`guard.test.ts`, +4). **Behavioral
+  note:** a sibling-incest THOUGHT now routes `STUDENT_OPTIONAL_OUTREACH` (policy's do-not-notify-on-thought)
+  instead of emailing parents — the fail-safe direction + honors the policy design; abusive parent *actions*
+  are still caught by the caregiver hard-stop.
+- ✅ **Q-12-009** Data minimization for caregiver hard-stop flags (caregiver implicated OR disclosureRisk
+  HIGH): new pure helper `buildStoredFlagContent` redacts BOTH the message snippet and the content-bearing
+  reasoning, keeping only category/severity + the load-bearing `[EVIDENCE:]` tag (parsed by future pattern
+  escalation). `SafetyFlag` is org-readable, so a child's disclosure naming/fearing a caregiver is no longer
+  persisted where that caregiver could read it. Files: new `src/lib/safety/flag-storage.ts`
+  (+`flag-storage.test.ts`, +4), `src/inngest/functions/safety-scan.ts`. (App-layer half; a fully separate
+  access-restricted store stays a possible future enhancement, not tracked open.)
+- ✅ **Q-12-010** Durable dead-letter for a dropped safety-scan enqueue (was console.error only → the sole
+  safety signal permanently lost). New `PendingSafetyScan` table (migration 0018, RLS-scoped on `account_id`);
+  the chat route persists the scan on `inngest.send` failure; the org's **next chat request drains**
+  (re-enqueue + delete) under its own org context — RLS-clean, no privileged/cross-org background read
+  (owner-chosen drain strategy). Poison rows (≥10 failed re-enqueues) are left for review, never deleted.
+  Files: `prisma/schema.prisma`, `prisma/migrations/00000000000018_pending_safety_scans/`, new
+  `src/lib/safety/pending-scan.ts`, `src/app/api/chat/route.ts`.
+- ✅ **Q-12-011** Conversation context for the scanner (was single-message → multi-turn grooming invisible):
+  the chat route now sends a bounded window (≤10 prior turns) and the LLM deep-path classifies the latest
+  message *in that context* (fenced as data). Regex fast-path + the stored snippet stay single-message; the
+  window is not persisted. Files: `src/inngest/types.ts`, `src/app/api/chat/route.ts`,
+  `src/inngest/functions/safety-scan.ts`, `src/lib/safety/guard.ts` (+`guard.test.ts`, +2).
+- ✅ **Q-12-012** Prompt-injection fencing: the classifier prompt encloses the untrusted message in
+  delimiters + instructs the model to treat it strictly as DATA (a manipulation attempt → `BYPASS_ATTEMPT`);
+  the Thinkling system prompt labels the interpolated profile fields (name/interests/style) as data, not
+  instructions. Files: `src/lib/safety/guard.ts`, `src/lib/thinkling.ts` (+`guard.test.ts` +1, new
+  `thinkling.test.ts` +1).
+
+### Resolved — child-safety LOW
+- ✅ **Q-12-013** (b) `SafetyAssessment` now derived via `z.infer<typeof safetySchema>` (schema moved to
+  `types.ts`, kept free of the AI-SDK import so `policy.test.ts` stays hermetic) → the hand type can't drift
+  from what `generateObject` validates. (d) The regex `reasoning` is now a clean caregiver-facing per-category
+  sentence instead of the internal `[Regex Guard] Matched …` debug string that was leaking into the parent
+  email. Files: `src/lib/safety/types.ts`, `guard.ts` (+`guard.test.ts`, +2). (a)/(c) stay refuted in §7
+  (coercion by-design; `isSafe` is read at safety-scan.ts:80) — no change.
+
+### Resolved — non-safety LOW (owner-approved DO)
+- ✅ **Q-16-001** Wired the built-but-unlinked `/student/dashboard` per-student daily-schedule view into the
+  Sidebar nav ("Daily Schedule"). Also removed a pre-existing dead `Users` icon import. File:
+  `src/components/layout/Sidebar.tsx`.
+- ✅ **Q-10-010** (residual sub-claim 2) The 5 caller-supplied lineage FK ids on `generate-tool.tsx` are now
+  validated same-org (RLS-scoped existence check) before being persisted; non-matches are nulled, so a
+  crafted call can't write a cross-org/dangling lineage FK. Re-assessed benign under live RLS (read-back is
+  RLS-scoped) but closed cleanly per owner. File: `src/app/actions/generate-tool.tsx`.
+
+### Left as-is (owner-accepted, kept OPEN)
+- ⏳ **Q-01-004** lint warn-ratchet — deliberate adoption ratchet, new violations still fail CI. Unchanged.
+- ⏳ **Q-09-005** unbuilt media-context-injection hook — owner keeping it for a future build. Unchanged.
+
+### Reconcile (§4 partition)
+- **MED 5 → 0:** Q-12-008 / 009 / 010 / 011 / 012 all ✅ resolved.
+- **LOW 5 → 2:** Q-10-010, Q-12-013, Q-16-001 ✅ resolved; Q-01-004 + Q-09-005 remain (owner-accepted).
+- **HIGH unchanged at 1:** Q-12-007 stays ⏳ OPEN (Hybrid feature + legal `[DECISION]`, gated on sign-off).
+- **New open headline: 0 CRITICAL · 1 HIGH (Q-12-007) · 0 MED · 2 LOW (Q-01-004, Q-09-005).** Reconciles
+  across 00-INDEX glance, ch.24 §7 register, and owning-chapter §7 (ch.12 Q-12-008..013, ch.16 Q-16-001,
+  ch.10 Q-10-010).
+- **Doc-currency (not new findings):** ch.12 §5 had stale "free `String`" rows for SafetyFlag
+  severity/category/resolution → corrected to the enums shipped by migration 0016 (the Q-12-003/Q-013 typing
+  is already resolved). ch.12 §1 scope gained `flag-storage.ts` + `pending-scan.ts`; ch.02 model count 67 → 68
+  (`PendingSafetyScan`).
+
+---
+
+## Session 2026-06-23 (later) — Q-12-007 in-the-moment child-safety layer BUILT (owner sign-off)
+
+After the owner's written sign-off (verified crisis resources + bot-wording redline + Hybrid architecture +
+KEEP the mandated-reporting policy), built the Hybrid layer per `docs/codebase-map/Q-12-007-hybrid-safety-spec.md`.
+**TDD; CI green: tsc 0 / eslint 0-err / vitest 212/212 (30 files; +10 tests). Nothing pushed.**
+
+⚠️ **UI smoke-test owed (no browser/component test in CI):** the rendered affordance + parent review page are
+tsc/lint/test-verified for LOGIC only — manually exercise the child path (disclosure → affordance shows the
+verified resources) and the parent path (flag → `/safety` → mark reviewed) before relying on them. Re-verify the
+crisis resources periodically (the shape-lock test guards the core contacts; verify findahelpline.com before ship).
+
+### Resolved
+- ✅ **Q-12-007** [HIGH] — built the in-the-moment layer (closes the structural gap; legal `[DECISION]` signed off):
+  - **`crisis-resources.ts`** (NEW) — owner-approved verified set (US 988 / Childhelp / Crisis Text Line; Military
+    Crisis Line incl. OCONUS; Military OneSource; 911; findahelpline.com) + a category selector. +test.
+  - **Synchronous pre-check** — `precheckMessageSafety` (NEW `app/actions/safety-precheck.ts`): runs the pure regex
+    fast-path, returns only `{concern, category}` (patterns stay server-side; notifies no one). +test.
+  - **Child-facing affordance** — `CrisisHelp.tsx` (NEW): a calm, always-available "Need help now?" panel of the
+    verified resources; `ThinklingChat` fires the pre-check in parallel on submit and auto-opens it on a concern.
+  - **Bot-wording redline** — `thinkling.ts`: dropped the can't-always-keep "involve a trusted adult" promise
+    (points to the app's resources instead) + a HARD rule that the model NEVER invents hotline numbers. +test.
+  - **Parent SafetyFlag review UI** (NEW) — `/safety` page + `getSafetyFlags` query (org-scoped via the student
+    relation) + `markSafetyFlagReviewed` action (parent-gated, org-scoped `updateMany`, existing
+    `isResolved`/`resolvedAt` — NO schema) + `SafetyFlagList` + a Sidebar "Safety" link. Closes the "no SafetyFlag
+    UI reader" gap; respects the Q-12-009 write-time redaction.
+  - **Fail-safe:** the affordance/pre-check NOTIFY NO ONE (resources only) — cannot mis-notify a feared caregiver;
+    the caregiver hard-stop + `isAlertDeliverable` + the async detection pipeline are untouched.
+  - Out of scope (roadmap): streamed-OUTPUT scanning; T3-F eval-set / second classifier.
+
+### Reconcile (§4 partition)
+- **HIGH 1 → 0:** Q-12-007 ✅ resolved (built; UI smoke-test owed, like a deploy step).
+- **New open headline: 0 CRITICAL · 0 HIGH · 0 MED · 2 LOW (Q-01-004, Q-09-005 — owner-accepted).** The entire
+  findings program is now closed except those two by-design LOWs. Reconciles across 00-INDEX, ch.24 §7, ch.12 §7.
+- Doc-currency: ch.12 §1/§5 gained the crisis-resources / pre-check / affordance / review-UI units; the spec
+  `Q-12-007-hybrid-safety-spec.md` is marked BUILT.

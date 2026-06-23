@@ -148,6 +148,16 @@ The book pipeline already dedups extraction cross-org via the global `BookExtrac
 child-safety subsystem (ch.12). The app-layer, no-schema, no-legal subset was done in Session 24 (Q-12-003 ✅,
 Q-12-004 ✅, T1-E delivery-layer hard-stop). The rest is tracked as findings (ch.12 §7) and drives dedicated
 sessions. `[DECISION]` = legal/policy item needing the owner's written sign-off (do NOT implement unilaterally).
+
+> **2026-06-23 (later) — Phase 1 DONE.** The whole app-layer subset shipped (TDD, CI green, migration 0018
+> staged; see CHANGELOG): **Q-12-008 / 009 / 010 / 011 / 012 [MED] + Q-12-013 [LOW] all ✅ resolved.**
+> **Then Q-12-007 [HIGH] BUILT (2026-06-23, owner written sign-off)** — T1-D/F: the in-the-moment **Hybrid** layer
+> (sync regex pre-check → child-facing crisis affordance with verified resources + a parent SafetyFlag review UI at
+> `/safety`) and the **T2-D legal `[DECISION]`** resolved = KEEP "Minimum Social Responsibility" (no auto-authority-
+> report; the operator's personal mandated-reporter status = their own counsel's call). **The child-safety program
+> is now COMPLETE.** ⚠️ UI smoke-test owed (no browser test in CI). (T3-F eval-set / second-classifier remains a
+> roadmap item, not minted.)
+
 - **Tier 1 (before any child uses it):** T1-A = **Q-12-001** [HIGH] ✅ **done (Session 25)** — fail-open classifier
   now returns a review-needed (`INTERNAL_LOG_ONLY`) assessment, never `NO_ACTION`; **roadmap refinement:** let
   transient errors THROW so Inngest retries before falling closed (touches the ch.23 job — no `step.run` wrapper,
@@ -226,11 +236,39 @@ and many actions rely on hand-written org checks, the absence of tenancy tests i
 
 ## 7. Consolidated findings register
 
-0 CRITICAL · **1 HIGH** · **5 MED open** · **5 LOW open** · 44 INFO (chapter findings) + foundational findings
-from 02/04. Full evidence/impact for each is in the owning chapter's §7. *(The sole open HIGH is Q-12-007, ⏳ deferred —
-no in-the-moment child-safety layer; needs a feature + a legal `[DECISION]`. Foundational `Q-001` [HIGH] **✅ RESOLVED
-2026-06-23** — RLS cutover LIVE (see §5 + the 2026-06-23 CHANGELOG round). Open MED = Q-12-008/009/010/011/012; open
-LOW = Q-01-004, Q-09-005, Q-10-010, Q-12-013, Q-16-001 — all owner-accepted / kept-open by design.)*
+0 CRITICAL · **0 HIGH** · **0 MED open** · **2 LOW open** · 44 INFO (chapter findings) + foundational findings
+from 02/04. Full evidence/impact for each is in the owning chapter's §7. *(**The entire findings program is now
+complete except 2 owner-accepted LOWs.** Foundational `Q-001` [HIGH] **✅ RESOLVED 2026-06-23** — RLS cutover LIVE.
+**2026-06-23 (later): the child-safety hardening program shipped end-to-end** — Q-12-008/009/010/011/012 [MED] +
+Q-12-013 [LOW] (Phase 1) and **Q-12-007 [HIGH]** (the in-the-moment Hybrid layer, built after the owner's written
+legal sign-off), plus non-safety Q-10-010 + Q-16-001 [LOW]. Open HIGH = none; open MED = none; open LOW =
+Q-01-004, Q-09-005 — both owner-accepted / kept-open by design.)*
+
+> **Disposition note (2026-06-23 later / Q-12-007 BUILT — last open HIGH closed).** After the owner's written
+> sign-off (verified crisis resources + bot-wording redline + Hybrid architecture + KEEP the mandated-reporting
+> policy), built the in-the-moment layer per `Q-12-007-hybrid-safety-spec.md`: a synchronous regex pre-check
+> (`app/actions/safety-precheck.ts`) → child-facing **CrisisHelp** affordance (verified `lib/safety/crisis-resources.ts`);
+> the `thinkling.ts` wording redline (+ a no-invent-numbers rule); and a **parent SafetyFlag review UI** (`/safety`
+> + `getSafetyFlags`/`markSafetyFlagReviewed`, closing the "no SafetyFlag UI reader" gap) + a Sidebar link.
+> **Fail-safe:** the affordance NOTIFIES NO ONE (resources only). **HIGH 1 → 0.** ⚠️ UI smoke-test owed (no browser
+> test in CI; re-verify resources periodically). CI: tsc 0, eslint 0-err, vitest **212/212** (30 files, +10).
+> Nothing pushed. New headline: **0 CRITICAL · 0 HIGH · 0 MED · 2 LOW (owner-accepted).** See CHANGELOG.md.
+
+> **Disposition note (2026-06-23 later / child-safety Phase 1 + 2 non-safety LOWs):** kicked off the
+> child-safety hardening program (owner decisions: bounded hardening first / legal in parallel; Q-12-007 =
+> **Hybrid** architecture, **gated on written legal sign-off**; KEEP the reporting policy + add verified
+> non-US-inclusive crisis resources; DO Q-16-001/Q-10-010, LEAVE Q-09-005/Q-01-004). **Closed 8 findings**
+> (TDD, CI green, nothing pushed). **MED 5 → 0:** Q-12-008 (regex routing labels — violence→OTHER_CHILD stays
+> urgent, incest→SIBLING), Q-12-009 (redact snippet+reasoning for hard-stop flags, keep `[EVIDENCE:]` tag),
+> Q-12-010 (durable `PendingSafetyScan` dead-letter + drain-on-next-chat; **migration 0018** dry-run-validated
+> in BEGIN…ROLLBACK incl. app_user org-isolation, STAGED not pushed), Q-12-011 (bounded conversation context to
+> the LLM deep-path), Q-12-012 (prompt-injection fencing). **LOW 5 → 2:** Q-12-013 (z.infer + reasoning
+> audit/parent split), Q-10-010 (same-org lineage-FK check), Q-16-001 (Sidebar "Daily Schedule" link);
+> Q-01-004 + Q-09-005 left (owner-accepted). Partition: 8 in-scope → 8 closed; 0 unaccounted. **HIGH was 1 at this
+> point** (Q-12-007); it was **subsequently BUILT the same day → HIGH 1 → 0** (see the Q-12-007 note above). CI: tsc
+> 0, eslint 0-err, vitest **202/202** (+14 safety tests, 28 files); only migration 0018 staged. Doc-currency:
+> ch.12 §5 "free String" rows → enums (already shipped by 0016); ch.12 §1 + ch.02 gained the new safety files
+> + `PendingSafetyScan` model. See CHANGELOG.md round.
 
 > **Disposition note (2026-06-22, Session 34 / 17-MED):** all **3** OPEN ch.17 MED closed (owner-approved;
 > 3-skeptic adversarial Workflow — one per finding, each tasked to REFUTE the draft — all reproduce / FIX,
