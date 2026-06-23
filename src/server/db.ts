@@ -10,15 +10,39 @@ const RLS_ENABLED = ["true", "1", "yes", "on"].includes(
   (process.env.RLS_ENABLED ?? "").trim().toLowerCase(),
 );
 
+// Connection-string resolution — shared by the adapter AND the startup diagnostic so they can
+// never disagree. Accepts BOTH our manual name (DATABASE_URL) and the POOLED names the
+// Vercel↔Supabase integration injects (POSTGRES_URL / POSTGRES_PRISMA_URL) — same database,
+// different variable names. First non-empty wins; set DATABASE_URL to override the integration.
+const DB_CONNECTION: { source: string; url: string | undefined } = (() => {
+  if (process.env.DATABASE_URL) return { source: "DATABASE_URL", url: process.env.DATABASE_URL };
+  if (process.env.POSTGRES_URL) return { source: "POSTGRES_URL", url: process.env.POSTGRES_URL };
+  if (process.env.POSTGRES_PRISMA_URL) return { source: "POSTGRES_PRISMA_URL", url: process.env.POSTGRES_PRISMA_URL };
+  return { source: "NONE", url: undefined };
+})();
+
+// Supabase's pooler/direct certs are signed by a Supabase CA that isn't in Node's trust store, so
+// SSL cert verification must stay OFF (ssl.rejectUnauthorized=false below). A `sslmode=` param in
+// the connection string (the Vercel↔Supabase integration adds `sslmode=require`) overrides that and
+// re-enables verification → "Error opening a TLS connection: self-signed certificate in certificate
+// chain". Strip sslmode/ssl from the URL so the ssl option is the sole authority — SSL itself stays
+// ON because that option is truthy. (The old manual pooler URL worked precisely because it had no
+// sslmode param.)
+function withoutSslParams(url: string | undefined): string | undefined {
+  if (!url) return url;
+  try {
+    const u = new URL(url);
+    u.searchParams.delete("sslmode");
+    u.searchParams.delete("ssl");
+    return u.toString();
+  } catch {
+    return url; // not a parseable URL — leave it untouched
+  }
+}
+
 const createBaseClient = () => {
   const adapter = new PrismaPg({
-    // Accept BOTH our manual name (DATABASE_URL) and the POOLED names the Vercel↔Supabase
-    // integration injects (POSTGRES_URL / POSTGRES_PRISMA_URL) — same database, different variable
-    // names. `||` so a blank value falls through. Set DATABASE_URL to override the integration.
-    connectionString:
-      process.env.DATABASE_URL ||
-      process.env.POSTGRES_URL ||
-      process.env.POSTGRES_PRISMA_URL,
+    connectionString: withoutSslParams(DB_CONNECTION.url),
     ssl: { rejectUnauthorized: false },
   });
   return new PrismaClient({
@@ -29,12 +53,66 @@ const createBaseClient = () => {
 
 const globalForPrisma = globalThis as unknown as {
   prismaBase: PrismaClient | undefined;
+  dbDiagLogged: boolean | undefined;
 };
 
 // The un-extended client. `withTenant`, the per-query extension, and the tenant resolver all
 // build on this so they never recurse through the extension.
 const base = globalForPrisma.prismaBase ?? createBaseClient();
 if (process.env.NODE_ENV !== "production") globalForPrisma.prismaBase = base;
+
+// Parse a connection string to host/projectRef WITHOUT exposing the password.
+function describeDbUrl(url: string | undefined): Record<string, string | null> {
+  if (!url) return { error: "no connection string resolved (DATABASE_URL/POSTGRES_URL/POSTGRES_PRISMA_URL all empty)" };
+  try {
+    const u = new URL(url);
+    const userParts = decodeURIComponent(u.username).split("."); // pooler username = postgres.<projectRef>
+    return {
+      host: u.hostname,
+      port: u.port || null,
+      database: u.pathname.replace(/^\//, "") || null,
+      userRole: userParts[0] ?? null, // postgres | app_user
+      projectRef: userParts[1] ?? null, // Supabase project ref
+    };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : String(e) };
+  }
+}
+
+// TEMPORARY connection diagnostic — the replacement for the removed `/api/health`. Logs ONCE per
+// process (grep `[db-diag]` in Vercel logs): which env var the runtime actually used, which database
+// that resolves to (host/projectRef/current_database/current_user), and whether the global
+// extraction tables exist there — so a wrong-DB / env-mismatch is visible without an endpoint.
+// Fire-and-forget; never throws. REMOVE once the env wiring is confirmed.
+async function logDbDiagnostics(client: PrismaClient): Promise<void> {
+  console.log(
+    `[db-diag] source=${DB_CONNECTION.source}`,
+    "url:", describeDbUrl(DB_CONNECTION.url),
+    `RLS_ENABLED=${process.env.RLS_ENABLED ?? "null"}`,
+    `VERCEL_ENV=${process.env.VERCEL_ENV ?? "null"}`,
+    `commit=${(process.env.VERCEL_GIT_COMMIT_SHA ?? "").slice(0, 7) || "null"}`,
+  );
+  try {
+    const r = await client.$queryRaw<
+      { db: string; usr: string; ip: string | null }[]
+    >`SELECT current_database() AS db, current_user AS usr, host(inet_server_addr())::text AS ip`;
+    console.log("[db-diag] runtime:", r[0] ?? null);
+  } catch (e) {
+    console.error("[db-diag] runtime query failed:", e instanceof Error ? e.message : String(e));
+  }
+  const count = async (fn: () => Promise<number>) => {
+    try { return await fn(); } catch (e) { return `ERR: ${e instanceof Error ? e.message : String(e)}`; }
+  };
+  console.log("[db-diag] tablesVisible:", {
+    book_extractions: await count(() => client.bookExtraction.count()),
+    video_extractions: await count(() => client.videoExtraction.count()),
+  });
+}
+
+if (!globalForPrisma.dbDiagLogged) {
+  globalForPrisma.dbDiagLogged = true;
+  void logDbDiagnostics(base);
+}
 
 // Models whose RLS policies don't depend on the tenant GUC: auth tables (permissive — and
 // NextAuth's adapter writes them during sign-in, before any session exists) and global

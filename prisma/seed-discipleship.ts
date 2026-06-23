@@ -7,7 +7,7 @@ import path from 'path';
 
 // Create a Prisma client for seeding (Prisma 7 requires a driver adapter).
 const createPrismaClient = () => {
-    const connectionString = process.env.DIRECT_DATABASE_URL || process.env.DATABASE_URL;
+    const connectionString = process.env.DIRECT_DATABASE_URL || process.env.POSTGRES_URL_NON_POOLING || process.env.DATABASE_URL || process.env.POSTGRES_URL;
 
     if (!connectionString) {
         throw new Error("DATABASE_URL or DIRECT_DATABASE_URL environment variable is required");

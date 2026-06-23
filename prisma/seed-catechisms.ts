@@ -13,7 +13,7 @@ import youngChildren from "../src/data/catechisms/young_children";
 import matthewHenry from "../src/data/catechisms/matthew_henry";
 
 const createPrismaClient = () => {
-  const connectionString = process.env.DIRECT_DATABASE_URL || process.env.DATABASE_URL;
+  const connectionString = process.env.DIRECT_DATABASE_URL || process.env.POSTGRES_URL_NON_POOLING || process.env.DATABASE_URL || process.env.POSTGRES_URL;
   if (!connectionString) {
     throw new Error("DATABASE_URL or DIRECT_DATABASE_URL environment variable is required");
   }

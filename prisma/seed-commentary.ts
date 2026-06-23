@@ -10,7 +10,7 @@ const VOLUMES = ["MHC-V1", "MHC-V2", "MHC-V3", "MHC-V4", "MHC-V5", "MHC-V6"];
 const SOURCE = "matthew-henry";
 
 const createPrismaClient = () => {
-  const connectionString = process.env.DIRECT_DATABASE_URL || process.env.DATABASE_URL;
+  const connectionString = process.env.DIRECT_DATABASE_URL || process.env.POSTGRES_URL_NON_POOLING || process.env.DATABASE_URL || process.env.POSTGRES_URL;
   if (!connectionString) throw new Error("DATABASE_URL or DIRECT_DATABASE_URL environment variable is required");
   return new PrismaClient({ adapter: new PrismaPg({ connectionString, ssl: { rejectUnauthorized: false } }) });
 };
