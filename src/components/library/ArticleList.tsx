@@ -25,11 +25,9 @@ import {
 interface ArticleListProps {
     articles: any[];
     setArticles: (articles: any[]) => void;
-    organizationId: string;
-    userId: string;
 }
 
-export function ArticleList({ articles, setArticles, organizationId, userId }: ArticleListProps) {
+export function ArticleList({ articles, setArticles }: ArticleListProps) {
     const [open, setOpen] = useState(false);
     const [url, setUrl] = useState("");
     const [isProcessing, setIsProcessing] = useState(false);
@@ -40,7 +38,7 @@ export function ArticleList({ articles, setArticles, organizationId, userId }: A
         setIsProcessing(true);
         toast.info("Scraping article...");
         try {
-            const result = await addArticle(url, organizationId, userId);
+            const result = await addArticle(url);
             if (result.success && result.article) {
                 setArticles([result.article, ...articles]);
                 setOpen(false);

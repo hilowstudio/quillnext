@@ -348,9 +348,10 @@ export async function getBlueprintProgress(organizationId: string | null) {
   const hasSchedule =
     classroom.schoolYearStartDate && classroom.schoolYearEndDate;
 
-  // If schedule is done, we are effectively done with the wizard (Step 3 removed)
+  // Resume the 3-step wizard at the furthest incomplete step: once the schedule is
+  // saved, advance to step 3 (Environment, the optional final step); otherwise step 2.
   return {
-    step: hasSchedule ? 3 : 2, // 3 means "Done" in this context since we only have 2 steps
+    step: hasSchedule ? 3 : 2, // 3 = Environment (final step of the 3-step wizard); 2 = Schedule
     data: classroom,
   };
 }

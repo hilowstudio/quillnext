@@ -4,7 +4,7 @@ import { getCurrentUserOrg } from "@/lib/auth-helpers";
 export const dynamic = "force-dynamic";
 
 import { db } from "@/server/db";
-import { courseBlockSchema } from "@/lib/schemas/courses";
+import { courseBlockSchema, validateBlockNesting } from "@/lib/schemas/courses";
 
 export async function GET(
   request: NextRequest,
@@ -18,14 +18,18 @@ export async function GET(
 
   try {
     const { organizationId } = await getCurrentUserOrg();
+    if (!organizationId) {
+      return NextResponse.json({ error: "Course not found" }, { status: 404 });
+    }
     const courseId = params.id;
 
-    // Verify course exists and belongs to organization
-    const course = await db.course.findUnique({
-      where: { id: courseId },
+    // Verify course exists and belongs to organization (org filter in the query predicate,
+    // not a droppable post-fetch `!==`).
+    const course = await db.course.findFirst({
+      where: { id: courseId, organizationId },
     });
 
-    if (!course || course.organizationId !== organizationId) {
+    if (!course) {
       return NextResponse.json({ error: "Course not found" }, { status: 404 });
     }
 
@@ -79,15 +83,19 @@ export async function POST(
 
   try {
     const { organizationId } = await getCurrentUserOrg();
+    if (!organizationId) {
+      return NextResponse.json({ error: "Course not found" }, { status: 404 });
+    }
     const courseId = params.id;
     const body = await request.json();
 
-    // Verify course exists and belongs to organization
-    const course = await db.course.findUnique({
-      where: { id: courseId },
+    // Verify course exists and belongs to organization (org filter in the query predicate,
+    // not a droppable post-fetch `!==`).
+    const course = await db.course.findFirst({
+      where: { id: courseId, organizationId },
     });
 
-    if (!course || course.organizationId !== organizationId) {
+    if (!course) {
       return NextResponse.json({ error: "Course not found" }, { status: 404 });
     }
 
@@ -105,6 +113,12 @@ export async function POST(
           { error: "Parent block not found or doesn't belong to this course" },
           { status: 400 },
         );
+      }
+
+      // Enforce kind-nesting rules server-side (not browser-only)
+      const nesting = validateBlockNesting(validated.kind, parentBlock.kind);
+      if (!nesting.ok) {
+        return NextResponse.json({ error: nesting.error }, { status: 400 });
       }
     }
 

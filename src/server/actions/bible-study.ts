@@ -31,18 +31,6 @@ interface ESVPassageResponse {
     passages: string[];
 }
 
-interface ESVSearchResult {
-    reference: string;
-    content: string;
-}
-
-interface ESVSearchResponse {
-    page: number;
-    total_results: number;
-    total_pages: number;
-    results: ESVSearchResult[];
-}
-
 export interface CommentarySectionData {
     sectionIndex: number;
     title: string | null;
@@ -66,7 +54,6 @@ export interface CommentaryData {
 
 // --- Configuration ---
 const ESV_API_KEY = process.env.BIBLE_API_KEY;
-const MAX_SEARCH_RESULTS = 20;
 
 // --- Helper Functions ---
 
@@ -119,38 +106,9 @@ async function fetchFromESV(endpoint: string, params: Record<string, string>): P
 }
 
 // Validation schemas
-const searchBibleSchema = z.object({
-    query: z.string().min(2),
-    page: z.number().int().min(1).optional().default(1),
-});
-
 const getBiblePassageSchema = z.object({
     reference: z.string().min(3),
 });
-
-/**
- * Searches the Bible (ESV) for a given query string.
- */
-export async function searchBible(rawData: unknown) {
-    const data = searchBibleSchema.parse(rawData);
-
-    const session = await auth();
-    if (!session?.user) {
-        throw new StandardError(ERROR_CODES.AUTHORIZATION.UNAUTHORIZED, "Unauthorized", 401);
-    }
-
-    if (!data.query || data.query.length < 2) {
-        return { results: [], total_results: 0, total_pages: 0, page: 1 };
-    }
-
-    const responseData: ESVSearchResponse = await fetchFromESV("search", {
-        q: data.query,
-        "page-size": MAX_SEARCH_RESULTS.toString(),
-        page: data.page.toString()
-    });
-
-    return responseData;
-}
 
 /**
  * Fetches proper HTML content for a Bible passage from ESV API.

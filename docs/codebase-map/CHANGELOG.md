@@ -1616,3 +1616,1457 @@ The brief spans far beyond this session; mapped each Tier item to existing/new f
 - Updated in lockstep: ch.12 §3/§4/§5/§7, ch.02 (Q-013 note + §72 row), ch.24 (headline, safety status row, §5 roadmap
   brief, HIGH table + header, MED header/lineage/by-theme, LOW log), 00-INDEX glance. Partition: 2 in-scope MED → 2
   resolved; 7 new findings minted; 0 unaccounted; counts reconcile across §7 / ch.24 / 00-INDEX / this log.
+
+## Session 2026-06-20 (round 28) — Session 25: ch.12 HIGH findings (owner-approved)
+
+Source: the 2 OPEN HIGH in `12-safety.md §7` — **Q-12-001** (LLM deep-path fails OPEN) and **Q-12-007** (no
+in-the-moment child-facing safety layer). Re-verified each at its `file:line` (both reproduce). Ran a 3-lens
+adversarial Workflow per finding (6 agents, each reading the actual files) — **unanimous on both** and it
+overrode one part of the Q-12-001 draft. **CI green: `tsc --noEmit` 0 errors · `eslint` 0 errors / 666 warnings ·
+`vitest` 118/118 (21 files, +1 test).** `prisma/migrations/` untouched. Only `src/lib/safety/guard.ts` +
+`guard.test.ts` changed. Nothing pushed.
+
+### Resolved (1 HIGH)
+- ✅ **Q-12-001** [HIGH] — **LLM deep-path now FAILS CLOSED.** The catch (guard.ts:194-225) returned a fully-safe
+  assessment (`isSafe:true`/`SAFE`/`NONE`) on ANY error (Gemini outage, rate-limit, timeout, Zod parse failure) →
+  policy `NO_ACTION` → the job stored no flag, sent no alert, logged nothing unsafe (safety-scan.ts:80). Since the
+  regex fast-path covers only ~8 phrasings, most messages depend on the LLM, so a provider hiccup silently disabled
+  detection (fail-OPEN, the dangerous direction). **Fix (Option A):** the catch now returns `isSafe:false`,
+  `category:"OTHER"`, `severity:"TIER_3"`, `implicatedCaregiver:false`, `disclosureRisk:"LOW"`, reasoning
+  `"Scanner error - needs human review"` (guard.ts:211-224). Traced end-to-end this routes to `INTERNAL_LOG_ONLY`
+  (policy.ts:75): the job STORES a durable, DB-queryable flag (safety-scan.ts:84-100) instead of nothing, and it can
+  NEVER email a caregiver on an unclassified message — below BOTH the `PARENT_SUMMARY_*` email gate
+  (safety-scan.ts:103) and the delivery-layer `isAlertDeliverable` hard-stop, and excluded from pattern-escalation
+  (safety-scan.ts:34). `category:"OTHER"` is load-bearing (keeps it out of the urgent self-harm/violence branch,
+  policy.ts:50-54); `implicatedCaregiver`/`disclosureRisk` left at non-escalating defaults because they are
+  genuinely UNKNOWN on a scan error. +`guard.test.ts` (mock `generateObject` to throw → asserts isSafe:false,
+  `decideSafetyResolution`=`INTERNAL_LOG_ONLY`, never `PARENT_SUMMARY_*`). The 3-lens Workflow was unanimous
+  FIX_NOW / zero-regression and **overrode the dedicated-`NEEDS_HUMAN_REVIEW`-resolution alternative** (guard
+  returns a `SafetyAssessment`, not a `SafetyResolution`, so it would spill into policy.ts/the ch.23 job, AND the
+  novel string is absent from the escalation skip-list → would wrongly enter pattern-escalation; fragile).
+  `SafetyFlag.severity/category/resolution` are free `String` columns → no migration. Satisfies the brief's T1-A.
+  Files: `src/lib/safety/guard.ts`, `+guard.test.ts`.
+  - **Deferred refinement (roadmap, NOT this session):** let transient (non-Zod) errors THROW so Inngest retries the
+    scan before falling closed — touches the ch.23 job (no `step.run` wrapper → a throw re-runs the whole function →
+    double-flag risk) and changes failure semantics; fall-closed stays the terminal behavior. Recorded in ch.24 §5.
+
+### Deferred — kept OPEN/HIGH (1 HIGH)
+- ⏳ **Q-12-007** [HIGH] — **no in-the-moment child-facing safety layer.** Re-verified: all four cited sites
+  reproduce (async/post-hoc pipeline route.ts:71/:86-93; 4 inert resolutions safety-scan.ts:108-110; **no SafetyFlag
+  UI reader anywhere** — re-verified by grep; the only in-the-moment layer is the bypassable Thinkling prompt,
+  thinkling.ts:53-63). The 3-lens Workflow was **unanimous DEFER / keep OPEN/HIGH / no re-grade**: every structural
+  part (synchronous pre-check, streamed-output scan, child-facing resolution channel + its missing SafetyFlag UI,
+  persistent crisis affordance / CA SB 243) is a multi-file FEATURE build and/or carries the legal **T2-D
+  `[DECISION]`** (mandated-reporting + verified crisis resources) — beyond a resolution session's bounds (SKILL §9.3).
+  HIGH stays correct (the system fails SAFE — the caregiver hard-stop is enforced redundantly in policy.ts:27 +
+  safety-scan.ts:36 — so the worst case is under-protection, never mis-notification). **Owner chose LEAVE-AS-IS** on
+  the two app-layer sub-items (tracked under Q-12-007, not dropped): (1) bot-promise wording (thinkling.ts:58, hedged
+  + home-harm carve-out :59 → acceptable-by-design; a unilateral reword could deter disclosure); (2) undelivered
+  helplines (policy.ts:29 promises help lines that no code emits — rests on the bypassable prompt). Both close only
+  once a real child-facing channel + verified crisis resources exist (the deferred feature). The "classifier outage →
+  zero post-hoc signal" half is now CLOSED by Q-12-001; the "zero in-the-moment signal" half remains. Stays on the
+  ch.24 §5 child-safety hardening roadmap.
+
+### Reconcile (§4 partition)
+- 2 in-scope HIGH → **1 resolved (Q-12-001) · 1 deferred-kept-open (Q-12-007)**; 0 unaccounted.
+- **HIGH:** 8 − 1 (Q-12-001 resolved) = **7 open** (Q-12-007 deferred ≠ closed, stays counted). **MED 27 · LOW 40 ·
+  total 77** unchanged. No new findings / re-grades.
+- Updated in lockstep: ch.12 §3 (deep-path note) / §5 (status row) / §7 (Q-12-001 resolved + Q-12-007 deferred note +
+  Q-12-004 residual ref + brief T1-A line), ch.24 (headline 8→7, HIGH header + lineage, HIGH table both rows, §5
+  roadmap "fail closed" + Tier-1 T1-A + MED by-theme companion note, new Session-25 reconcile note), 00-INDEX glance
+  (8→7 + child-safety line). Counts reconcile across ch.12 §7 / ch.24 / 00-INDEX / this log.
+- **ch.12 now LOW (S23) + MED (S24) + HIGH (S25) all triaged**: Q-12-001 ✅ resolved; Q-12-007 ⏳ deferred/OPEN
+  (roadmap); the 5 MED (Q-12-008/009/010/011/012) + LOW Q-12-013 from the Session-24 brief remain for their own
+  grade sessions.
+
+---
+
+## Session 2026-06-21 (round 29) — Session 26: ch.13 LOW findings (owner-approved)
+
+Source: the 4 OPEN LOW in `13-oer-sources-corpus.md §7` (Q-13-001/002/005/007). All re-verified at their cited
+`file:line` (reproduce). A 4-skeptic adversarial Workflow (one per finding, each tasked to REFUTE the draft)
+confirmed 3 and **overrode Q-13-005** (the draft's token-scrape warn would false-alarm + miss the real failure).
+Owner approved all 4. These are pure fetch/parse adapters — **no DB queries, no tenancy in scope.** CI green:
+`tsc --noEmit` **0**, `eslint` **0 errors / 666 warnings** (unchanged), `vitest` **130/130 across 22 files**
+(+1 file / +12 tests — the sources layer's first test). `prisma/migrations/` untouched.
+
+### Removed (1 LOW)
+- ✅ **Q-13-001** [LOW] — deleted the dead single-hit convenience wrappers `discoverFullText` + `findFullText`
+  (registry.ts) plus the now-orphaned `BookTextResult` interface (its ONLY consumer was `findFullText`; grep
+  confirmed zero importers repo-wide — scripts/ + tests clean). **Dead-as-superseded, not unfinished:** the
+  all-hits + fetch-fallback design (`discoverAllFullText`/`fetchFirstAvailable`) deliberately replaced the
+  single-hit path. Reworded the file header, the `SOURCES`/`discoverAllFullText`/`fetchFullText` comments, and
+  ch.13 §3's entry-point list to the live API. The live worker path is untouched (it never used the wrappers).
+  Files: `src/lib/sources/registry.ts`.
+
+### Resolved (2 LOW)
+- ✅ **Q-13-002** [LOW] — converged `gutenberg.ts` onto the shared `./matching` helpers: deleted its private
+  `normalize`/`authorLastName`/`BROWSER_UA` copies + bespoke `scoreMatch`; now imports `normalize`,
+  `authorLastName`, `BROWSER_UA`, `scoreTitleAuthor`. `scoreMatch` is a thin adapter that pulls the Gutendex
+  title/author strings and delegates to `scoreTitleAuthor` — **logic byte-for-byte identical** (containment
+  floor, author-surname reject, score formula all match; adversarially verified). The Gutendex-specific edition
+  ranking (`hasUtf8Text` + `download_count`) was never in `scoreMatch` — it stays local in `findOnGutenberg`
+  (gutenberg.ts:197), untouched. Added the **sources layer's first unit test** `matching.test.ts` (12 cases)
+  shape-locking the shared matcher's invariants. Corrected the false `matching.ts` header that listed gutenberg
+  as a consumer (now accurate — all 6 by-title adapters). Files: `src/lib/sources/gutenberg.ts`,
+  `src/lib/sources/matching.ts`, `+src/lib/sources/matching.test.ts`.
+- ✅ **Q-13-005** [LOW] (re-graded INFO→LOW 2026-06-19) — made the LibreTexts deki-token silent coverage cliff
+  diagnosable: a `console.error` at `assembleLibreTextsSections`'s `!tree?.page` early-return, naming the bookID
+  and the token/markup/network cause. **The adversarial pass OVERRODE the draft's `libraryToken` warn:** a
+  token-scrape regex-miss is *benign* for the libraries that serve the deki API anonymously (libretexts.ts:16-17),
+  so warning there false-alarms every cache-TTL AND misses downstream API/expiry 403s; the book-level log captures
+  all causes and fires once per failed book. LibreTexts is corpus-only (NO registry fallthrough), so this is the
+  consequential cliff. Used `console.error` (the file's logging style). "Harden the deki-token scrape" left as a
+  low-value future item (the token is defensive insurance; anonymous calls often succeed). Files:
+  `src/lib/sources/libretexts.ts`.
+
+### Accepted — correct-by-design, closes (1 LOW)
+- ✅ **Q-13-007** [LOW] — the fail-safe null IS the appropriate guard for HTML/DOM scraping (Zod doesn't apply to
+  cheerio parsing; "a wrong full text is worse than none" is the deliberate posture). The adversarial pass checked
+  the JSON endpoints (gutendex, libretexts catalog, openstax CMS, deki tree/contents) and confirmed conservative
+  `typeof`-guarded extraction — **no unguarded JSON trust-boundary** hiding here. The three by-title scrapers
+  (standard-ebooks/siyavula/wikisource) have registry-fallthrough masking their silent failures; the one
+  consequential no-fallback cliff (LibreTexts, corpus-only) is now logged via Q-13-005. Nothing actionable beyond
+  observability remains → closed. No code change.
+
+### Reconcile (§4 partition)
+- 4 in-scope LOW → **1 removed (Q-13-001) · 2 resolved (Q-13-002, Q-13-005) · 1 accepted (Q-13-007)**; 0 unaccounted.
+- **LOW:** 40 − 4 = **36 open** (total 77 unchanged — no new findings / re-grades / deferrals). **MED 27 · HIGH 7**
+  unchanged. No out-of-chapter sibling (the matching/registry/libretexts symbols appear only in ch.13 among the
+  codebase-map docs; the ch.07 grep hit was a Siyavula output-format reference, not a finding).
+- Updated in lockstep: ch.13 §3 (entry-points + Matching paragraph) / §4 (line refs registry.ts:142/167/189) / §5
+  (status rows: wrappers REMOVED, matching-helpers consumer list) / §6 (no-DEAD note) / §7 (all 4 closed), ch.24
+  (OER chapter-status row, LOW header 40→36, LOW prose-log Session-26 sentence), 00-INDEX glance (40→36 LOW). Counts
+  reconcile across ch.13 §7 / ch.24 / 00-INDEX / this log.
+- **ch.13 fully triaged** (LOW S26; no MED/HIGH).
+
+---
+
+## Session 2026-06-21 (round 30) — Session 27: ch.14 LOW findings (owner-approved)
+
+Source: the 2 OPEN LOW in `14-living-library.md §7` (Q-14-007, Q-14-008). Both re-verified at their cited
+`file:line` (reproduce). A 2-skeptic adversarial Workflow (one per finding, each tasked to REFUTE the draft)
+returned **reproduces ✓ / recommendation sound ✓ / confidence high** on both, and sharpened the Q-14-008
+rationale (the `router.refresh()`-bypasses-the-cache hedge is FALSE). Owner approved both. CI green:
+`tsc --noEmit` **0**, `eslint` **0 errors / 665 warnings** (down 1 — the deleted GET handler carried the
+unused-`userId` warning), `vitest` **130/130 across 22 files** (unchanged — these are server-route `where`/
+cache changes with no DB in the harness, so no unit test is feasible, matching the area). `prisma/migrations/`
+untouched. 2 files M (`src/app/api/library/books/route.ts`, `src/app/api/library/videos/route.ts`).
+
+### Resolved (2 LOW)
+- ✅ **Q-14-007** [LOW] — deleted the dead `GET /api/library/books` handler. Exhaustive grep (incl.
+  template-string / base+path URL forms, tests) found zero callers: the only root-path caller is
+  `BookScanner.tsx:209` (method POST), the catalog reads books via the `getLibraryResources` server action,
+  and `ExtractBookButton.tsx:34` hits the separate `/[id]/extract` route. Deleting the handler also removed
+  the unused GET-scoped `userId`. The live `POST` is untouched; no import orphaned (`db` is still used by
+  POST's subject/strand lookups). Deleting the whole handler (vs. trimming just the var) is right-sized — it
+  removes an unmaintained list endpoint that would silently drift from the canonical read path. File:
+  `src/app/api/library/books/route.ts`.
+- ✅ **Q-14-008** [LOW] — the book + video CREATE routes now call `revalidateTag(`library-${organizationId}`, {})`
+  immediately after the create (books/route.ts:83, videos/route.ts:132), matching `addArticle`/`addDocuments`/
+  delete* and the extract routes; the cached `/living-library` catalog busts on add instead of staying stale to
+  the 1h TTL. **revalidateTag-only** (NOT revalidatePath — addArticle/addDocuments use only revalidateTag, and
+  Q-14-003 flags `revalidatePath("/library")` as a dead no-op). **Crux (corrected the finding):** the original
+  hedge that `router.refresh()` "happens to bypass the cache" is FALSE — `router.refresh()` clears the client
+  Router Cache and re-runs the RSC, but `getLibraryResources` returns the still-memoized `unstable_cache` Data
+  Cache value until the tag is revalidated or the 1h TTL expires (Data Cache ⊥ Router Cache), so `revalidateTag`
+  is the ONLY real fix. Adversarial-pass nuance recorded in §7: the BOOK path is the clear beneficiary
+  (`BookScanner` redirects to the detail page, no extract); the VIDEO path was partly masked because an
+  EXTRACTED extract already revalidated — the create-route call closes the stuck-`EXTRACTING` gap. The
+  standalone `/living-library/videos` page reads uncached `getLibraryVideos`, so only the catalog Videos tab was
+  affected. Files: `src/app/api/library/books/route.ts`, `src/app/api/library/videos/route.ts`.
+
+### Reconcile (§4 partition)
+- 2 in-scope LOW → **2 resolved (Q-14-007, Q-14-008)**; 0 unaccounted. No new findings / re-grades / deferrals.
+- **LOW:** 36 − 2 = **34 open** (total 77 unchanged). **MED 27 · HIGH 7** unchanged.
+- No out-of-chapter sibling *finding* closed (ch.17's `ResourcePicker`-passes-courseId-as-orgId bug and ch.23's
+  revalidateTag-from-an-Inngest-worker concern touch related symbols but are distinct, still-open findings).
+- Consequential doc-currency (code-is-truth, not new findings): the GET deletion (−23 lines) and the two
+  `revalidateTag` imports shifted line numbers — refreshed ch.14 §1/§4/§5/§7 (incl. the still-open MED Q-14-006's
+  own cites `books/route.ts:31→:9`, `videos/route.ts:32→:33`), ch.15 §5 (`generateBookEmbedding`
+  `books/route.ts:112→:95`), and ch.23 §5 (`isYouTubeUrl` usage `videos/route.ts:49→:50`). Updated in lockstep:
+  ch.24 (LOW header 36→34, LOW prose-log Session-27 sentence) + 00-INDEX glance (36→34 LOW). Counts reconcile
+  across ch.14 §7 / ch.24 / 00-INDEX / this log.
+- **ch.14 LOW done** (MED Q-14-002/003/005/006 + HIGH Q-14-001/004 remain — the 2 HIGH are part of the "HIGH 7"
+  tenancy/IDOR cluster, do with extra care).
+
+---
+
+## Session 2026-06-21 (round 31) — Session 28: ch.14 MED findings (owner-approved)
+
+Source: the 4 OPEN MED in `14-living-library.md §7` (Q-14-002, Q-14-003, Q-14-005, Q-14-006). All re-verified
+at their cited `file:line` (reproduce). A 4-skeptic adversarial Workflow (one per finding, each tasked to REFUTE
+the draft) returned **reproduces ✓ / draft sound ✓** on all four, found **zero regressions**, and **sharpened
+Q-14-005** (graded it a true HIGH cross-tenant write IDOR). Owner approved all 4 core fixes + (forks) adding the
+parent gate to `addArticle`/`addDocuments` and fixing a discovered sibling `/resources` no-op. CI green:
+`tsc --noEmit` **0**, `eslint` **0 errors / 664 warnings** (down 1 — the deleted dead scan route), `vitest`
+**130/130 across 22 files** (unchanged — server-route/action Prisma+guard changes with no DB in the harness, so
+no unit test is feasible, matching the area). `prisma/migrations/` untouched. 11 source paths touched (1 D + 10 M);
+also cleared stale `.next/types` generated route-types (gitignored build artifact) that still referenced the
+deleted route — same class as the Session-8 stale-cache wipe, not a code issue.
+
+### Removed (1 MED)
+- ✅ **Q-14-002** [MED] — `git rm src/app/api/library/scan/route.ts`. Dead route (`POST /api/library/scan`,
+  ISBN→Google Books): zero callers across all reference forms — only `/api/library/scan/vision` is used
+  (`BookScanner.tsx:178`), ISBN lookup goes through the `lookupBook` server action (which has an OpenLibrary
+  fallback the dead route lacked). Orphaned nothing; the sibling `scan/vision/route.ts` + `living-library/scan/page.tsx`
+  are unrelated and untouched. Same class as Q-14-007 (S27) / Q-03-001.
+
+### Resolved (3 MED)
+- ✅ **Q-14-003** [MED] — broken nav to the removed `/library` route. (a) `ResourceList.tsx:41`
+  `/library`→`/living-library` (verified: `?tab=resources` + the **uncached** searchParams-driven
+  `resource.findMany` in `page.tsx:48-105` render the filtered Resources tab — the page is dynamic, no stale Data
+  Cache masks it). (b) Deleted the 2 dead `revalidatePath("/library")` lines from the extract routes
+  (`books/[id]/extract/route.ts`, `videos/[id]/extract/route.ts`) — each already has `revalidateTag` +
+  `revalidatePath("/living-library")` directly above, so no real invalidation is lost (consistent with the
+  Q-14-008 precedent that `/library` is a dead no-op). (c) The adversarial pass surfaced a sibling dead no-op —
+  `deleteResource` (`resource-library-actions.ts:407`) called `revalidatePath("/resources")` but there is no
+  `/resources` route → DELETED (owner-approved; consequential cleanup, not a new finding; `deleteResource` still
+  revalidates `/living-library` + the tag).
+- ✅ **Q-14-005** [MED] — cross-tenant WRITE IDOR. `addArticle(url)`/`addDocuments(formData)` now DERIVE
+  `{organizationId,userId}` server-side via `getCurrentUserOrg()` (+ a null-org guard) instead of trusting the
+  client-passed args; the `organizationId`/`userId` params were DROPPED from both signatures and the call
+  sites + props cleaned up (`ArticleList`/`DocumentList` interfaces+destructures+calls; `LibraryClient` +
+  `page.tsx` `userId` prop removed end-to-end; `BookList`'s own `organizationId` prop unaffected). `withTenant`
+  still stamps `{organizationId, userId:null}`; `addedByUserId` uses the derived `userId`. **Owner-approved
+  add-on:** also added `auth()` + `assertParentProfile()` to both actions (uniform with the 4 API routes +
+  `deleteResource`), so a STUDENT profile on the shared family login can't add articles/documents either.
+  **Severity:** the adversarial pass graded this a true HIGH (authenticated cross-tenant write — also injected
+  into another tenant's Firebase `documents/{org}/` namespace + Inngest job payload); since it is fix-and-CLOSED
+  this session the re-grade is **moot** (recorded for honesty; MED count decrements). Files:
+  `src/app/actions/resource-library-actions.ts`, `ArticleList.tsx`, `DocumentList.tsx`, `LibraryClient.tsx`, `page.tsx`.
+- ✅ **Q-14-006** [MED] — added `assertParentProfile()` to all 4 create/extract API routes
+  (`books/route.ts:19`, `videos/route.ts:43`, `books/[id]/extract/route.ts:47`, `videos/[id]/extract/route.ts:46`),
+  **wrapped in try/catch → a clean 403** (the POST bodies have no outer try/catch, so a bare throw would 500).
+  Verified regression-free: no student-learning flow calls them (`profile-access.test.ts` asserts STUDENT is
+  blocked from `/living-library` + `/videos`; the only student-reachable library page is the read-only
+  `resource/[id]`); the guard works in route handlers (precedent `blocks/[blockId]/route.ts:216`); the
+  book-detail self-heal updates the DB directly in the RSC (`[id]/page.tsx:83-104`), NOT via the extract route.
+  Files: the 4 API routes (POST only — the videos `GET` list-read stays open).
+
+### Reconcile (§4 partition)
+- 4 in-scope MED → **4 closed (1 removed: Q-14-002; 3 resolved: Q-14-003/005/006)**; 0 unaccounted. No new
+  findings / re-grades / deferrals.
+- **MED:** 27 − 4 = **23 open**. **HIGH 7 · LOW 34** unchanged. Confirmed (Session-19 presence rule) all 4 ch.14
+  MED were in ch.24's by-theme tally before decrementing — Q-14-005/006 under "Tenancy/authz drift",
+  Q-14-002/003 under "Dead code / duplication / drift".
+- No out-of-chapter sibling *finding* closed. Consequential doc-currency (code-is-truth, not new findings): the
+  parent-gate inserts (+9 lines each in books/videos routes & both extract routes) and the `addArticle`/`addDocuments`
+  signature edits shifted line numbers cited by other chapters — refreshed **ch.13** §dedup-flow + §5
+  (`computeDedupKey` `extract/route.ts:77→:86`), **ch.15** §5 (`generateBookEmbedding` `books/route.ts:95→:104`,
+  `extract/route.ts:109→:118`), **ch.23** §4 + §5 (`processDocument` producer `resource-library-actions.ts:295→:327`;
+  `extractBook` producer `books/[id]/extract/route.ts:180→:188`; `extractVideo` `videos/[id]/extract/route.ts:153→:161`;
+  `isYouTubeUrl`/`extractYouTubeVideoId` `videos/route.ts:7→:8`, `:50→:59`). Updated in lockstep: ch.14 §1/§3/§4/§5/§6/§7,
+  ch.24 (headline 27→23, MED by-theme header + lineage + 2 struck entries + Session-28 disposition note + chapter-status
+  row + roadmap line), 00-INDEX glance (27→23 MED). Counts reconcile across ch.14 §7 / ch.24 / 00-INDEX / this log.
+- **ch.14 now LOW+MED done** (LOW S27 / MED S28). HIGH Q-14-001 (dead cross-org vector-scan route) + Q-14-004
+  (untyped `where` from raw searchParams) remain — part of the "HIGH 7" tenancy/IDOR cluster; do with extra care.
+
+---
+
+## Session 2026-06-21 (round 32) — Session 29: ch.14 HIGH findings (owner-approved)
+
+Source: the 2 OPEN HIGH in `14-living-library.md §7` (Q-14-001, Q-14-004). Both re-verified at their cited
+`file:line` (reproduce). A 2-finding adversarial Workflow (one skeptic per finding, each tasked to REFUTE the
+recommendation) returned **reproduces ✓ / recommendation sound ✓ / high-confidence** on both and sharpened both.
+The session also became a short **product-design conversation**: the owner explained the community-extraction-library
+vision (book semantic search → "pre-extracted ✓" indicator + cross-edition content dedup), establishing that book
+semantic search is roadmap-real but the code under the finding was the WRONG scope for it (per-org `books` cosine, not
+the global community corpus). Owner chose to **delete the wrong-scoped code now and build the feature fresh later**, and
+to **capture the vision as a roadmap item + mint any warranted finding**. CI green: `tsc --noEmit` **0** (after
+`rm -rf .next/types .next/dev/types` to clear the stale generated route-types the deleted route left behind — the
+recurring route-deletion gotcha), `eslint` **0 errors / 663 warnings** (down 1 — the removed `where: any`), `vitest`
+**130/130 across 22 files** (unchanged — a route deletion + a dead-function deletion + a Prisma `where` typing, no DB in
+the harness so no unit test is feasible, matching the area). `prisma/migrations/` untouched. 3 source paths (1 D + 2 M).
+
+### Resolved (2 HIGH)
+- ✅ **Q-14-001** [HIGH] — `git rm src/app/api/library/search/route.ts`. The route was DEAD (zero callers —
+  exhaustive grep over every `/api/library/*` fetch in `src/`) AND a cross-org abuse surface: reachable by ANY
+  authenticated user, each call ran `searchBooks` (an unscoped pgvector cosine scan over ALL orgs' `books` — its raw
+  SQL has no `account_id` predicate and `withTenant` is a no-op with RLS off, `db.ts:106-110`) + a per-request
+  embedding API call, then post-filtered by org. Deleting eliminated both. The adversarial verifier confirmed HIGH is
+  defensible (routable + unscoped scan + paid embedding), the route is genuinely dead, and deletion is tsc-safe
+  (nothing imports the route file). **Orphan tail (owner fork → DELETE):** `searchBooks` (`src/lib/utils/vector.ts`)
+  was the route's sole consumer, so the deletion orphaned it → **also deleted**, closing the sibling **ch.15 Q-15-001**
+  [MED] resolved-by-removal. Owner chose delete-not-patch because the planned community search targets the GLOBAL
+  `BookExtraction` corpus, not the per-org `books` table this primitive searched (the parallel video path
+  `searchVideos`/`generateVideoEmbedding` is likewise built-but-dead, Q-15-002/003). `findSimilarBooks` (the other
+  wired vector fn, live at `living-library/[id]/page.tsx:121`) is unaffected — no other vector.ts import orphaned.
+- ✅ **Q-14-004** [HIGH] — typed the generated-resources catalog `where` as `Prisma.ResourceWhereInput` (was
+  `where: any`) + coerced all 4 `searchParams` (`studentId`/`courseId`/`bookId`/`toolType`) to a single string via
+  `firstParam(v) = Array.isArray(v)?v[0]:v` (`living-library/page.tsx:48-64`), so a crafted `?studentId=a&studentId=b`
+  array can no longer flow into a scalar Prisma field and throw a validation error → 500. **No leak ever existed** —
+  `organizationId` is unconditionally in the `where`; the adversarial verifier confirmed HIGH was over-graded (really
+  MED/LOW input-validation: Prisma parameterizes, `toolType` is value-equality, a cross-org `courseId`/`bookId` just
+  ANDs to zero rows), but the cheap fix CLOSES it so the re-grade is **moot** (recorded here for honesty; this
+  decrements the HIGH count, not MED/LOW). **Verifier sharpening:** with the typed `where`, coercion is MANDATORY not
+  optional (`string|string[]` won't assign to the scalar field types) → type + coerce are coupled and must cover all 4
+  params. Both producers (`ResourceList.tsx`, `LibraryClient.tsx`) use single-value `<select>`s via `URLSearchParams.set`,
+  so coercion is behavior-preserving.
+
+### Minted (1 LOW) + roadmap
+- 🆕 **Q-13-009** [LOW] (ch.13) — **cross-org extraction dedup fragments across editions of the same work.**
+  `computeDedupKey` (`book-dedup.ts:150`) prefers ISBN-13, so different printings/editions of the same content (e.g.
+  two ISBNs of *1984*) get DISTINCT dedup keys → separate global `BookExtraction` rows → both orgs pay the LLM
+  extraction of identical content + the shared corpus fragments (defeats "extract once, everyone benefits"). No
+  correctness/tenancy bug; bounded to cross-edition collisions; the proper fix is a content-fingerprint feature → LOW.
+  Verified at `book-dedup.ts:150-157` before minting (per §9.3 — read the file, don't mint on say-so).
+- 🛣 **Roadmap (ch.24 §5):** added "**Community extraction library — semantic search + cross-edition dedup**" — the
+  "pre-extracted ✓" indicator in find-a-book-to-add + the fingerprint dedup (Q-13-009), explicitly noting the deleted
+  route/`searchBooks` was the WRONG scope so the real build is fresh against the global corpus, and that the video
+  semantic-search path (Q-15-002/003) is the same family. Flagged as a multi-file feature (out of a resolution
+  session's scope).
+
+### Reconcile (§4 partition)
+- 2 in-scope HIGH → **2 resolved**; 0 unaccounted. **HIGH: 7 − 2 = 5 open.** Out-of-chapter sibling: **ch.15 Q-15-001
+  [MED] ✅ resolved-by-removal** (orphan tail of the Q-14-001 deletion) → **MED: 23 − 1 = 22 open** (count moves in the
+  owning chapter, ch.15/ch.24). Minted **Q-13-009** [LOW] → **LOW: 34 → 35 open / 77 → 78 total.**
+- Counts reconcile across ch.14 §7 / ch.15 §7 / ch.13 §7 / ch.24 (HIGH header + by-theme table + MED header + by-theme
+  + lineage + Workstream-B list + both dashboard rows + LOW running log/count) / 00-INDEX glance. `prisma/` untouched.
+- Consequential doc-currency (code-is-truth, not new findings): ch.15 §1 vector.ts line count 563→**537** (searchBooks
+  removed); ch.15 §2/§3/§4/§5/§6 de-listed `searchBooks` + the dead search route; ch.14 §1/§5/§6 de-listed the route +
+  `searchBooks`; ch.13 + ch.14 dashboard rows updated; ch.13 is **no longer "fully triaged"** (1 new OPEN LOW Q-13-009).
+- **ch.14 now FULLY TRIAGED** (LOW S27 / MED S28 / HIGH S29).
+
+## Session 2026-06-22 (round 33) — Session 30: ch.15 LOW findings (owner-approved)
+
+Source: the 4 OPEN LOW in `15-vector-rag-caching.md §7` (Q-15-002/003/004/005). All re-verified at their cited
+`file:line` against CURRENT code (vector.ts had drifted — the S29 `searchBooks` removal shifted the cited line ranges
+up). A 4-skeptic adversarial Workflow (one per finding, each tasked to REFUTE the draft) returned **reproduces ✓ /
+high-confidence** on all four and **overrode 2 of my drafts toward REMOVE** (the video pair — I had leaned
+present-as-owner-fork-with-a-keep-lean; the skeptics argued it is the same built-but-unwired family as the S29
+`searchBooks`). Owner ratified the fork: **delete the video pair, delete cache.ts, accept the N+1.** CI green:
+`tsc --noEmit` **0**, `eslint` **0 errors / 661 warnings** (down 2 — the deleted code carried ~2 `any` warnings; no
+`.next/types` wipe needed since no ROUTE file was deleted), `vitest` **130/130 across 22 files** (unchanged —
+dead-code removals + a won't-fix; the touched code has no DB in the harness). `prisma/migrations/` untouched. 3 source
+paths (1 D + 2 M: `git rm src/lib/cache.ts`; `src/lib/utils/vector.ts` lost the two functions + 3 reworded comments).
+
+### Removed (3 LOW)
+- ✅ **Q-15-002** [LOW] — deleted `searchVideos` from `src/lib/utils/vector.ts` (was `:150-182`; doc cited stale
+  `:176-208`). DEAD: zero importers across 5 vectors (named/dynamic/string/barrel/test), no UI/route/action consumer.
+  Per-org video semantic search (cosine over the GLOBAL `video_extraction_chunks`, JOINed back to the org's own
+  `video_resources` via `vr.account_id`) — the video twin of the S29 `searchBooks` deletion (same built-but-unwired
+  family). Functional-if-wired (the chunk table IS populated by the live `embedVideoChunks`), but nothing wired it and
+  no roadmap item names a per-org video search → owner chose delete (mirror S29), not keep-as-unfinished. Build-safe
+  (tsc 0 before+after; its only in-file mention was prose in `retrieveBookChunks`'s JSDoc, reworded).
+- ✅ **Q-15-003** [LOW] — deleted `generateVideoEmbedding` from `vector.ts` (was `:369-393`; doc cited stale
+  `:395-419`). Independently the more-clearly-dead of the pair: zero callers AND its only side effect wrote
+  `video_resources.embedding`, a column NOTHING reads (verified — the only `<=>` reads are over the chunk tables; only
+  `config.ts:97` even mentions the column, in a comment). **Corrected a wrong doc claim:** Q-15-003's original impact
+  said `searchVideos` depended on this summary vector — it did NOT (`searchVideos` read
+  `video_extraction_chunks.embedding`), so the summary-vector path was inert at both ends, independent of `searchVideos`.
+  Also de-listed `video_resources` from the vector.ts header comment (the file no longer touches that org-scoped table).
+- ✅ **Q-15-004** [LOW] — `git rm src/lib/cache.ts` (whole file: `withCache` + `CACHE_TAGS` + `CACHE_REVALIDATE`).
+  SUPERSEDED dead scaffold: zero importers repo-wide; the caching path that actually shipped is `cacheQuery`
+  (prisma-cache.ts, live on `students`/`courses` pages) + the inline `revalidateTag(\`student-${id}\`)` /
+  `revalidateTag(\`library-${org}\`)` pattern that hand-builds the same tag strings WITHOUT ever importing cache.ts's
+  taxonomy. Build-safe (only imported `unstable_cache`, a shared dep; no npm dep orphaned).
+
+### Accepted / won't-fix (1 LOW)
+- ✅ **Q-15-005** [LOW] — `crossWalkTextbookTopics` issues one cosine query per topic (≤`MAX_TOPICS=250` sequential
+  round-trips per textbook ingested, `textbook-coverage.ts:75-88`). **Accepted, no code change.** Proportionate for a
+  LOW perf-only finding in a non-request background path: bounded, one-time per book ingest, in a best-effort Inngest
+  step that never fails ingestion (catch returns 0). **Verified the load-bearing fact:** there is **no ivfflat/hnsw
+  index** on `textbook_chunks.embedding` (migration `00000000000008` creates only `subject_idx` + `document_id_idx`),
+  so a set-based UNNEST rewrite would eliminate round-trips but NOT the ~250×1500 cosine ops — zero algorithmic gain —
+  while introducing an error-prone `vector[]`/unnest pattern (zero precedent in the repo) behind a silent catch
+  (`textbook-coverage.ts:96`), a latent data-quality regression risk. Not worth the churn. (A bounded-concurrency
+  middle option was considered and rejected — the function already runs `concurrency:3` on a shared pool.)
+
+### Reconcile (§4 partition)
+- 4 in-scope LOW → **4 closed** (3 removed, 1 accepted); 0 unaccounted. **LOW: 35 − 4 = 31 open** (total still **78** —
+  nothing minted). HIGH/MED unchanged (5/22). No re-grades, no deferrals, no out-of-chapter sibling FINDING (no other
+  chapter owns a Q on these symbols).
+- Counts reconcile across ch.15 §7 / ch.24 (top-line headline + LOW running-log count + Session-30 disposition note) /
+  00-INDEX glance. `prisma/migrations/` untouched.
+- Consequential doc-currency (code-is-truth, not new findings): ch.15 §1 vector.ts line count 537→**453** +
+  prisma-cache.ts 49→**16**, cache.ts row removed; ch.15 §2/§3/§4/§5/§6 de-listed the 2 video fns + cache.ts and
+  refreshed the drifted vector.ts line cites for the kept functions; ch.24 §5 "Community extraction library" roadmap
+  NOTE updated (the video family it flagged is now deleted).
+- **ch.15 now FULLY TRIAGED** (LOW S30; MED Q-15-001 ✅ resolved-by-removal S29; no HIGH).
+
+## Session 2026-06-22 (round 34) — Session 31: ch.16 LOW findings (owner-approved)
+
+Source: the 4 OPEN LOW in `16-students-learners.md §7` (Q-16-001/004/005/007). All re-verified at their cited
+`file:line` against CURRENT code (all 4 reproduce; Q-16-005's card had drifted to `:46-63`). A 4-skeptic adversarial
+Workflow (one per finding, each tasked to REFUTE/SHARPEN the draft) returned **reproduces ✓ / high-confidence** on all
+four; I re-derived each verdict by hand — **overrode 1, adopted 2 sharpenings, and verified 1 load-bearing claim
+read-only against the DB.** Owner partition: **3 FIX_NOW (closed) · 1 KEEP+re-document (Q-16-001, stays OPEN).** CI
+green: `tsc --noEmit` **0**, `eslint` **0 errors / 653 warnings** (down 8 from 661 — the assessment route shed
+`updateData: any` + 3 `profile as any` casts), `vitest` **130/130 across 22 files** (unchanged — the touched code is
+React components + a server route with no DB in the harness, so no unit test is feasible; matches the area).
+`prisma/migrations/` untouched. 5 source paths M.
+
+### Resolved (3 LOW)
+- ✅ **Q-16-004** [LOW] — split into two claims. (1) The "Open Resource" link in `StudentDashboard.tsx` read
+  `assignment.resourceId` (NOT selected by `getStudentAssignments`) → rendered `/living-library/resource/undefined`
+  whenever assignments exist; fixed to the already-selected nested `assignment.resource.id` (zero query change). (2) The
+  `notes` block read `assignment.notes`, but `ResourceAssignment.notes` has **NO producer** (the live
+  `assignResourceToStudent` writes resourceId/studentId/assignedByUserId only, `assignments.ts:43-49`), so the
+  never-rendering block was **deleted** rather than wiring a `select` for an unpopulated column (overrode my own draft's
+  "add `notes:true` for forward-compat" per the skeptic — selecting a field nothing writes is false forward-compat).
+  Single file (`StudentDashboard.tsx`; `data.assignments` is `any[]`, so the change is invisible to tsc — verified by hand).
+- ✅ **Q-16-005** [LOW] — wired the ParentDashboard "Daily Liturgy" card (hardcoded "Psalm 23: The Shepherd" under a
+  "Today's family discipleship focus" label) to the **seeded `Devotional` table**. Read-only DB checks confirmed the
+  skeptic's "it's real data" claim: **732 rows / 366 distinct days / `time` am|pm** (Spurgeon "Morning & Evening"),
+  format consistent across the year (Jan 1 / Mar 15 / Jul 4 / Dec 25 all sampled). Added `getTodayDevotional()`
+  (`dashboard.ts`, bare-`db` global read mirroring `family-discipleship/devotionals/page.tsx`) that derives a clean
+  reference (first line of `keyverse`, leading-quote stripped) + a prose excerpt (drops the 2-block metadata prefix;
+  170-char cap) → `todayDevotional` prop (`app/page.tsx`) → `ParentDashboard.tsx` renders it with the old static text as
+  fallback. Honest dynamic content from existing data (~25 lines). `new Date()` lives inside the helper (not an RSC
+  render body) to avoid the impure-call-in-render lint error.
+- ✅ **Q-16-007** [LOW] — added a per-step `assessmentSchema` **discriminated union** (`route.ts:20-24`) parsed via
+  `safeParse` → **400 BEFORE the paid AI call**; typed `updateData` with `Prisma.InputJsonValue` and replaced the 3
+  `profile as any` casts (dropped 4 explicit `any`s, lint-clean). The schema is **permissive on VALUES** (the interests
+  step sends a nested object `{hookThemes:[],specificEntities:{},expertTopics:[],integrationMode:""}` —
+  `z.record(z.string(), z.unknown())` accepts it; **overrode the adversary's** "a single record rejects interests →
+  needs a discriminated union", which was a misread of `z.record` semantics) but **precise on SHAPE per step**
+  (personality/learning `Record<string,string>` matching the generators' contracts, interests `Record<string,unknown>`)
+  — a discriminated union here is the *type-honest* tool that avoids unchecked answer casts (the two string-typed
+  generators won't accept `Record<string,unknown>`), NOT over-engineering. The dead "Invalid step" else fell out.
+  Authenticated self-only route → no privilege boundary; value is fail-fast + repo Zod-at-boundary consistency.
+
+### Kept OPEN — re-documented as unfinished (1 LOW)
+- ⏳ **Q-16-001** [LOW] — `/student/dashboard` re-documented from "orphaned/dead route" to an **unfinished,
+  built-but-unlinked single-student daily-schedule view** (mirrors Q-09-005/Q-10-005). Re-verify confirmed it is a
+  complete, working page (auth+org gated; `getStudentDailySchedule` → `DailyScheduleList` → `toggleItemStatus`) whose
+  ONLY inbound link is self-referential (`page.tsx:58`); it is NOT superseded — a per-student DAILY checklist is a
+  different surface from the live `StudentDashboard` (`/`, courses/assignments) and the parent WEEKLY `/planner`. Owner
+  chose **keep it + roadmap a wire-up** (24 §5). Stays tracked-OPEN at LOW (deferred ≠ closed). Because the route is
+  kept, its cascade-only dependencies — `getStudentDailySchedule`/`toggleItemStatus` (ch.21) + INFO **Q-21-010** —
+  remain live; **no ch.21 change.** (Had the owner chosen REMOVE, the cascade would have deleted both ch.21 fns +
+  closed Q-21-010 resolved-by-removal; the orphan-tail was traced and is recorded here for any future revisit.)
+
+### Reconcile (§4 partition)
+- 4 in-scope LOW → **3 closed (resolved) · 1 kept-OPEN (re-documented)**; 0 unaccounted. **LOW: 31 − 3 = 28 open**
+  (total still **78** — nothing minted, no re-grades, no new deferrals). HIGH/MED unchanged (5/22). No out-of-chapter
+  sibling FINDING moved (the Q-16-001 ch.21 cascade did not fire — owner kept the route).
+- Counts reconcile across ch.16 §7 / ch.24 (§3 chapter-status row + §7 register headline + findings-at-a-glance +
+  LOW running-log count) / 00-INDEX glance. Historical S30 reconcile notes that read "31 open" (ch.24 §4 lineage, the
+  LOW-log S30 line, CHANGELOG round 33) left AS-IS — they correctly state the count AT THAT TIME (Session-17 hygiene).
+- Consequential doc-currency (code-is-truth, not new findings): the Zod insert shifted the assessment route's line
+  numbers, so ch.16 §4 (assessment-step flow refs `:13/:18/:30/:39-42/:49-66/:70-77` →
+  `:26/:30/:20-24+:39-42/:48/:56-59/:71-87/:91-98`) + §6 tenancy cross-ref (`assessment/route.ts:30` → `:48`) were
+  refreshed; §1/§4/§5 reframed the daily-schedule route from "ORPHANED/DEAD" to "UNFINISHED (built, unlinked)".
+- **ch.16 LOW done** (MED Q-16-002/003 + INFO Q-16-008 remain; no HIGH).
+
+## Session 2026-06-22 (round 35) — Session 32: ch.16 MED findings (owner-approved)
+
+Both OPEN MED in ch.16 §7 re-verified at their cited `file:line` (reproduce exactly). A 2-skeptic adversarial
+Workflow (one per finding, each tasked to refute + hunt regressions) returned **reproduces ✓ / sound ✓ / zero
+regressions** on both; I re-derived each by hand and confirmed the one out-of-scope flag a skeptic raised was a
+false alarm. Owner partition **2 FIX_NOW → 2 closed**.
+
+### Q-16-002 ✅ RESOLVED — create-student writes now run under one tenant tx
+- **No live vuln** (RLS off; the learner is explicitly scoped via `organization.connect`, org derived from the
+  session) — pure RLS-readiness, same family as the Session-20 `withTenant` wraps. True grade LOW, carried MED on
+  tenancy-cluster convention → **fix-and-close (re-grade moot)**.
+- Folded `db.learner.create` + `db.learnerProfile.create` into the existing trailing
+  `withTenant({organizationId,userId:null})` block, so all four org-scoped learner writes (learner → learnerProfile
+  → STUDENT `Profile` → `profileId` back-link) run in **ONE tenant-stamped, atomic** tx (`route.ts:56-92`). The
+  created learner is returned from the closure as `student`, so `NextResponse.json({ student })` + the client
+  `student.id` redirect are byte-for-byte unchanged.
+- The self-heal `db.organization.create` + `db.user.update` (`:25-41`) deliberately stay on the raw `db` client:
+  the org INSERT must run under null org context (the relaxed `organizations` RLS policy
+  `id = app.current_org() OR app.current_org() IS NULL` — migration `00000000000002`:64; you can't stamp a GUC for
+  an org that doesn't exist yet), and `User` is CONTEXT_FREE. Added a clarifying comment. Matches the blueprint.ts
+  onboarding precedent.
+- The fold strictly **eliminates the prior orphaned-row window** (a learner with no profile on partial failure);
+  no AI/Inngest/network call exists in this path so nothing is wrongly pulled inside the Prisma ~5s tx.
+- Skeptic's out-of-scope flag (schema↔RLS table-name "drift": `Learner` @@maps `learners` vs migration-2 policies
+  naming `public.students`) **confirmed a false alarm**: migration `00000000000013` is a metadata-only
+  `ALTER TABLE "students" RENAME TO "learners"` whose own comment states the RLS policy + grants follow the table
+  automatically (Postgres policies are OID-bound). No finding minted.
+- Files: `src/app/api/students/route.ts` (M).
+
+### Q-16-003 ✅ RESOLVED — `student as any` replaced by a derived payload type
+- Type-DX only (no runtime/security impact; single consumer) — true grade LOW, carried MED → **fix-and-close**.
+- Added a dedicated, leaner `studentCardSelect` (`satisfies Prisma.LearnerSelect`) + `export type StudentCardData =
+  Prisma.LearnerGetPayload<…>` to the canonical `src/server/queries/students.ts` (NOT a reuse of `studentSelect`,
+  which is a superset that would over-fetch activityProgress/courseProgress/personalizedResources/strand for a grid).
+- `page.tsx` now selects through `studentCardSelect` (`:17`) and renders `StudentCard` without the cast (`:74`);
+  `StudentCard` types its prop `student: StudentCardData` via `import type` (the house pattern — 5 `_components`
+  already do this), dropping `student: any`. `cacheQuery` preserves the generic so the `as any` drops cleanly;
+  every field access verified safe under the precise type (`avatarConfig`→`getStudentAvatarUrl(config?: any)`;
+  nullables only optional-chained/coalesced; `firstName[0]` non-null).
+- **−2 lint warnings (653 → 651)** — the two removed `any`s.
+- Files: `src/server/queries/students.ts`, `src/app/students/page.tsx`, `src/components/students/StudentCard.tsx` (M).
+
+### Verification
+- tsc 0 errors · eslint 0 errors / **651** warnings (down 2 from S31's 653) · vitest **130/130** / 22 files (no DB
+  in the harness → no new unit test feasible for `where`/`withTenant`/RSC-type changes, matches the area).
+  `prisma/migrations/` untouched; 4 code files M.
+
+### Reconcile (§4 partition)
+- 2 in-scope MED → **2 closed (both resolved)**; 0 unaccounted. **MED: 22 − 2 = 20 open** (total still **78**;
+  HIGH 5 / LOW 28 unchanged). No new findings, no re-grades, no deferrals. No out-of-chapter sibling FINDING moved.
+- Counts reconcile across ch.16 §7 / ch.24 (§3 chapter-status row + §7 MED by-theme headline + count-basis lineage +
+  write-path roadmap list + findings-at-a-glance) / 00-INDEX glance (`22 MED → 20 MED`).
+- Consequential doc-currency (code-is-truth, not new findings): the `studentCardSelect` insert shifted `students.ts`
+  +47, so ch.16 §3/§4/§5 + the still-OPEN INFO **Q-16-008** cites (`:262-279`/`:263-275`/`:333` →
+  `:311-328`/`:313-324`/`:382`; getStudentById/ProfileData/Objectives/RelevantBooks/MasterContext/
+  listStudentsNeedingAssessment rows) were refreshed, plus ch.04 §3.1 self-heal cite (`route.ts:23` → `:27`).
+  Historical changelog round entries naming the old line numbers left AS-IS (Session-17 hygiene).
+- **ch.16 now LOW+MED done** (INFO Q-16-008 remains for the INFO pass; no HIGH).
+
+## Session 2026-06-22 (round 36) — Session 33: ch.17 LOW findings (owner-approved)
+
+All 3 OPEN LOW in ch.17 §7 re-verified at their cited `file:line` (all reproduce; Q-17-007 had a ~5-line drift to
+`blueprint.ts:351-353`). A 3-skeptic adversarial Workflow (one per finding, each tasked to refute/sharpen + hunt
+regressions; the Q-17-005 skeptic ran in an isolated worktree to do the gold-standard move-aside + `tsc` proof)
+returned **reproduces ✓ / draft-sound ✓** on all three and **strengthened** the Q-17-006 ACCEPT case. Owner partition
+**1 removed · 2 resolved** (one of which became a FIX over the skeptic's leaning-ACCEPT).
+
+### Q-17-005 ✅ REMOVED — dead `course-pacing.ts` deleted
+- `git rm src/lib/utils/course-pacing.ts` (~193 lines: `PacingConfig`/`CalculatedPacing` + `calculateCoursePacing`
+  :36 / `calculatePacingFromSchedule` :83 / `autoFillCourseSchedule` :153). **Zero source importers** repo-wide
+  (independent grep: only the file + docs). It is the importER (imports `db`/`withTenant`/`getCurrentUserOrg`/`Schedule`),
+  so deletion orphans nothing.
+- **Build-safety proven** (worktree skeptic): moving the file out of the `*.ts` glob changed the `tsc` error count by
+  exactly the file's own 5 self-errors with **zero new "Cannot find module" orphan errors** — nothing depends on it.
+  *(NB: the worktree's ABSOLUTE tsc count was inflated — a fresh worktree lacks the git-ignored generated Prisma
+  client — but the DELTA is the load-bearing signal. The main-tree `tsc` is 0 with the file gone.)*
+- **Wire-it-instead steelman collapsed:** the live `distributeCourse` (`scheduling.ts`) already fulfills the
+  "automatic pacing" UI promise by *placement* (reads classroom school-year dates + holidays directly) and never
+  consulted pacing output; `autoFillCourseSchedule` distributes `Objective` rows (a different data model) — an
+  abandoned objective-axis design. Matches the owner's delete-built-but-unwired precedent (searchBooks/searchVideos/
+  cache.ts).
+- Consequential doc-currency (not new findings): ch.21 §6 cross-ref + the "Pacing vs. distribution" paragraph updated
+  to reflect the removal (distributeCourse is now the sole scheduling engine). The frozen Session-4 historical records
+  that name `course-pacing.ts` as a past `sortOrder` consumer (ch.03 §7 Q-03-004 evidence, CHANGELOG round 7) left
+  AS-IS (Session-17 historical-record hygiene).
+- Files: `src/lib/utils/course-pacing.ts` (D).
+
+### Q-17-006 ✅ RESOLVED — block kind-nesting now enforced server-side
+- The gap reproduces: POST (`blocks/route.ts:97-109`) + PATCH (`blocks/[blockId]/route.ts:122-141`) validated only
+  parent-exists + same-course (+ PATCH self-parent), never the kind hierarchy that `getAvailableParentBlocks`
+  (`blocks/new/page.tsx:189-214`) enforces only in the browser.
+- The skeptic **strengthened ACCEPT** (single-tenant self-owned data, no security boundary; **no consumer reads the
+  kind-nesting relationship at all** — CourseBuilder renders a *flat* list, indent derived from `block.kind` not a
+  tree walk; child blocks render single-level; the distributor ignores nesting; pacing is dead) and flagged that a
+  naive FIX risks rejecting legit PATCH edits. **Owner chose FIX anyway** (API hygiene / data integrity).
+- Added a shared pure `validateBlockNesting(childKind, parentKind|null)` + `BLOCK_KIND_ALLOWED_PARENTS` to
+  `src/lib/schemas/courses.ts` (extracted a named `courseBlockKindSchema`/`CourseBlockKind` for reuse), mirroring the
+  client rules (UNIT top-level only; MODULE⊂UNIT; SECTION⊂UNIT/MODULE; CHAPTER⊂UNIT/MODULE/SECTION; LESSON⊂anything;
+  null parent always allowed). Called from POST (after the parent-fetch) and PATCH.
+- **PATCH validates the MERGED post-update `(kind, parentKind)` pair** (the skeptic's catch — `kind` and
+  `parentBlockId` change independently): `effectiveKind = validated.kind ?? existingBlock.kind`, `effectiveParentId`
+  from the request-or-existing parent, then the effective parent's kind (reusing the just-fetched parent when the
+  parent changed, else one extra `select:{kind:true}` read). No UI regression (the UI never sends an illegal
+  hierarchy).
+- **Shape-locked** by the file's FIRST test `src/lib/schemas/courses.test.ts` (8 cases incl. the allowed-parents map
+  ↔ client-rules sync invariant).
+- Files: `src/lib/schemas/courses.ts`, `src/app/api/courses/[id]/blocks/route.ts`,
+  `src/app/api/courses/[id]/blocks/[blockId]/route.ts` (M); `src/lib/schemas/courses.test.ts` (new).
+
+### Q-17-007 ✅ RESOLVED — stale onboarding "Step 3 removed" comments corrected (comment-only)
+- Same shape as the resolved Q-09-001 (comment-vs-code drift). The 3-step wizard is **correct**; the comments lied.
+- Re-verify + skeptic confirmed: the **only** reader of `getBlueprintProgress().step` is `onboarding/page.tsx:19`;
+  `blueprint/page.tsx` reads `progress.data` only. The wizard clamps `step=3 → currentStepIndex 2 →` the live
+  `EnvironmentStep` (wired to `saveEnvironmentStep`), and "Complete Setup" → `/blueprint`. **Nothing treats
+  `step===3` as terminal** — the "Done" semantics was encoded by nothing, pure stale narration.
+- Corrected the false comments at `blueprint.ts:351-353` ("Step 3 removed" / "3 means Done … only 2 steps") and
+  `onboarding.ts:108` ("Removed from wizard") to reflect the real 3-step resume flow. **No behavioral change** — a
+  rewrite to match the stale comments was rejected as action-bias (it would delete a working, wired step). The benign
+  no-`hasEnvironment`-check quirk (a fully-onboarded user re-lands on the optional Environment step) is out of scope.
+- Files: `src/server/actions/blueprint.ts`, `src/lib/schemas/onboarding.ts` (M).
+
+### Verification
+- tsc **0 errors** · eslint **0 errors** / 1314 warnings · vitest **138/138** / **23** files (+8 tests/+1 file —
+  `courses.test.ts`). `prisma/migrations/` untouched; 7 paths (5 M + 1 D + 1 new test).
+- **Warning-baseline note:** the eslint warning count rose from S32's 651 to 1314 due to the owner's intervening
+  `58d532e "all"` commit (a large working-tree sync between sessions), **NOT** this session's change — the 6 touched
+  source files lint with 0 errors / 0 new warnings (verified directly), and the dead-file deletion only reduces the
+  count. The gate that matters (0 errors) is green.
+
+### Reconcile (§4 partition)
+- 3 in-scope LOW → **3 closed (1 removed · 2 resolved)**; 0 unaccounted. **LOW: 28 − 3 = 25 open** (total still **78**;
+  HIGH 5 / MED 20 unchanged). No new findings, no re-grades, no deferrals. No out-of-chapter sibling FINDING moved
+  (ch.21 edits are code-currency cross-refs, not findings; ch.03/CHANGELOG historical records untouched).
+- Counts reconcile across ch.17 §7 / ch.24 (§7 LOW running log + headline `28 → 25 open`) / 00-INDEX glance
+  (`28 LOW → 25 LOW`).
+- **ch.17 LOW done** (MED Q-17-002/003/004 + HIGH Q-17-001 remain).
+
+---
+
+## Session 2026-06-22 (round 37) — Session 34: ch.17 MED findings (owner-approved)
+
+All 3 OPEN MED in ch.17 §7 re-verified at their cited `file:line` (all reproduce). A 3-skeptic adversarial Workflow
+(one per finding, each tasked to REFUTE the draft + hunt regressions) returned **reproduces ✓ / FIX** on all three,
+high-confidence, with **3 sharpenings adopted and 1 genuine latent bug surfaced** (→ minted Q-17-010). Owner approved
+all 3 fixes + minting Q-17-010 [MED] deferred.
+
+### Q-17-002 ✅ RESOLVED — CourseBuilder passed `courseId` as `organizationId` to ResourcePicker
+- `CourseBuilder.tsx:683` `<ResourcePicker organizationId={courseId} …/>` (with a comment admitting "Using courseId
+  as orgId proxy for now") → `getLibraryResources(organizationId)` filters every read by `where:{organizationId}`, so
+  a course id matched nothing and all 6 library tabs (Books/Videos/Articles/Documents/Resources/Bundles) returned zero
+  rows; only "Generate New" worked (kinds fetched separately).
+- **One-line fix:** `organizationId={courseId}` → `organizationId={organizationId}` + deleted the comment. The real
+  `organizationId` was already a prop (`CourseBuilder.tsx:387`), passed by `builder/page.tsx:208` and guaranteed
+  non-null (the page redirects at `:30`). Skeptic verified: in scope, non-null, no `onSelect*/onSelectBundle` closure
+  relied on the courseId-as-orgId value (they use the separate `courseId` var), no leak (under-fetch → correct-fetch).
+  The other 2 ResourcePicker call sites (`PlannerGrid`, `GeneratorsClient`) already pass the real org id.
+- Files: `src/components/courses/CourseBuilder.tsx` (M).
+
+### Q-17-003 ✅ RESOLVED — `POST /api/courses` parent-gated + Zod-validated
+- Reproduced: only `data.subjectId` presence was checked (no Zod on title/description), no `assertParentProfile()`,
+  and the `new:` prefix mints globally-shared `Subject`/`Strand`. The structurally identical twin
+  `library/books/route.ts:16-22` already ships the exact gate pattern.
+- Added a Zod **`createCourseApiSchema`** to `src/lib/schemas/courses.ts` (`title z.string().trim().min(1).max(200)`,
+  `description ≤2000` optional/nullable, `subjectId .min(1).max(255)`, `strandId`/`gradeBandId` bounded optional/nullable)
+  parsed via `safeParse` → 400. **NOT `.uuid()`** — the route accepts `new:<name>` tokens, and the bound also caps the
+  minted taxonomy-name length. **Skeptic catch:** a *different* `createCourseSchema` already exists at `actions.ts:12`
+  (`.uuid()` + `gradeLevel`, for the server-action path) and would reject every `new:` mint — hence the distinct name.
+- Added `assertParentProfile()` **wrapped → 403** ("This action requires a parent profile.") right after `auth()`,
+  mirroring the twin route (the POST has no outer try/catch, so a bare throw would 500). Course authoring is now
+  parent-only (consistent with block DELETE / `deleteCourse` / `addArticle`). Only POST caller is `courses/new/page.tsx`
+  — no student flow breaks (grep-verified). Global Subject/Strand minting stays **by-design** (mirrors Topic/Subtopic).
+- **+10 `courses.test.ts` cases** shape-lock the schema (minimal/full/`new:`-tokens/null-and-empty accepted;
+  missing/whitespace title, missing subjectId, over-long title/subjectId rejected; trim applied).
+- Files: `src/lib/schemas/courses.ts`, `src/app/api/courses/route.ts` (M); `src/lib/schemas/courses.test.ts` (M).
+
+### Q-17-004 ✅ RESOLVED — org filter merged into the query predicate in all 6 course-REST handlers
+- All 6 handlers (`[id]/route.ts` GET; `blocks/route.ts` GET+POST; `blocks/[blockId]/route.ts` GET+PATCH+DELETE) did
+  `db.course.findUnique({where:{id:courseId}})` then a droppable post-fetch `if(!course || course.organizationId !==
+  organizationId) 404`. With RLS off that `!==` is the only tenant boundary.
+- **Fix (mirrors Q-11-001 / `curriculum-actions.ts:20`):** `db.course.findFirst({where:{id:courseId, organizationId}})`
+  + `if(!course) 404`, plus a fail-closed `if(!organizationId) return 404` guard (narrows `string|null`→`string` AND
+  closes the null-org case the old `!==` only caught "by luck" of `Course.organizationId` being non-nullable). The
+  boundary is now a query predicate that can't be dropped.
+- **No `withTenant`** — route handlers run in ONE async context, so `getCurrentUserOrg()`→`setRlsContext` lets the
+  per-query extension GUC-scope every op under RLS-on (verified: NOT the background-job case Q-12-005 addressed;
+  withTenant alone would leave the droppable `!==`, per Q-11-001). Block/parent-block/topic/subtopic lookups stay
+  scoped by `courseId`/`id` (no org column). Skeptic confirmed the RLS-on policy audit (courses/course_blocks are
+  independently FOR-ALL-gated) + the typecheck + that POST blocks still has `course.strandId`.
+- Files: `src/app/api/courses/[id]/route.ts`, `src/app/api/courses/[id]/blocks/route.ts`,
+  `src/app/api/courses/[id]/blocks/[blockId]/route.ts` (M).
+
+### 🆕 Q-17-010 [MED] ⏳ DEFERRED — minted: `new:` taxonomy CREATEs hit SELECT-only RLS tables → fail under RLS-on
+- The Q-17-004 adversarial pass surfaced it: the `new:` flow does `db.{subject,strand,topic,subtopic}.create` at 4
+  sites (`api/courses/route.ts:35,59`, `api/courses/[id]/blocks/route.ts:132,167`), but migration
+  `00000000000002:139-144` grants `app_user` **`FOR SELECT … USING(true)`** only on `subjects/strands/topics/subtopics`
+  ("writes only via migrations/seeds as superuser") — **no INSERT policy**. Under RLS-on + the non-bypass `app_user`
+  role, a command with no permitting policy is denied → every `new:` taxonomy create 500s.
+- Latent (no live vuln; RLS off today). Belongs to the **Q-001 RLS-cutover gate (Workstream B)**: needs scoped INSERT
+  policies via the batched migration, OR moving custom-taxonomy creation to a privileged/org-scoped path. **NOT caught
+  by Q-001's GRANT-level readiness check (Session 8) — that is row-policy-blind.** Out of scope for an app-layer MED
+  session (needs a migration or a design change). Cross-linked in ch.24 §5 (RLS-cutover roadmap + runbook).
+
+### Consequential doc-currency (not new findings)
+- ch.04 §3.5 `assertParentProfile` consumer count **11 → 13** (added `api/courses` POST; the count was already stale
+  since Session 28 added the 4 `api/library/*` routes) + ch.05 §6 importer list gained `api/courses/route.ts` (POST)
+  and the library routes.
+
+### Verification
+- tsc **0 errors** · eslint **0 errors** / 1314 warnings (unchanged baseline — no new `any`) · vitest **148/148** /
+  **23** files (+10 schema tests in the existing `courses.test.ts`). `prisma/migrations/` untouched; 6 code files M +
+  1 test (M).
+
+### Reconcile (§4 partition)
+- 3 in-scope MED → **3 resolved**; **+1 minted** (Q-17-010 ⏳ deferred); 0 unaccounted. **MED: 20 − 3 + 1 = 18 open**
+  (total 78 → **79**; HIGH 5 / LOW 25 unchanged). No re-grades, no dismissals.
+- Counts reconcile across ch.17 §7 / ch.24 (headline `20 → 18 open` + MED by-theme header + count-basis lineage +
+  the new Q-17-010 by-theme entry) / 00-INDEX glance (`20 MED → 18 MED`).
+- **ch.17 now LOW+MED done; HIGH Q-17-001 (broken activity flow) remains.** No out-of-chapter sibling FINDING moved
+  (ch.04/05 edits are code-currency cross-refs).
+
+### 👤 Owner follow-up
+- **Nothing pushed — owner deploys.** Q-17-010 to be addressed as part of the Q-001 RLS cutover (add INSERT policies
+  for the reference tables, or rework `new:` minting) before flipping `RLS_ENABLED=true`.
+
+---
+
+## Session 2026-06-22 (round 38) — Session 35: ch.17 HIGH findings (owner-approved)
+
+The sole OPEN HIGH in ch.17 §7 — **Q-17-001** — re-verified at its cited `file:line` (reproduces exactly:
+`activities/new/page.tsx:86` POSTs to `/api/courses/{id}/blocks/{blockId}/activities`, no route file exists; the
+page is live-and-reachable via the block-edit "Add Activity" link for LESSON blocks; lines 79-84 are an abandoned
+author's note). A code-truth sweep proved **no path anywhere creates an `Activity`** (zero `activity.create`/`createMany`
+repo-wide; only the broken route + an account-cascade `deleteMany`), while the `Activity` model is richly integrated
+(objectives/progress/schedule-items/assignments) and the read/display side already works — i.e. **unfinished, not
+superseded**: ~90% scaffolded, only the create handler missing. Presented as **OWNER_DECISION** (build vs remove vs
+park; "keep as-is" dominated — a live broken button is the worst state for a HIGH). **Owner chose BUILD** (the
+Q-05-010/Q-16-005 "build-it-now when data + pattern exist" precedent).
+
+### Q-17-001 ✅ RESOLVED — built the missing activities POST route
+- **New file** `src/app/api/courses/[id]/blocks/[blockId]/activities/route.ts` (POST), mirroring `blocks/route.ts`
+  POST + the Q-17-003 parent-gate + the Q-17-004 merged-predicate org check: `auth`→401 → `assertParentProfile()`
+  **wrapped → 403** → `getCurrentUserOrg()` + `if(!organizationId) 404` guard → `course.findFirst({id, organizationId})`
+  →404 → `courseBlock.findFirst({id, courseId})` →404 + **LESSON-only** check →400 → `createActivityApiSchema.safeParse`
+  →400 → verify optional `objectiveId` exists (global spine, CONTEXT_FREE) →400 → compute next `position` (max+1 within
+  the block; client sends none) → `db.activity.create` (`createdByUserId` from session) **+ optional `ActivityObjective`
+  link** (`objective: { connect: { id } }`) → `{activity}`.
+- **No `withTenant`** — a route handler is session-scoped, so `getCurrentUserOrg()`→`setRlsContext` lets the per-query
+  extension GUC-scope the create under RLS-on (the Q-17-004 reasoning, NOT the Q-12-005 bg-job case). `activities` /
+  `activity_objectives` are **join-scoped ORG tables** (scoped via course_block→course→org; migration-2 deeper-join
+  chains), NOT SELECT-only reference tables → no new RLS-cutover blocker (contrast Q-17-010).
+- **No Objective minting** — the client drops `new:` custom objectives (`activities/new/page.tsx:91` sends `undefined`),
+  so the route only LINKS an existing Objective. This sidesteps the SELECT-only-RLS write-failure class (Q-17-010).
+- **Shared schema** `createActivityApiSchema` + `activityTypeSchema` added to `src/lib/schemas/courses.ts` (title trimmed
+  `.min(1).max(200)`; `description ≤2000` optional/nullable; `activityType` = the 7-value Prisma `ActivityType` enum,
+  kept in sync; `objectiveId` bounded optional/nullable — NOT `.uuid()`; `estimatedMinutes` `z.coerce.number().int()
+  .positive().max(100000)` optional/nullable since the JSON body may carry a number or numeric string).
+- **Create→display loop closes end-to-end:** the block GET (`blocks/[blockId]/route.ts:55`) already includes
+  `activities` (id/title/activityType/position), and the form routes back to the block page on success.
+- **Currency fixes (part of completing the feature honestly, not new findings):** corrected the now-false "(coming soon)"
+  copy at `blocks/[blockId]/page.tsx:443,456`; replaced the abandoned author-comments in `activities/new/page.tsx`'s
+  `onSubmit` ("…I should have checked if the API exists…") with an accurate one-liner.
+- **Residual (logged, not fixed):** a `new:` custom objective typed in the form is silently dropped client-side —
+  existing-objective linking works; minting custom Objectives is the Q-17-010-class privileged-path problem, out of
+  scope here.
+- **+13 `createActivityApiSchema` tests** in `src/lib/schemas/courses.test.ts` (minimal/full bodies; all 7 enum values;
+  unknown/missing type rejected; missing/whitespace title rejected + trimmed; numeric-string coercion; non-positive/
+  non-int rejected; null/omitted optionals; over-long title/objectiveId rejected).
+- Files: **NEW** `src/app/api/courses/[id]/blocks/[blockId]/activities/route.ts`; M `src/lib/schemas/courses.ts`,
+  `src/lib/schemas/courses.test.ts`, `src/app/courses/[id]/blocks/[blockId]/page.tsx`,
+  `src/app/courses/[id]/blocks/[blockId]/activities/new/page.tsx`.
+
+### Cross-chapter check (no finding moved)
+- **ch.19 Q-19-002** (`getSubtopicObjectives` lacks an auth gate / skips Zod on the string branch): the broken page is
+  its sole live caller. BUILD left the page in place (now functional) and **unchanged at the cited line `:65`** (the
+  comment cleanup was later in the file, in `onSubmit`), so Q-19-002 **still reproduces — stays OPEN/LOW, no change**.
+  (Had the owner chosen REMOVE, deleting the page would have orphaned that caller and required a ch.19 update.)
+
+### Verification
+- tsc **0 errors** (the Prisma nested `ActivityObjective` create typechecks) · eslint **0 errors** / **1314 warnings**
+  (unchanged baseline — the 5 touched files lint 0/0, confirmed directly) · vitest **161/161** / **23** files
+  (148 + 13 new). `prisma/migrations/` (and all of `prisma/`) **untouched**; scoped `git status` shows only the 5
+  intended paths.
+
+### Reconcile (§4 partition)
+- 1 in-scope HIGH → **1 resolved**; 0 minted / re-graded / deferred / dismissed; 0 unaccounted.
+- **HIGH: 5 → 4 open** (MED 18 / LOW 25 unchanged; total 79 → **78** open of the four feature grades… HIGH-by-theme
+  now ch.12×1 [Q-12-007 ⏳] + ch.18×1 + ch.20×2 = 4). Foundational `Q-001` [HIGH] still OPEN, outside this headline.
+- Counts reconcile across ch.17 §7 (Q-17-001 ✅) / ch.24 (HIGH header `5 → 4`, top-line tally `5 HIGH → 4 HIGH`,
+  register row struck, roll-up table, Workstream-B list, "broken/unfinished" bullet removed) / 00-INDEX glance
+  (`5 HIGH → 4 HIGH` + the remaining-HIGH prose).
+- **ch.17 now FULLY TRIAGED** (LOW S33 / MED S34 / HIGH S35).
+
+### 👤 Owner follow-up
+- **Nothing pushed — owner deploys.** Activity authoring now works end-to-end; the only residual is the dropped-`new:`-
+  objective UX gap (would need the Q-17-010-class privileged taxonomy path).
+
+## Session 2026-06-22 (round 39) — Consolidated final pass / ch.18 LOW findings (Q-18-004/005/006/007)
+
+**Start of the consolidated final pass (ch.18→24, all grades — owner directive 2026-06-22).** Sessions 1-35 cleared
+ch.01-17 one cell at a time; the remaining backlog is now worked in one continuous pass (SKILL §9 "Consolidated
+final-pass mode"). Baseline confirmed green before any change: tsc 0 / eslint 0-err·1314-warn / vitest 161 (after the
+known stale-vite-cache wipe — §9.5). All 4 ch.18 §7 LOW re-verified at their cited `file:line` (reproduce); a 4-skeptic
+adversarial Workflow (one per finding, each tasked to REFUTE) **overrode the Q-18-004 lean** and confirmed the other
+three. Owner standing authority (clear-cut dispositions) → **3 closed · 1 deferred**.
+
+### Q-18-007 ✅ RESOLVED — grading save UX → house pattern
+- `src/components/grading/GradingInterface.tsx`: replaced the 4 blocking `alert()` calls with sonner
+  `toast.success`/`toast.error` and `window.location.reload()` with `router.refresh()` (added `useRouter` +
+  `toast` imports + `const router = useRouter()`).
+- Matches the established house convention: `NewAttemptForm.tsx` (sonner + `useRouter`) and `PrayerJournalClient.tsx:117-119`
+  (does the identical `toast.success(...) + router.refresh()`, with a comment to avoid `window.location.reload()`).
+  `<Toaster>` is mounted at `layout.tsx:46`. The attempt page re-fetches on `router.refresh()` so the GRADED status badge +
+  persisted scores show, and client state is preserved (the doc's "loses per-item feedback on reload" no longer applies).
+- Files: M `src/components/grading/GradingInterface.tsx`.
+
+### Q-18-005 ✅ ACCEPTED — `letterGrade`/`isCorrect` aspirational columns (impact corrected)
+- Re-verify CONFIRMED **zero readers** of `AssessmentAttempt.letterGrade` and `AssessmentItemResponse.isCorrect` anywhere
+  in `src/` (the only `isCorrect` hits are unrelated catechism-quiz UI state). The transcript subsystem types course grades
+  into a `TranscriptData` JSON blob and never queries attempts; master-context only counts GRADED attempts; data-export omits
+  attempts. So the finding's original "transcripts/reporting will see nulls" impact was **OVERSTATED** — corrected in ch.18 §7
+  to "purely cosmetic schema↔code drift, no live consumer."
+- No code change: populating them now is false precision — `letterGrade` needs an attempt-level grading-scale policy that
+  doesn't exist (the only scale logic is course-level per-transcript), `isCorrect` is undefined for partial-credit/free-response,
+  and both columns are nullable. Aspirational columns; a future attempt-level grading-scale feature is on the §5 roadmap.
+
+### Q-18-006 ✅ ACCEPTED — no student-facing assessment-taking flow (roadmap)
+- The only resolution is a multi-file student-facing assessment-taking feature (new routes + UI + response capture),
+  explicitly "a separate, larger feature" (`assessment-actions.ts:7-14`) — disproportionate for a LOW and barred by the
+  pass constraints. Already on the ch.24 §5 roadmap (lines 99-100) + §3 status dashboard. Q-18-006 is the canonical register
+  home (ch.16 documents `createAssessmentAttempt` as PARTIAL but mints no finding). No code change.
+
+### Q-18-004 ⏳ DEFERRED — folded into the Q-18-001 server-side fix (same pass, ch.18 HIGH)
+- Grades are always labeled `AI_ASSISTED` (client `GradingInterface.tsx:102` + route default `route.ts:43`); MANUAL is never
+  set. The adversarial pass **refuted** a standalone client-only heuristic: `gradingMethod` has **zero readers**, the value
+  stays client-spoofable until validated at the trust boundary (the sibling **Q-18-001** [HIGH], same untrusted POST), and a
+  client heuristic would mislabel a re-graded AI attempt as MANUAL (local feedback state isn't seeded on mount). Resolving it
+  authoritatively **server-side alongside Q-18-001** (the ch.18 HIGH cell, this pass) makes the field honest AND trustworthy in
+  one change. Stays tracked-OPEN at LOW (deferred ≠ closed). *(Also noted: the re-grade flow's `scorePoints` sum only counts
+  items touched in the current session — a separate latent correctness gap, out of these findings' scope; flagged for owner
+  awareness, not minted.)*
+
+### Verification
+- tsc **0 errors** · eslint **0 errors / 1314 warnings** (unchanged baseline; the changed `GradingInterface.tsx` lints 0/14,
+  all 14 pre-existing — no new warning from the 3 added-and-used symbols) · vitest **161/161** / 23 files (the UX swap is a
+  client component with no test harness coverage; matches the area). `prisma/` (all of it) **untouched**; scoped `git status`
+  shows only the intended paths (1 code file + the docs).
+
+### Reconcile (§4 partition)
+- 4 in-scope LOW → **3 closed** (Q-18-007 resolved · Q-18-005/006 accepted) · **1 deferred** (Q-18-004); 0 minted /
+  re-graded / dismissed; 0 unaccounted.
+- **LOW: 25 → 22 open** (78 total unchanged — no mint/re-grade). MED 18 / HIGH 4 unchanged.
+- Counts reconcile across ch.18 §7 (4 entries marked) / ch.18 §5 (`GradingInterface` row updated) / ch.24 §7 LOW running
+  log (`25 → 22 open` + new round) / 00-INDEX glance (`25 LOW → 22 LOW`).
+
+### 👤 Owner follow-up
+- **Nothing pushed.** Q-18-004 will close in the ch.18 HIGH cell (this pass) as part of the Q-18-001 grading-API validation fix.
+
+## Session 2026-06-22 (round 40) — Consolidated final pass / ch.18 MED findings (Q-18-002, Q-18-003)
+
+Both OPEN ch.18 MED re-verified at their cited `file:line` (reproduce). A 3-skeptic adversarial Workflow (the 3rd skeptic
+also scoped the upcoming Q-18-001 HIGH) **caught a latent RLS regression in my proposed atomicity mechanism** and was
+otherwise FIX-as-proposed. Both fixes land in `src/app/api/grading/[id]/route.ts`. CI green throughout.
+
+### Q-18-002 ✅ RESOLVED — grading POST tenant boundary
+- Replaced `db.assessmentAttempt.findUnique({where:{id}})` + the post-fetch `course.organizationId !== organizationId`
+  with a **merged relation predicate** `db.assessmentAttempt.findFirst({where:{id, assessment:{course:{organizationId}}}, select:{id:true}})`
+  (AssessmentAttempt has no direct org column — the relation filter mirrors the RLS policy `assessment_id IN (… courses
+  WHERE account_id = current_org)`, migration-2:104). Added a fail-closed `if(!organizationId) → 404` guard (also narrows
+  `string|null`→`string`). Dropped the now-unneeded `assessment.course` include.
+- No `withTenant` on the single-op lookup — a route handler is session-scoped, so `getCurrentUserOrg()`→`setRlsContext`
+  (auth-helpers.ts:29) lets the per-query extension scope it under RLS-on (the Q-17-004 reasoning). No live vuln today
+  (the guard preceded the writes) — this is RLS-readiness + refactor-safety (the post-fetch `!==` was the sole, droppable
+  tenant boundary with RLS inert).
+
+### Q-18-003 ✅ RESOLVED — atomic persistence, no N+1
+- The attempt-header `update` + all per-item writes now run in **one `withTenant(async (tx) => {…}, undefined,
+  {organizationId, userId})` transaction** (atomic — a mid-write failure no longer leaves the attempt `GRADED` with
+  partially-updated items). The per-item `findFirst`+`update` N+1 is replaced by `tx.assessmentItemResponse.updateMany({where:{attemptId, itemId}})`
+  on the `@@unique([attemptId,itemId])` — 0-or-1 rows, and the 0-row case reproduces the old `if (response)` skip.
+- **Adversarial-pass override (the load-bearing catch):** my initial recommendation used `db.$transaction([update, ...updateMany])`
+  (batch-array form). All three skeptics independently REFUTED it: on the RLS-extended `db` client each batch element
+  self-transacts (`$allOperations` → `base.$transaction([setConfigRaw, query])`, db.ts:118-127), so an outer batch **nests
+  tenant transactions** — which db.ts:91-97 explicitly forbids. It is invisible today (RLS off → `db===base` → a plain
+  batch, CI green) but **detonates at the RLS cutover** (the exact scenario the finding hardens): "Transaction already
+  closed", or a silent set_config-on-wrong-connection tenant-scoping failure, or a pool deadlock. `withTenant` runs
+  `base.$transaction(async tx => …)` on the un-extended client with the GUC set once — the codebase's only RLS-correct
+  multi-write pattern (precedent: `account-actions.ts`, `suggest-blocks.ts`, the page loader `grading/[id]/page.tsx:29-66`).
+- Import: `{ db }` → `{ db, withTenant }`. Data-handling is otherwise byte-identical to the prior code (still trusts client
+  `scorePoints`/`maxPoints`/`gradingMethod` — that hardening is the Q-18-001 HIGH cell, next).
+- Files: M `src/app/api/grading/[id]/route.ts`.
+
+### Verification
+- tsc **0 errors** · eslint **0 errors / 1314 warnings** (the route file lints **0 problems** — the `Record<string,unknown>`
+  typing avoids `any`) · vitest **161/161** / 23 files (no DB in the harness, so the route `where`/`withTenant` change has no
+  unit test — matches the area). `prisma/` **untouched**; scoped `git status` shows only the route file + the docs.
+
+### Reconcile (§4 partition)
+- 2 in-scope MED → **2 resolved**; 0 minted / re-graded / deferred / dismissed; 0 unaccounted.
+- **MED: 18 → 16 open** (LOW 22 / HIGH 4 unchanged). Counts reconcile across ch.18 §7 (Q-18-002/003 ✅) / ch.18 §5
+  (route POST row) / ch.24 MED header (`18 → 16`), lineage note, both by-theme entries (Q-18-002 tenancy, Q-18-003 N+1) /
+  00-INDEX glance (`18 MED → 16`).
+
+### 👤 Owner follow-up
+- **Nothing pushed.** ch.18 HIGH (Q-18-001 + the folded-in Q-18-004) is next — it will layer Zod validation + server-side
+  score recomputation onto this now-atomic, tenant-scoped handler.
+
+## Session 2026-06-22 (round 41) — Consolidated final pass / ch.18 HIGH (Q-18-001) + folded-in Q-18-004
+
+The sole OPEN ch.18 HIGH (Q-18-001) re-verified (reproduces) + the LOW Q-18-004 deferred from the LOW cell, resolved
+together (both are about the same untrusted grading POST). Design was the unanimous recommendation of the round-40
+3-skeptic Workflow's Q-18-001 reviewer: **recompute server-side, don't merely reject garbage** (a forged total within
+per-item bounds would still pass bounds-only validation). CI green throughout.
+
+### Q-18-001 ✅ RESOLVED — grading POST validated + server-authoritative grade
+- **New** `src/lib/schemas/grading.ts`: `gradeAttemptApiSchema` (+ `gradingMethodSchema`). Bounds only what the client
+  legitimately supplies — `itemScores` (itemId → finite non-negative number, `z.coerce`), `itemFeedback`/`feedback`
+  (≤10000 chars), `gradingMethod` (the `GradingMethod` enum). `scorePoints`/`maxPoints` are deliberately NOT in the
+  schema (Zod strip-mode drops any the client sends).
+- **`src/app/api/grading/[id]/route.ts`:** `safeParse`→400 (`error.flatten()`); the tenancy `findFirst` now also selects
+  `assessment.items{id,points}` + existing `itemResponses{itemId,pointsEarned}`; the handler **recomputes** the grade —
+  for each assessment item, `clamp(submitted ?? existing ?? 0, 0, item.points)`, summing to `scorePoints` with
+  `maxPoints` from the item points. Client totals are ignored; no per-item score can exceed its item's points; unknown
+  itemIds in the payload are ignored; the existing-score fallback keeps re-grade totals correct even if the client sends
+  only touched items. `gradingMethod` is enum-validated (no arbitrary strings). All writes stay inside the Q-18-003
+  `withTenant` tx.
+- **+ `src/lib/schemas/grading.test.ts`** (11 cases): enum accept/reject, empty/full body, numeric-string coercion,
+  negative + non-finite rejection, over-long-string rejection, null feedback, and that client `scorePoints`/`maxPoints`
+  are stripped.
+
+### Q-18-004 ✅ RESOLVED (folded in) — honest, server-validated gradingMethod
+- `src/components/grading/GradingInterface.tsx` `handleSave` now sends `gradingMethod: usedAI ? "AI_ASSISTED" : "MANUAL"`
+  (`usedAI` = any item/overall Inkling feedback generated this session) and **no longer sends `scorePoints`/`maxPoints`**
+  (the server recomputes them) — which also removed the duplicate total computation (and its `any`, −1 lint warning).
+  Combined with the server enum-validation, the field is honest (a hand-scored attempt → MANUAL) AND no longer
+  client-spoofable. The rare re-grade-without-regenerate case labels the session's action MANUAL — a defensible semantic
+  for a zero-reader audit field (and the only realistic UI path is a single grade per attempt).
+- Files: M `src/app/api/grading/[id]/route.ts`, M `src/components/grading/GradingInterface.tsx`, NEW
+  `src/lib/schemas/grading.ts`, NEW `src/lib/schemas/grading.test.ts`.
+
+### Verification
+- tsc **0 errors** · eslint **0 errors / 1313 warnings** (−1 vs the 1314 baseline — the removed duplicate total
+  computation in `handleSave` carried one `any`; the route + both new schema files lint 0/0) · vitest **172/172** / **24**
+  files (+11 / +1 — `grading.test.ts`). `prisma/` **untouched**; scoped `git status` shows only the grading files + docs.
+
+### Reconcile (§4 partition)
+- ch.18 HIGH: 1 in-scope → **1 resolved** (Q-18-001); + folded-in **Q-18-004 ✅ resolved** (was the LOW cell's 1 deferred).
+- **HIGH: 4 → 3 open** (remaining: ch.12×1 Q-12-007 ⏳, ch.20×2 Q-20-001/002). **LOW: 22 → 21 open** (Q-18-004 closed).
+  MED 16 unchanged.
+- Counts reconcile across ch.18 §7 (Q-18-001/004 ✅) / ch.18 §5 (route POST → DONE, GradingInterface row) / ch.24 HIGH
+  header (`4 → 3`), lineage, register table (Q-18-001 struck), §3 dashboard line, §5 write-path + Workstream-B lists, LOW
+  running log (`22 → 21` + the folded-in note) / 00-INDEX glance (`4 HIGH → 3`, `22 LOW → 21`, remaining-HIGH prose).
+- **ch.18 now FULLY TRIAGED** (LOW round 39 / MED round 40 / HIGH round 41).
+
+### 👤 Owner follow-up
+- **Nothing pushed.** The grading API is now hardened end-to-end (validated, server-authoritative grade, tenant-scoped,
+  atomic). Two known *features* remain on the §5 roadmap (not findings): a real student-facing assessment-taking flow
+  (Q-18-006) and attempt-level `letterGrade`/`isCorrect` once a grading-scale exists (Q-18-005). Advancing to ch.19.
+
+## Session 2026-06-22 (round 42) — Consolidated final pass / ch.19 LOW findings (Q-19-002/004/006)
+
+**Doc-only cell — all 3 LOW ✅ ACCEPTED by-design.** A 5-skeptic adversarial Workflow (covering both ch.19 cells)
+**refuted my action-bias on all three LOW** and corrected three factual inaccuracies in the finding text. No code changed
+this cell; the value is code-is-truth doc corrections. (The MED cell Q-19-001/003 follow next.)
+
+### Q-19-002 ✅ ACCEPTED — ungated global read is correct-by-design
+- The lean (add a `getCurrentUserOrg()` gate + always-Zod) was REFUTED: the true functional twin is
+  `spine-actions.ts:getObjectives` (same global `Objective` table, same `select`/`take:200`) which is *also* ungated
+  (validate-only) — a gate here creates inconsistency, not safety. Objectives are global CONTEXT_FREE data (no
+  `organizationId`); the same taxonomy is already served unauthenticated via the REST routes; `getCurrentUserOrg()` throws
+  on no session → a gate would be a regression for zero gain. The Zod-skip on the string branch is an **inert footgun**
+  (`subtopicId` is a plain Prisma `String`, not crashable/injectable; live caller sends a DB-sourced UUID).
+- Doc correction: the finding's "inconsistent with the file's own security comments" is FALSE — the `// SECURITY:` comments
+  sit only on the tenant-scoped `getCourseBooks`/`getBookChapters`, none on `getSubtopicObjectives`. §5 row → DONE.
+
+### Q-19-004 ✅ ACCEPTED — two diverged read surfaces; don't merge
+- Merging the REST routes and `spine-actions.ts` is disproportionate for a LOW: diverged contracts (REST selects the parent
+  FK + `{strands}` envelope + no Zod; actions Zod-validate + `{success}` + take) and different consumption (`fetch` vs
+  server-action import). The dead 3rd copy (`queries/curriculum.ts`) is removed by Q-19-003 (MED), leaving two intentional
+  surfaces.
+- Two doc corrections from the adversarial pass: (1) the spine tables ARE user-extensible at runtime (the `new:` minting in
+  `courses/route.ts` + `blocks/route.ts`, no `name` uniqueness) and GLOBAL — so they grow slowly; "small/complete" was
+  wrong; (2) the REST routes returning ALL rows is the *correct* complete-dropdown behavior — it's the **actions** capping
+  at 100/200 that could silently truncate. A generous `take` ceiling on the REST routes is an optional owner-discretionary
+  nicety (NOT done — the unbounded complete read is correct and growth is slow/bounded by the RLS cutover that stops `new:`
+  minting, Q-17-010).
+
+### Q-19-006 ✅ ACCEPTED — cosmetic route-hardening drift (evidence corrected)
+- Cosmetic: all 6 routes import the pg-adapter Prisma client so all already REQUIRE the Node runtime — which is the Next 16
+  App Router default (no `runtime="edge"` in src) — so the 2 pins merely restate the default; propagate-vs-custom-500 is
+  functionally equivalent.
+- Doc correction: the finding's evidence claimed `resource-kinds` pins `runtime="nodejs"` — it does NOT (verified by grep:
+  only `subjects` + `topics` pin it). The runtime-pin normalization folds into the Q-19-001 MED edit (which touches all 6
+  routes for auth).
+
+### Verification
+- No code changed (markdown-only) → CI baseline unchanged-green from round 41 (tsc 0 / eslint 0-err·1313 / vitest 172/172).
+  `prisma/` untouched.
+
+### Reconcile (§4 partition)
+- 3 in-scope LOW → **3 accepted-by-design**; 0 fixed/removed/re-graded/deferred; 0 unaccounted.
+- **LOW: 21 → 18 open** (MED 16 / HIGH 3 unchanged). Counts reconcile across ch.19 §7 (3 ✅ ACCEPTED) / ch.19 §5
+  (`getSubtopicObjectives` → DONE) / ch.24 register top-line (`21 → 18`), LOW running log / 00-INDEX glance (`21 → 18`).
+
+### 👤 Owner follow-up
+- **Nothing pushed.** ch.19 MED next: Q-19-001 (add `auth()`→401 + normalize runtime across the 6 spine routes) +
+  Q-19-003 (remove the dead `server/queries/curriculum.ts`).
+
+## Session 2026-06-22 (round 43) — Consolidated final pass / ch.19 MED findings (Q-19-001, Q-19-003)
+
+Both OPEN ch.19 MED closed (the 5-skeptic Workflow from round 42 covered these too — both FIX/REMOVE, high-confidence,
+with the Q-19-003 skeptic proving build-safety via a move-aside `tsc` delta of 0). CI green.
+
+### Q-19-001 ✅ RESOLVED — session-gate the Academic-Spine REST surface
+- Added `const session = await auth(); if (!session?.user) return 401;` to all 6 GET handlers
+  (`subjects`/`strands`/`topics`/`subtopics`/`grade-bands`/`resource-kinds`), copying the in-repo `courses/route.ts`
+  pattern. **No org filter** — the spine is global reference data (CONTEXT_FREE), so the only behavior change is that an
+  unauthenticated caller now gets 401 instead of 200; every live consumer is an authenticated app page (courses/new,
+  blocks/*, BookScanner, VideosClient, GeneratorsClient, ResourcePicker), so none is affected. An adversarial census of all
+  26 API routes confirmed these were the ONLY data-bearing GETs with no session gate.
+- **Folded in Q-19-006** (ch.19-LOW, accepted-cosmetic): normalized `export const runtime = "nodejs"` across all 6 (was
+  on only `subjects`+`topics`). Defensive — the pg-adapter Prisma client cannot run on the edge runtime, so the explicit
+  pin prevents an accidental edge flip; it also makes the 6 routes uniform. Added `import { auth } from "@/auth"`.
+- Files: M all 6 `src/app/api/curriculum/*/route.ts`.
+
+### Q-19-003 ✅ REMOVED — dead curriculum-queries module
+- `git rm src/server/queries/curriculum.ts` (218 lines: `getAvailableTools`/`getObjectives`/`getSpineHierarchy`/
+  `getObjective`). Build-safety proven: grep = zero importers repo-wide (no barrel/dynamic import); the skeptic's
+  move-aside + `npx tsc --noEmit` delta = 0 new orphan errors (and I re-ran the full `tsc` in the main tree = 0). The live
+  spine reads use `spine-actions.ts` + the REST routes; the dead `getObjectives` had a divergent signature from the live
+  one, so zero accidental-resolution risk. Same playbook as Q-11-005.
+- Doc-currency tail (not new findings): annotated the now-dangling `server/queries/curriculum.ts:9` reference in
+  ch.11 §7 Q-11-005's Impact note (the disambiguation target is deleted); the duplicate reference in CHANGELOG round 24
+  (line ~1387) is left as an append-only historical log entry. Q-19-004's title/evidence updated from "three
+  implementations" → "two" (the dead 3rd copy is gone).
+- Files: D `src/server/queries/curriculum.ts`.
+
+### Verification
+- tsc **0 errors** · eslint **0 errors / 1313 warnings** (unchanged — the dead module had no warnings; the 6 routes lint
+  0/0) · vitest **172/172** / 24 files (no DB in harness for the route `auth()` change; no test imported the dead module).
+  `prisma/` **untouched**; scoped `git status` = the 6 routes M + the dead module D + docs.
+
+### Reconcile (§4 partition)
+- 2 in-scope MED → **1 resolved (Q-19-001) · 1 removed (Q-19-003)**; 0 minted/re-graded/deferred; 0 unaccounted.
+- **MED: 16 → 14 open** (LOW 18 / HIGH 3 unchanged). Counts reconcile across ch.19 §7 (Q-19-001 ✅ / Q-19-003 ✅) /
+  ch.19 §1/§3/§5/§6 (module REMOVED rows; routes auth-gated; Q-19-004 "two surfaces") / ch.24 MED header (`16 → 14`),
+  lineage, both by-theme entries, §3 dashboard, §5 hardening list / register top-line (`16 → 14`) / 00-INDEX glance.
+- **ch.19 now FULLY TRIAGED** (LOW round 42 / MED round 43; no HIGH).
+
+### 👤 Owner follow-up
+- **Nothing pushed.** Advancing to ch.20 (family-discipleship) — note it carries 2 of the remaining 3 HIGH (Q-20-001/002).
+
+## Session 2026-06-22 (round 44) — Consolidated final pass / ch.20 LOW findings (Q-20-005/007/008/010)
+
+A 9-skeptic adversarial Workflow (all 9 open ch.20 findings) **corrected my action-bias on the LOW cell** — only Q-20-005
+warranted code; 007/010 were over-leaned to FIX (the proxy/cold-path realities flip them to ACCEPT) and 007/008/010 had
+factually-wrong evidence corrected. **3 dead symbols removed; 1 finding kept-for-wiring; 3 accepted.**
+
+### Q-20-005 ✅ RESOLVED (split) — dead exports
+- Removed 3 truly-dead symbols: `searchBible` (`bible-study.ts`, + its orphaned `searchBibleSchema` / `ESVSearchResponse` /
+  `ESVSearchResult` / `MAX_SEARCH_RESULTS` tail — the full intra-file dead chain), `fetchUnreachedByCountry`
+  (`joshua-project.ts`), and `toggleQuestionMastery` (`student-catechism.ts` — a redundant twin of the live
+  `markQuestionAsMastered`). All zero-importer (grep-confirmed).
+- **`lib/schemas/bible-memory.ts` is NOT dead-to-delete** — its schemas map 1:1 to the unvalidated bible-memory actions, so
+  it is the remediation vehicle for Q-20-006 (ch.20-MED): fix `.cuid()`→`.uuid()` + wire. Kept this cell; wired in the MED cell.
+- Files: M `src/server/actions/bible-study.ts`, `src/lib/joshua-project.ts`, `src/app/actions/student-catechism.ts`.
+
+### Q-20-007 ✅ ACCEPTED — student suite pages (defense-in-depth note)
+- The lean (add auth + org check) was REFUTED: `src/proxy.ts` fail-closed redirects sessionless `/students/*` to `/login`
+  (+ `profile-access.ts` profile gating), so the "renders for unauthenticated callers" impact is FALSE. The only residual —
+  a cross-tenant `studentId` in client props — is inert: `DiscipleshipDashboard` uses it only for href suffixes, and
+  `InteractiveCatechism`'s `studentId` calls all hit `assertStudentInOrg` (throws). Corrected the impact; kept as a
+  defense-in-depth note. No code change.
+
+### Q-20-008 ✅ ACCEPTED (won't-fix) — half-built Public/Private toggle
+- Corrected evidence: `isPrivate` is **never persisted** (`createPrayerEntry` hardcodes `false`; schemas omit it; the only
+  other writer is dead Q-20-004), and there ARE cosmetic consumers (Lock icon + "Private" badge) that therefore never
+  trigger. No leak (all prayer reads are per-user). Wire-vs-remove is a product/UI decision → §5 roadmap. No code/schema change.
+
+### Q-20-010 ✅ ACCEPTED — `mission-stats.json` per-request read
+- Corrected scope: only the Missions page calls `getOperationWorldStats` (once/render); Neighbor never does. The 175KB is
+  already RSC-serialized to the client, so the server parse is the minor cost; React `cache()` would be a no-op
+  (request-scoped). Cold-path micro-opt, disproportionate to fix. No code change.
+
+### Verification
+- tsc **0 errors** · eslint **0 errors / 1313 warnings** (unchanged — the removed `fetchUnreachedByCountry` `any` was already
+  `eslint-disable`d; no new orphans) · vitest **172/172** / 24 files. `prisma/` untouched; scoped `git status` = the 3 code
+  files M + docs.
+
+### Reconcile (§4 partition)
+- 4 in-scope LOW → **1 resolved (Q-20-005) · 3 accepted (Q-20-007/008/010)**; 0 re-graded/deferred; 0 unaccounted.
+- **LOW: 18 → 14 open** (MED 14 / HIGH 3 unchanged). Counts reconcile across ch.20 §7 (4 marked) / ch.20 §5 (3 REMOVED rows +
+  bible-memory.ts PENDING-WIRE) / ch.24 LOW running log (`18 → 14`) + register top-line (`18 → 14`) + §5 roadmap (Q-20-008) /
+  00-INDEX glance (`18 → 14`).
+
+### 👤 Owner follow-up
+- **Nothing pushed.** ch.20 MED next: Q-20-003 (getBibleText arg-shape one-liner), Q-20-004 (remove 5 dead legacy exports),
+  Q-20-006 (fix+wire bible-memory.ts schemas). The Q-20-008 Public/Private toggle awaits your wire-vs-remove call (§5 roadmap).
+
+## Session 2026-06-22 (round 45) — Consolidated final pass / ch.20 MED findings (Q-20-003/004/006)
+
+All 3 OPEN ch.20 MED closed (the round-44 9-skeptic Workflow covered these — all FIX/REMOVE with refinements I applied).
+CI green.
+
+### Q-20-003 ✅ RESOLVED — bible-memory add-verse arg shape
+- `addVerseToUser` called `getBibleText(data.reference)` (bare string) but `getBibleText` expects `{reference}` (Zod object)
+  → threw → caught → text="" on add. Fixed to `getBibleText({ reference: data.reference })`. **Kept** the surrounding
+  try/catch→`text=""` (the skeptic's catch: removing it would turn a transient ESV outage / bad reference into a failed
+  add; PracticeMode lazy-backfills the text on first practice). File: M `bible-memory/actions.ts`.
+
+### Q-20-004 ✅ REMOVED — dead legacy family-discipleship actions
+- Deleted the 5 dead legacy exports (`createPrayerRequest`/`togglePrayerAnswered`/`deletePrayerRequest`/`addMemoryVerse`/
+  `deleteMemoryVerse`) from `family-discipleship/actions.ts` — zero importers (grep), raw `db` (no withTenant), duplicating
+  the live `prayer-journal.ts` / bible-memory paths. Kept `addChurchNote`/`deleteChurchNote` (the only wired exports,
+  ChurchNotesClient). Confirmed PrayerJournalClient's `togglePrayerAnswered` imports from the LIVE `prayer-journal.ts`
+  (the naming collision is resolved by removal). Shared imports stay live via the church-note actions. File: M.
+
+### Q-20-006 ✅ RESOLVED — wire bible-memory input validation (+ completes Q-20-005's schema part)
+- Fixed `lib/schemas/bible-memory.ts`: `.cuid()`→`.uuid()` (ids are uuid per schema.prisma) + bounded `text`; trimmed to
+  the 4 wired schemas. WIRED them into the 4 LIVE actions (`addVerseToUser`/`createFolder`/`renameFolder`/
+  `moveVerseToFolder`) — `parse` inside the existing try/catch so a ZodError degrades to `{success:false}` (not a crash);
+  `addVerseToUser` now takes `unknown` + parses; the 3 positional actions reconstruct the object (`schema.parse({...})`)
+  per the skeptic (4 of 5 are positional, not object-shaped). **`copyFolderToStudent` was DEAD** (zero callers, grep) →
+  removed with its `copyFolderSchema` (a consequential Q-20-005-class cleanup surfaced by the adversarial pass; also
+  dropped an `any`, −1 lint warning). +`bible-memory.test.ts` (8 cases shape-lock uuid-accept / cuid-reject / max-length /
+  nullable folderId). Files: M `bible-memory/actions.ts`, `lib/schemas/bible-memory.ts`, NEW `bible-memory.test.ts`.
+
+### Verification
+- tsc **0 errors** · eslint **0 errors / 1312 warnings** (−1 vs 1313 — the removed `copyFolderToStudent` carried an `any`;
+  the 9 `catch (e)` warnings in bible-memory/actions.ts are pre-existing) · vitest **180/180** / **25** files (+8 / +1 —
+  `bible-memory.test.ts`). `prisma/` untouched; scoped `git status` = 6 ch.20 code files M + the new test + docs.
+
+### Reconcile (§4 partition)
+- 3 in-scope MED → **2 resolved (Q-20-003/006) · 1 removed (Q-20-004)**; 0 re-graded/deferred; 0 unaccounted. Q-20-006 also
+  completed Q-20-005's (ch.20-LOW) `bible-memory.ts` part (no double-count — Q-20-005 already closed in the LOW cell).
+- **MED: 14 → 12 open** (LOW 14 / HIGH 3 unchanged). Counts reconcile across ch.20 §7 (3 marked) / ch.20 §5 (legacy
+  exports REMOVED, bible-memory.ts DONE/wired, actions.ts validation note) / ch.24 MED header (`14 → 12`), lineage, both
+  by-theme entries, §5 broken-list (Q-20-003) / register top-line (`14 → 12`) / 00-INDEX glance.
+
+### 👤 Owner follow-up
+- **Nothing pushed.** ch.20 HIGH next: Q-20-001 (REGRADE→LOW + defense-in-depth `auth()` on the unauth global-content
+  actions — the proxy already gates the normal path) and Q-20-002 (the broken prayer-delete client one-liner).
+
+## Session 2026-06-22 (round 46) — Consolidated final pass / ch.20 HIGH findings (Q-20-001, Q-20-002) + sibling Q-14-009
+
+Both OPEN ch.20 HIGH closed (round-44 9-skeptic Workflow). **The feature-chapter HIGH set is now fully worked down — only
+the ⏳-deferred Q-12-007 remains.** CI green.
+
+### Q-20-001 ✅ RESOLVED (🔻 over-graded → really LOW defense-in-depth)
+- The adversarial pass proved the HIGH premise was wrong: `src/proxy.ts` is a **fail-closed** allowlist — `PUBLIC_ROUTES`
+  deliberately excludes the entire `/family-discipleship` subtree, the matcher covers everything except `/api/*`, and Next
+  server actions POST to those (matched) page routes — so the pages AND actions are already proxy-gated for normal
+  invocation; the data is global non-tenant content (no PII/quota exposure for anonymous callers). git-verified the proxy
+  guard predates the doc SHA.
+- **Fixed anyway (defense-in-depth):** added an `auth()` session check to the 7 unauthenticated content actions —
+  `getUnreachedOfTheDayAction`/`getOperationWorldStats`/`getCountiesForState`/`getAllStates` (missions, via a shared
+  `requireSession()`), `getCatechisms`/`getCatechismQuestions` (catechism, `requireSession()`), `getPrayerCategories`
+  (prayer-journal). No org filter (global data). Rationale: the proxy's own comment says it is a "backstop NOT a
+  replacement" (pages/actions must self-gate), and the newer sibling actions (bible-memory, prayer CRUD) already do — this
+  converges the older content holdouts onto that posture + closes the obscure public-route-POST bypass. Pages unchanged
+  (proxy-gated). Fix-and-close → re-grade moot (over-grade recorded).
+- Files: M `missions/actions.ts`, `catechism/actions.ts`, `prayer-journal.ts`.
+
+### Q-20-002 ✅ RESOLVED (🔻 over-graded → broken feature, not a vuln)
+- `deletePrayerEntry(entry.id)` (bare string) → `deletePrayerEntry({ id: entry.id })` (PrayerJournalClient.tsx:138),
+  matching the `deletePrayerSchema = z.object({id})` contract + the house `createPrayerEntry`/`deleteStudent({id})`
+  convention. The action is fully auth/org/ownership-guarded; the Zod throw merely rejected the malformed input pre-write,
+  so this is a broken-feature bug (HIGH over-graded). File: M `PrayerJournalClient.tsx`.
+
+### Q-14-009 ✅ minted-and-RESOLVED (MED, ch.14) — sibling course-delete bug
+- The adversarial pass surfaced the identical string-vs-object pattern in course delete: `CourseList.tsx:65`
+  `deleteCourse(course.id)` (bare string) vs `deleteCourseSchema = z.object({id})` (lib/schemas/actions.ts:29) → ZodError →
+  "An error occurred" toast; course never deleted. **Fixed:** `deleteCourse({ id: course.id })`. Minted in ch.14 (its owning
+  chapter) born-resolved (MED — broken feature). File: M `src/components/library/CourseList.tsx`.
+
+### Verification
+- tsc **0 errors** · eslint **0 errors / 1312 warnings** (unchanged — the `auth()` additions + one-line delete fixes add no
+  warnings) · vitest **180/180** / 25 files (server-action/route `auth()` + client one-liners have no DB-harness test).
+  `prisma/` untouched; scoped `git status` = 6 ch.20/14 code files M + docs.
+
+### Reconcile (§4 partition)
+- 2 in-scope HIGH → **2 resolved** (Q-20-001 fix-and-close after regrade-moot · Q-20-002 fix-and-close); +1 minted-and-resolved
+  sibling (Q-14-009, ch.14 MED — born-resolved, so MED **open** count unchanged at 12); 0 unaccounted.
+- **HIGH: 3 → 1 open** (only Q-12-007 ⏳ deferred remains; foundational Q-001 still OPEN, outside the headline). MED 12 /
+  LOW 14 unchanged. Counts reconcile across ch.20 §7 (Q-20-001/002 ✅) + §5 (8 rows) / ch.14 §7 (Q-14-009 born-resolved) +
+  §5 / ch.24 HIGH header (`3 → 1`), lineage, register table (both struck), §3 dashboard, §5 Workstream-B + roadmap, register
+  top-line (`3 → 1`) / 00-INDEX glance (`3 → 1` + remaining-HIGH prose).
+- **ch.20 now FULLY TRIAGED** (LOW round 44 / MED round 45 / HIGH round 46).
+
+### 👤 Owner follow-up
+- **Nothing pushed.** Major milestone: the only open HIGH is now **Q-12-007** (⏳ deferred — needs the in-the-moment
+  child-safety feature + a legal `[DECISION]`). The Q-20-008 prayer Public/Private toggle still awaits your wire-vs-remove
+  call (§5 roadmap). Advancing to ch.21 (planner-scheduling).
+
+## Session 2026-06-22 (round 47) — Consolidated final pass / ch.21 LOW findings (Q-21-001/002/004/005/009)
+
+All 5 OPEN ch.21 LOW fixed (a 6-skeptic Workflow confirmed all + sharpened two). CI green.
+
+### Q-21-001 ✅ RESOLVED — honor classroom school days
+- `getNextSchoolDays` (scheduling.ts:55) hardcoded `[1,2,3,4,5]`, ignoring `classroom.schoolDaysOfWeek` (a `number[]` 0-6,
+  present on the already-included classroom). Now: `const schoolDaysOfWeek = (Array.isArray(configured) && configured.length>0)
+  ? configured as number[] : [1,2,3,4,5]`. The **`.length>0` guard is load-bearing** (skeptic): `[]` is the persisted
+  "varies/unset" state — passing it raw matches no day and hits the "no school days in a year" throw. So 4-day/Sunday
+  schedules now place correctly while unset/varies preserves today's weekday placement. File: M `scheduling.ts`.
+
+### Q-21-002 ✅ RESOLVED — wire the dead distributeCourseSchema
+- `distributeCourse` did only an `isNaN(date)` check. Wired `distributeCourseSchema` via `safeParse({courseId, studentId,
+  startDate})` → explicit `{success:false, error}` return (skeptic's refinement: safeParse + explicit return, NOT
+  parse-into-catch; mirrors `generate-resource.ts`), kept the `isNaN` check. Closes both halves (dead schema + no
+  validation). +shape-lock test in `actions.test.ts`. Value = defense-in-depth + dead-code/drift cleanup + boundary-Zod
+  consistency (authz already held — not a closed vuln). *(~12 sibling schemas in actions.ts stay dead-by-design — a batch
+  wire-or-remove sweep is the owner's call.)* Files: M `scheduling.ts`, `actions.test.ts`.
+
+### Q-21-004 ✅ RESOLVED — await the ad-hoc write before refresh (+ silent-failure fix)
+- `handleResourceSelected` fired `toast.promise(addAdHocEvent(...))` then `router.refresh()` synchronously → the refresh
+  raced the create+revalidateTag. Rewrote to mirror the sibling `handleDragEnd`: `const result = await addAdHocEvent(...);
+  if (result.success){toast.success; router.refresh()} else {toast.error(result.error)}`. **Adversarial-pass bonus:**
+  `addAdHocEvent` returns `{success:false}` (never throws), so the old `toast.promise` error branch was DEAD and a real
+  failure showed the SUCCESS toast — the new branch fixes that too. File: M `PlannerGrid.tsx`.
+
+### Q-21-005 ✅ RESOLVED — drop dead server-helper import from the client
+- Deleted `import { getCurrentUserOrg }` (never called) from the `"use client"` PlannerGrid. Currently tree-shaken
+  (auth-helpers is side-effect-free), but a latent server-into-client footgun (the chain imports `node:async_hooks` +
+  Prisma) — a build break the moment the symbol is referenced. −1 lint warning. File: M `PlannerGrid.tsx`.
+
+### Q-21-009 ✅ RESOLVED — un-export getHolidays
+- Dropped the `export` on `getHolidays` (holidays.ts:43) — it is live (called by `isHoliday`) but has zero external
+  importers, so the `export` keyword was dead API surface. Kept the body + the `Holiday` interface (public via
+  `isHoliday`'s return type). File: M `holidays.ts`.
+
+### Verification
+- tsc **0 errors** · eslint **0 errors / 1311 warnings** (−1 vs 1312 — the removed PlannerGrid dead import; the new
+  `catch {}` and casts add no `any`) · vitest **182/182** / 25 files (+2 — distributeCourseSchema shape-lock). `prisma/`
+  untouched; scoped `git status` = 4 ch.21 code files M + docs.
+
+### Reconcile (§4 partition)
+- 5 in-scope LOW → **5 resolved**; 0 accepted/removed/re-graded; 0 unaccounted.
+- **LOW: 14 → 9 open** (MED 12 / HIGH 1 unchanged). Counts reconcile across ch.21 §7 (5 ✅) + §5 (4 rows) / ch.24 LOW
+  running log (`14 → 9`) + register top-line (`14 → 9`) / 00-INDEX glance (`14 → 9`).
+
+### 👤 Owner follow-up
+- **Nothing pushed.** ch.21 MED next: Q-21-003 (Auto-Reschedule button + `isLocked` reshuffle unimplemented) — a
+  build-vs-remove fork I'll surface to you (the button is a visible silent no-op; "keep as-is" is dominated).
+
+## Session 2026-06-22 (round 48) — Consolidated final pass / ch.21 MED finding (Q-21-003)
+
+The sole OPEN ch.21 MED. Presented as an OWNER_DECISION (build-vs-remove); **owner chose REMOVE + roadmap.** CI green.
+
+### Q-21-003 ✅ RESOLVED (removed) — dead Auto-Reschedule button
+- Deleted the no-op `<Button>Auto-Reschedule</Button>` from `planner/page.tsx` (it had no onClick/type/form — a silent
+  no-op; a prominent button that does nothing dominates "keep as-is", per the Q-17-001 broken-feature lesson). `Button` is
+  still used by the week-nav arrows, so no orphaned import.
+- **Roadmapped (ch.24 §5):** the bulk reshuffle / Auto-Reschedule feature is a from-scratch multi-file build (a reshuffle
+  engine recomputing placement across holidays + school days, reading/writing the currently-dead `StudentScheduleItem.isLocked`
+  pin) — beyond a resolution session per §9.3. `isLocked` stays a documented unused schema field (removal = a deferred
+  migration; left for that build).
+- Owner decision via AskUserQuestion: "Remove button + roadmap" (over Build-now / Leave-as-is). File: M `planner/page.tsx`.
+
+### Verification
+- tsc **0 errors** · eslint **0 errors / 1311 warnings** (unchanged — JSX deletion; the 1 planner-page warning is a
+  pre-existing unescaped `'`) · vitest **182/182** / 25 files. `prisma/` untouched (the `isLocked` field is left as-is —
+  no schema change); scoped `git status` = `planner/page.tsx` M + docs.
+
+### Reconcile (§4 partition)
+- 1 in-scope MED → **1 removed** (Q-21-003); 0 unaccounted.
+- **MED: 12 → 11 open** (LOW 9 / HIGH 1 unchanged). Counts reconcile across ch.21 §7 (Q-21-003 ✅) + §5 (button REMOVED,
+  isLocked DEAD-roadmapped) / ch.24 MED header (`12 → 11`), lineage, by-theme entry, §3 dashboard, §5 roadmap / register
+  top-line (`12 → 11`) / 00-INDEX glance.
+- **ch.21 now FULLY TRIAGED** (LOW round 47 / MED round 48; no HIGH).
+
+### 👤 Owner follow-up
+- **Nothing pushed.** Advancing to ch.22 (transcripts-records). Two product/feature roadmap items now await you: the prayer
+  Public/Private toggle (Q-20-008) and the planner bulk-reshuffle feature (Q-21-003) — both in ch.24 §5.
+
+## Session 2026-06-22 (round 49) — Consolidated final pass / ch.22 LOW findings (Q-22-001/004/005/006/008)
+
+All 5 OPEN ch.22 LOW (a 7-skeptic Workflow covered the whole chapter). **2 removed · 2 accepted · 1 resolved.** CI green.
+
+### Q-22-001 ✅ REMOVED — dead PrintLayout
+- `git rm src/components/print/PrintLayout.tsx` (PrintLayout/Section/Box/Grid/Title — zero importers; the transcript PDF
+  uses raw HTML strings). Doc-currency: §1/§3/§5 references updated. File: D.
+
+### Q-22-004 ✅ REMOVED — 3 dead symbols
+- Removed `deleteTranscript` (transcript.ts — **+ its orphaned `assertParentProfile` import**, of which it was the sole
+  consumer; git blame showed the parent-guard was a mechanical security-sweep artifact, NOT a planned-feature signal),
+  `getDefaultCoursesForGrade` + `validateCourse` (utils.ts). The invalid-row gap is caused by validation being wired
+  nowhere (not by `validateCourse` being dead) — re-introduce a validator on a future transcript-editor revival
+  (disproportionate now on a 0-row feature). Files: M `transcript.ts`, `utils.ts`.
+
+### Q-22-005 ✅ ACCEPTED — data-export raw-db org reads
+- The skeptic VERIFIED the lean: none of data-export's org models are CONTEXT_FREE, so under RLS-on the per-query
+  extension's `resolveTenant()` self-resolves org from the session even on this `auth()`-only path → already RLS-ready;
+  the explicit `where:{organizationId: orgId}` is the live boundary RLS-off. The finding's "no RLS backstop" framing was
+  corrected (the leak window is bounded to the RLS-off period). Wrapping the parallel `Promise.all` in `withTenant` would
+  serialize 8 reads for zero gain. No code change.
+
+### Q-22-006 ✅ RESOLVED — PDF empty-card cheap fixes (full merge accepted)
+- The skeptic upgraded this from accept to FIX-the-cheap-bits because the empty-year card is the DEFAULT render (grid is
+  always 4 cards; generated transcripts start grade-less). Fixed in `pdfExport.ts`: the literal `0.0` → `formatGPA(0)`/
+  `formatCredits(0)` (was `0.0` vs `0.00` everywhere else), removed the empty card's duplicate GPA/Cr body line (now
+  header-only, matching the on-screen preview), and deleted the 3 dead CSS blocks (`.summary-divider`/`.credits-by-subject`/
+  `.subject-credit-item`, never emitted). The full preview↔PDF layout MERGE stays accepted-by-design (two genuine render
+  targets; disproportionate refactor for a LOW). File: M `pdfExport.ts`.
+
+### Q-22-008 ✅ ACCEPTED — Transcript.isOfficial orphaned column
+- Aspirational orphaned schema column (same profile as Q-18-005's `letterGrade`): removal is a deferred migration
+  (off-table) and wiring an official/draft toggle is a multi-target feature (builder UI + persistence + conditional render
+  in both the preview AND the PDF — ties into Q-22-006). Accepted as schema-drift + §5 roadmap. No code/schema change.
+
+### Verification
+- tsc **0 errors** · eslint **0 errors / 1311 warnings** (unchanged — the removed dead code was lint-clean) · vitest
+  **182/182** / 25 files. `prisma/` untouched; scoped `git status` = 3 code files (1 D + transcript.ts/utils.ts/pdfExport.ts
+  M) + docs.
+
+### Reconcile (§4 partition)
+- 5 in-scope LOW → **2 removed (Q-22-001/004) · 2 accepted (Q-22-005/008) · 1 resolved (Q-22-006)**; 0 unaccounted.
+- **LOW: 9 → 4 open** (MED 11 / HIGH 1 unchanged). Counts reconcile across ch.22 §7 (5 marked) + §1/§3/§5 (PrintLayout +
+  dead rows) / ch.24 LOW running log (`9 → 4`) + register top-line (`9 → 4`) / 00-INDEX glance (`9 → 4`).
+
+### 👤 Owner follow-up
+- **Nothing pushed.** ch.22 MED next: Q-22-002 (generateTranscriptData) + Q-22-003 (builder missing editor fields) — both
+  heading to accept/roadmap (the "discarded subject" is a spine-vs-registrar taxonomy mismatch; the missing editor UI is a
+  feature).
+
+## Session 2026-06-22 (round 50) — Consolidated final pass / ch.22 MED findings (Q-22-002, Q-22-003)
+
+Doc-only cell — both ACCEPTED. CI baseline unchanged (no code touched). The 7-skeptic Workflow informed both, and I
+**overrode the Q-22-002 FIX_NOW lean to ACCEPT** on a re-anchor (see below).
+
+### Q-22-002 ✅ ACCEPTED — generateTranscriptData defaults are correct-by-design (over-graded → LOW)
+- The skeptic verified the schema reality: `Course` has NO credits/grade column and `CourseStudent` (enrollment) has only
+  status/dates — so grade/credit have **no schema source** (the defaults are correct; the parent enters them, the proper
+  transcript workflow). The skeptic recommended FIX_NOW (populate `subject` from `course.subject.name`) but flagged a
+  "concrete missed regression": the course's `subject` is the curriculum-SPINE subject (e.g. "Language Arts & Humanities"),
+  a **different taxonomy** than the transcript's registrar-subject dropdown (English/Mathematics/...). **Re-anchored to the
+  finding's goal** (a correct transcript): injecting the spine subject would render a blank editor Subject cell (no matching
+  `<Select>` option) AND place a non-registrar value on the "official" transcript, and would need a spine→registrar mapping
+  (doesn't exist) + a dropdown overhaul. So "General" + parent-classification is correct-by-design, not a defect. ACCEPT,
+  no code change; finding framing corrected.
+
+### Q-22-003 ✅ ACCEPTED / roadmap — missing editor fields
+- SPLIT the 6 fields (skeptic refinement): `tests`/`notes`/`signed`+`signature` are persisted-but-render-only (preview +
+  PDF read them) → a deferred multi-field editor FEATURE (§9.3) — the signature gap (an "official" transcript can't be
+  signed via the app) is the headline, roadmapped to ch.24 §5. `pre9thCourses` + `template`/'subject-based' are DEAD DATA
+  (referenced only in types.ts; no renderer consumes them) — flagged as dead surface, NOT built. No code change.
+
+### Verification
+- No code changed (doc-only) → CI baseline unchanged-green (tsc 0 / eslint 0-err·1311 / vitest 182). `prisma/` untouched.
+
+### Reconcile (§4 partition)
+- 2 in-scope MED → **2 accepted** (Q-22-002 correct-by-design / over-graded; Q-22-003 roadmap); 0 unaccounted.
+- **MED: 11 → 9 open** (LOW 4 / HIGH 1 unchanged). Counts reconcile across ch.22 §7 (2 ✅) + §5 (2 rows) / ch.24 MED header
+  (`11 → 9`), lineage, by-theme, §3 dashboard, §5 roadmap / register top-line (`11 → 9`) / 00-INDEX glance.
+- **ch.22 now FULLY TRIAGED** (LOW round 49 / MED round 50; no HIGH).
+
+### 👤 Owner follow-up
+- **Nothing pushed.** Advancing to ch.23 (background-jobs) — the last feature chapter, then ch.24 + the ch.13 straggler.
+  Roadmap items awaiting you: Q-20-008 (prayer toggle), Q-21-003 (planner reshuffle), Q-22-003 (transcript editor fields).
+
+## Session 2026-06-22 (round 51) — Consolidated final pass / ch.23 LOW findings (Q-23-001/003/004/006) + MED & LOW headline reconcile
+
+Mostly accept-by-design (3 LOW closed, 1 stays deferred) — but the cell's §4 reconcile **uncovered count drift in two
+grades** and fixed both. A 4-skeptic adversarial Workflow (run `wj2h2fi5q`) informed the dispositions.
+
+### Q-23-001 ✅ ACCEPTED — operator-triggered corpus pipeline is correct PARTIAL
+- `ingestTextbookCorpus` / `refreshTextbookCrosswalk` have **no in-app trigger** (grep: zero `inngest.send` outside the
+  intra-graph fan-outs) — but they are legitimate operator-fired ops jobs over GLOBAL/context-free tables (no tenancy
+  surface), idempotent, and the ONLY entry to the corpus/recrosswalk graph (so REMOVE is wrong). PARTIAL is the right
+  resting state. Noted: the in-code "user-triggered" comments (types.ts:69, ingest-textbooks.ts:13) **overstate** the
+  wiring. No code change.
+
+### Q-23-004 ✅ ACCEPTED — soft curriculum-verification gate is deliberate outage-tolerance
+- The non-blocking QA (`qa = { unavailable: true }` on a Gemini failure → gate still PASS) is **intentional** (comment
+  :336-337: a transient model outage must not block every org's compiles); raising `MIN_CHARS=200` would false-fail
+  legitimately short artifacts. Gate-tightening (surface `qa.unavailable` in BundleView / soft-warning badge / raise the
+  floor) is an owner quality-tuning decision → §5 roadmap. Corrected the finding's stale "0-row / never exercised" claim
+  (2 bundles COMPLETED; `explode-bundle.ts:79` gates on COMPLETED, but explosion is teacher-initiated, never auto-published).
+
+### Q-23-006 ✅ REMOVED — orphaned `src/data/heidelberg.json`
+- `git rm src/data/heidelberg.json` (2,480 lines). Zero importers (verified 3 ways); the seed uses the self-contained
+  `src/data/catechisms/heidelberg.ts`. The two files even have **incompatible shapes** (PascalCase/nested-proofs json vs
+  camelCase/flat ts), so the json could not seed even if wired. tsc 0; no test/glob/asset-copy reaches it.
+
+### Q-23-003 ⏳ DEFERRED (unchanged) — `process-document` `onFailure`/retry tuning + `extractionStatus` enum
+- Stays bundled with ch.02 Q-011/Q-013 in the batched migration (out of pass scope). No code change.
+
+### 🔢 Count reconcile — drift found in MED (+1) and LOW (−5 net), both fixed (consequential doc-currency fix, not new findings)
+- **MED 9 → 8 (corrected base).** The by-theme *list* itemizes exactly 8 open (Q-12-008/009/010/011/012, Q-17-010,
+  Q-23-002, Q-24-001) but the lineage said 9. Traced the exact slip: the **ch.20-MED step was miswritten `14 → 12`**
+  (14 − 3 closed = **11**); the +1 cascaded through ch.21 (`12→11`) and ch.22 (`11→9`). Corrected the three lineage
+  numbers + the MED header + register top-line + 00-INDEX to land on the itemized list = **8**. (HIGH verified correct:
+  Q-12-007 + foundational Q-001, headline "1" stands.)
+- **LOW "4 → 1" was wrong; true open = 9.** The LOW section was prose-only (no itemized list), and its running tally had
+  drifted to **undercount** carried-forward deferred/kept-open/re-graded items. Verified the true set against every
+  chapter's §7 `Status:` line and **added an authoritative itemized open-LOW list (9)** as the new ground truth:
+  Q-01-004, Q-09-005, Q-10-010, Q-011, Q-013, Q-12-013, Q-13-009, Q-16-001, Q-23-003.
+- **⚠️ 2nd stray surfaced — Q-12-013 [LOW].** Like Q-13-009, it was **minted inside a later chapter's MED cell**
+  (Session 24, ch.12 MED) *after* its own chapter's LOW cell had passed, so it was never triaged and silently fell out of
+  the tally. Partition honesty (the same reason the owner flagged Q-13-009): it is now counted and will be **swept with
+  Q-13-009 at the end-of-pass straggler step**.
+
+### Verification
+- ch.23 LOW touched code only via `git rm src/data/heidelberg.json` (zero-importer data file) → CI baseline unchanged:
+  **tsc 0 / eslint 0-err·1311-warn / vitest 182 passed (25 files)**. `prisma/` untouched.
+
+### Reconcile (§4 partition)
+- 4 in-scope ch.23 LOW → **3 closed** (Q-23-001 accept, Q-23-004 accept, Q-23-006 remove) + **1 deferred** (Q-23-003); 0 unaccounted.
+- **LOW 4 → 9 (reconciled base; net of this cell's 3 closures the prose tail would read 1, but the true open set is 9).**
+  **MED 9 → 8 (reconciled base; unchanged by this LOW cell — corrected the latent +1).** HIGH 1 unchanged.
+- Counts reconcile across: ch.23 §7 (Q-23-001/004/006 dispositions) + §5 rows / ch.24 MED header+lineage+by-theme,
+  LOW header + authoritative list + running-log, register top-line, 00-INDEX glance.
+
+### 👤 Owner follow-up
+- **Nothing pushed.** Next: ch.23 MED (Q-23-002 dead-chain removal) → ch.24 (Q-24-001) → end-of-pass straggler sweep
+  (Q-13-009 **+ the newly-found Q-12-013**) → final reconcile + completion report.
+- Roadmap items awaiting you (unchanged): Q-20-008 (prayer toggle), Q-21-003 (planner reshuffle), Q-22-003 (transcript
+  editor fields), Q-23-001/004 (corpus in-app trigger / QA-gate tightening — both new this round).
+
+## Session 2026-06-22 (round 52) — Consolidated final pass / ch.23 MED finding (Q-23-002)
+
+A clear-cut dead-code removal — the one ch.23 MED. Re-verified the build-safety census independently (a prior skeptic
+had already proved it tsc-safe); §9 standing authority covers proven-safe dead-code removal, so no new Workflow run.
+
+### Q-23-002 ✅ REMOVED — dead web-grounded section-producer chain (`src/lib/ai/book-extraction.ts`)
+- **Census (re-verified):** `groundBookSections`, `structureBookSections`, `describeTableOfContents`, `describeSectionBook`,
+  `SectionMeta`, `SectionGroundMeta` have **zero** importers repo-wide; `groundBookSections`'s only repo hit was a stale
+  **comment** in `extract-book.ts:11`. `runBookGrounding`'s `opts.abortMs` arm had exactly one caller — `groundBookSections`
+  — so it died with the chain (`groundBook`, the live caller, passes no opts).
+- **Removed** all six symbols + stripped `runBookGrounding(prompt, opts?)` → `runBookGrounding(prompt)` (+ the abortSignal
+  spread and the stale NOTE comment). **KEPT** `SectionFacts` + `sectionFactsSchema` — both are live via the full-text
+  `structureSectionsFromText` (the real per-section path, used by `ingest-book-sections.ts`). Rewrote the file-header +
+  Phase-2 doc-comments + scrubbed the `extract-book.ts:11` comment and the `structureSectionsFromText` docstring's stale
+  `groundBookSections` reference. **`book-extraction.ts` 603 → 455 lines (−148).**
+- Why it was dead (deliberate, not accidental): the grounded `google_search` section pass exceeds Vercel's 60s ceiling
+  regardless of batch size (its own former doc-comment said so) → it was superseded by the full-text approach; the chain
+  was left behind.
+
+### Verification
+- **tsc 0 / eslint 0-err·1311-warn / vitest 182 passed (25 files)** — identical to the round-51 baseline (the removed
+  code contributed no lint warnings). `prisma/` untouched. Confirmed zero dangling references to the removed symbols.
+
+### Reconcile (§4 partition)
+- 1 in-scope ch.23 MED → **1 removed** (Q-23-002); 0 unaccounted. **MED 8 → 7 open.** (LOW 9 / HIGH 1 unchanged.)
+- Counts reconcile across: ch.23 §7 (Q-23-002 ✅ REMOVED) + §5 (the DEAD rows → one REMOVED row; drifted line numbers on
+  the kept `groundBook`/`structureSectionsFromText` rows corrected to 214/242/286 + 331/395) / ch.24 MED header (8→7),
+  lineage (+ch.23-MED `8→7`), by-theme (Q-23-002 struck) / register top-line (8→7) / 00-INDEX glance (8→7).
+- **ch.23 now FULLY TRIAGED** (LOW round 51 / MED round 52; HIGH = none — confirmed against §7). It was the LAST feature chapter.
+
+### 👤 Owner follow-up
+- **Nothing pushed.** Next: ch.24 (Q-24-001 `/api/health`) → end-of-pass straggler sweep (Q-13-009 + Q-12-013) → final
+  §4 reconcile + completion report. Roadmap items unchanged from round 51.
+
+## Session 2026-06-22 (round 53) — Consolidated final pass / ch.24 own finding (Q-24-001) — OWNER-APPROVED
+
+### Q-24-001 ✅ REMOVED — unauthenticated `/api/health` infra-disclosure
+- **Re-verified at source:** `src/app/api/health/route.ts` is an unauthenticated `GET` (the proxy matcher excludes
+  `/api/*` — `proxy.ts:96` — and the handler has no `auth()` gate) that returns, on every production request, the DB
+  host/port, Supabase **projectRef**, connection **userRole** (`app_user`|`postgres`), `current_database`/`current_user`/
+  server IP, `RLS_ENABLED`, `VERCEL_ENV`, the commit SHA, and `book_extractions`/`video_extractions` counts. Its own
+  header comment: *"TEMPORARY diagnostic … Remove this route once the env mismatch is resolved."*
+- **Census:** ZERO references repo-wide (no code import, no `vercel.json`, no monitoring/Inngest config) — nothing pings
+  it for liveness, so removal is fully build-safe.
+- **Owner decision (AskUserQuestion):** presented Remove / Gate-behind-auth / Leave-as-is → **owner chose Remove.**
+  `git rm src/app/api/health/route.ts` (the empty `health/` dir is gone too). This eliminates the unauthenticated
+  infra-disclosure entirely (the owner's stated end-state).
+
+### Verification
+- **tsc 0 / eslint 0-err·1311-warn / vitest 182 passed (25 files)** — unchanged baseline (zero-importer route). `prisma/` untouched.
+
+### Reconcile (§4 partition)
+- 1 ch.24 own finding → **1 removed** (Q-24-001); 0 unaccounted. **MED 7 → 6 open.** (LOW 9 / HIGH 1 unchanged.)
+- Counts reconcile across: ch.24 MED header (7→6), lineage (+ch.24 `7→6`), by-theme (Q-24-001 struck), §5 roadmap item
+  (struck → DONE), §9 ops-catch-all table (route row → REMOVED) / register top-line (7→6) / 00-INDEX glance (7→6).
+- **ch.24's own findings are now cleared.** The HIGH/MED by-theme lists in ch.24 are cross-references to other chapters
+  (handled in those chapters), not re-handled here.
+
+### 👤 Owner follow-up
+- **Nothing pushed.** Final steps: end-of-pass straggler sweep (Q-13-009 + Q-12-013 — the two LOWs minted after their
+  chapters' LOW cells) → final §4 reconcile + completion report.
+
+## Session 2026-06-22 (round 54) — Consolidated final pass / end-of-pass straggler sweep (Q-13-009 + Q-12-013)
+
+Doc-only — both stragglers are LOWs that were **minted inside a later chapter's MED cell, after their own chapter's LOW
+cell had already passed**, so they fell out of the running tally (surfaced during the round-51 LOW reconcile). Swept here
+for partition honesty. No code changed.
+
+### Q-13-009 ✅ ACCEPTED — cross-edition extraction dedup fragmentation (ch.13)
+- Re-verified at `book-dedup.ts:154`: `dedupKey = isbn13 ? "isbn:"+isbn13 : "slug:"+titleAuthorSlug`. ISBN-first is the
+  correct STRONG-identity key; different editions (different ISBN-13s) → distinct keys → separate global `BookExtraction`
+  rows. Collapsing editions onto one extraction needs a content-fingerprint / fuzzy-match layer = a **feature** (community
+  semantic-search roadmap, §5). System is correct, waste bounded to cross-edition collisions of multi-org-held books →
+  ACCEPT (won't-fix-now). Closed.
+
+### Q-12-013 ⏳ OPEN (deferred with the child-safety brief) — finding corrected, substantially overstated (ch.12)
+- A census of the cited code **refuted / corrected most sub-claims** (child-safety = extra care, so I verified each at source):
+  - **(c) REFUTED** — `isSafe` is NOT "never read": `safety-scan.ts:80` `if (!result.isSafe)` is the gate that decides
+    whether to store a `SafetyFlag` at all (plus `:33` escalation, `:113` return). Removing it would break the pipeline.
+    The finding's "never read by *policy.ts*" scoping missed safety-scan.ts. → **KEEP isSafe.**
+  - **(a) `coercion` by-design** — consumed at `policy.ts:61` (sibling/incest escalation); the regex fast-path hardcoding
+    `"NONE"` is correct (only the LLM deep-path can infer coercion). **(a) `ageGap`** is genuinely unused but is a coherent
+    reserved companion to `coercion` for future age-gap escalation → keep reserved.
+  - **(d) `reasoning` dual-use already handled** — the `[EVIDENCE:]` audit tag is stripped for the parent email at
+    `notifications/safety-alert.ts:90` (the finding's cited `safety-alert.ts:128/143` is a **stale path**).
+  - **(b)** deriving `SafetyAssessment` via `z.infer<typeof safetySchema>` is a valid drift-prevention nicety (the hand type
+    currently matches the schema).
+- **Decision:** the genuine residual is just (b) + (d) — two minor *safety-code* refactors. Rather than refactor the app's
+  most sensitive code piecemeal in a straggler sweep, they're **deferred WITH the owner's child-safety brief** (companions
+  to Q-12-008..012, §5 roadmap). Evidence corrected in ch.12 §7; finding kept OPEN (consistent with its sibling brief items).
+
+### Verification
+- No code changed (doc-only). CI baseline unchanged-green from round 53 (tsc 0 / eslint 0-err·1311 / vitest 182·25). `prisma/` untouched.
+
+### Reconcile (§4 partition)
+- 2 stragglers → **1 closed** (Q-13-009 accept) + **1 corrected & kept-open-deferred** (Q-12-013); 0 unaccounted. **LOW 9 → 8 open.** (MED 6 / HIGH 1 unchanged.)
+- Counts reconcile across: ch.13 §7 (Q-13-009 ✅), ch.12 §7 (Q-12-013 corrected) / ch.24 LOW header (9→8), the authoritative
+  open-LOW list (re-itemized to 8 + Q-13-009 struck), the LOW running-log (+sweep entry) / register top-line (9→8) / 00-INDEX glance (9→8).
+
+### 👤 Owner follow-up
+- **Nothing pushed.** **The consolidated final pass is COMPLETE** — see the completion report. Remaining open findings are
+  all deferred / owner-accepted / kept-open by design (the batched migration, the RLS cutover, the child-safety brief, two
+  unfinished features, the lint ratchet). Roadmap items unchanged.

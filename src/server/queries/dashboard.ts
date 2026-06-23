@@ -1,5 +1,5 @@
 import "server-only";
-import { withTenant } from "@/server/db";
+import { db, withTenant } from "@/server/db";
 import { excludeParentLearners } from "./learner-filters";
 import { analyzeContextCompleteness } from "@/lib/context/context-suggestions";
 
@@ -106,4 +106,29 @@ export async function getParentDashboardData(organizationId: string) {
         undefined,
         { organizationId, userId: null },
     );
+}
+
+/**
+ * Today's morning devotional (Spurgeon "Morning & Evening", seeded global reference data with no
+ * org column), used by the parent dashboard's "Daily Liturgy" card. Read on the bare `db` like the
+ * devotionals page (`family-discipleship/devotionals/page.tsx`) since it is cross-org reference data.
+ * The seeded rows carry a metadata prefix ("<date>\nMorning Reading\n\n\"<verse>\"\n- <ref>\n\n<prose>"),
+ * so we derive a clean reference (first line of keyverse) + a short prose excerpt.
+ */
+export async function getTodayDevotional() {
+    const today = new Date();
+    const devotional = await db.devotional.findFirst({
+        where: { month: today.getMonth() + 1, day: today.getDate(), time: "am" },
+        select: { keyverse: true, body: true },
+    });
+    if (!devotional) return null;
+
+    const firstLine = devotional.keyverse.split("\n").find((l) => l.trim());
+    const reference = firstLine ? firstLine.replace(/^["'\s]+/, "").trim() : "Today's Reading";
+
+    const paragraphs = devotional.body.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean);
+    const prose = (paragraphs.slice(2).join(" ") || devotional.body).replace(/\s+/g, " ").trim();
+    const excerpt = prose.length > 170 ? `${prose.slice(0, 170).trimEnd()}…` : prose;
+
+    return { reference, excerpt };
 }

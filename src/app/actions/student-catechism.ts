@@ -80,31 +80,5 @@ export async function markQuestionAsMastered(studentId: string, catechismId: str
     return mastered;
 }
 
-export async function toggleQuestionMastery(studentId: string, catechismId: string, questionIdentifier: string) {
-    await assertStudentInOrg(studentId);
-
-    const progress = await db.studentCatechismProgress.findUnique({
-        where: { studentId_catechismId: { studentId, catechismId } }
-    });
-
-    let mastered = (progress?.masteredQuestions as string[]) || [];
-
-    if (mastered.includes(questionIdentifier)) {
-        mastered = mastered.filter(q => q !== questionIdentifier);
-    } else {
-        mastered.push(questionIdentifier);
-    }
-
-    await db.studentCatechismProgress.upsert({
-        where: { studentId_catechismId: { studentId, catechismId } },
-        update: { masteredQuestions: mastered },
-        create: {
-            studentId,
-            catechismId,
-            masteredQuestions: mastered
-        }
-    });
-
-    revalidatePath(`/students/${studentId}/family-discipleship/catechism`);
-    return mastered;
-}
+// (toggleQuestionMastery removed 2026-06-22 — dead code + a redundant twin of the live
+// markQuestionAsMastered, Q-20-005.)

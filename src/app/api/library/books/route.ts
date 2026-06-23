@@ -3,35 +3,22 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { getCurrentUserOrg } from "@/lib/auth-helpers";
+import { assertParentProfile } from "@/server/profiles/guards";
 import { db, withTenant } from "@/server/db";
-
-export async function GET() {
-  const session = await auth();
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const { organizationId, userId } = await getCurrentUserOrg();
-  if (!organizationId) {
-    return NextResponse.json({ error: "User has no organization" }, { status: 400 });
-  }
-
-  const books = await db.book.findMany({
-    where: { organizationId },
-    include: {
-      subject: true,
-      strand: true,
-    },
-    orderBy: { createdAt: "desc" },
-  });
-
-  return NextResponse.json({ books });
-}
+import { revalidateTag } from "next/cache";
 
 export async function POST(request: NextRequest) {
   const session = await auth();
   if (!session?.user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  // Mutating the org catalog is a parent-only action (defense-in-depth: the proxy does NOT
+  // gate /api routes, so a STUDENT-profile session on the shared family login could POST here).
+  try {
+    await assertParentProfile();
+  } catch {
+    return NextResponse.json({ error: "This action requires a parent profile." }, { status: 403 });
   }
 
   const { organizationId, userId } = await getCurrentUserOrg();
@@ -98,6 +85,11 @@ export async function POST(request: NextRequest) {
     undefined,
     { organizationId, userId },
   );
+
+  // Bust the cached /living-library catalog so the new book shows immediately
+  // (matches addArticle/addDocuments and the extract routes — the create route
+  // previously omitted this, leaving the catalog stale up to the 1h TTL).
+  revalidateTag(`library-${organizationId}`, {});
 
   // Generate embedding for semantic search. Best-effort: a failure must not fail
   // book creation, but it's logged loudly + traceably (with the book id) because a

@@ -1,6 +1,6 @@
 /**
- * matching.ts — shared fuzzy title/author matching for the full-text SOURCE adapters
- * (registry.ts / gutenberg.ts / standard-ebooks.ts / internet-archive.ts).
+ * matching.ts — shared fuzzy title/author matching for the full-text SOURCE adapters (gutenberg.ts /
+ * standard-ebooks.ts / internet-archive.ts / wikisource.ts / siyavula.ts / libretexts.ts).
  *
  * A WRONG full text is worse than none (it would ground generation in the wrong book), so matching
  * is deliberately conservative: a candidate must clear a title-containment bar and, when an author

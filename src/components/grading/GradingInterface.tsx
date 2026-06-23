@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,6 +18,7 @@ export function GradingInterface({
   attempt,
   personalityData,
 }: GradingInterfaceProps) {
+  const router = useRouter();
   const [scores, setScores] = useState<Record<string, number>>({});
   const [feedback, setFeedback] = useState<Record<string, string>>({});
   const [isGeneratingFeedback, setIsGeneratingFeedback] = useState<string | null>(null);
@@ -47,7 +50,7 @@ export function GradingInterface({
       setFeedback({ ...feedback, [itemId]: text });
     } catch (error) {
       console.error("Failed to generate feedback:", error);
-      alert("Failed to generate feedback. Please try again.");
+      toast.error("Failed to generate feedback. Please try again.");
     } finally {
       setIsGeneratingFeedback(null);
     }
@@ -73,7 +76,7 @@ export function GradingInterface({
       setOverallFeedback(text);
     } catch (error) {
       console.error("Failed to generate overall feedback:", error);
-      alert("Failed to generate overall feedback. Please try again.");
+      toast.error("Failed to generate overall feedback. Please try again.");
     } finally {
       setIsGeneratingOverall(false);
     }
@@ -82,24 +85,20 @@ export function GradingInterface({
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      // Calculate total score
-      const totalScore = Object.values(scores).reduce((sum, score) => sum + score, 0);
-      const maxScore = attempt.assessment.items.reduce(
-        (sum: number, item: any) => sum + Number(item.points || 0),
-        0,
-      );
+      // Q-18-004 — label the grade honestly: AI_ASSISTED only when Inkling feedback was
+      // actually generated this session (per-item or overall), otherwise MANUAL. The server
+      // recomputes scorePoints/maxPoints authoritatively from the item points, so the client
+      // no longer sends (and the server no longer trusts) the totals.
+      const usedAI = Object.keys(feedback).length > 0 || overallFeedback.trim().length > 0;
 
-      // Update attempt
       const response = await fetch(`/api/grading/${attempt.id}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          scorePoints: totalScore,
-          maxPoints: maxScore,
           feedback: overallFeedback,
           itemScores: scores,
           itemFeedback: feedback,
-          gradingMethod: "AI_ASSISTED",
+          gradingMethod: usedAI ? "AI_ASSISTED" : "MANUAL",
         }),
       });
 
@@ -107,11 +106,11 @@ export function GradingInterface({
         throw new Error("Failed to save grades");
       }
 
-      alert("Grades saved successfully!");
-      window.location.reload();
+      toast.success("Grades saved successfully!");
+      router.refresh();
     } catch (error) {
       console.error("Failed to save grades:", error);
-      alert("Failed to save grades. Please try again.");
+      toast.error("Failed to save grades. Please try again.");
     } finally {
       setIsSaving(false);
     }

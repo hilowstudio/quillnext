@@ -38,7 +38,7 @@ export function ResourceList({ resources, students, courses, books }: ResourceLi
         // Preserve tab
         params.set("tab", "resources");
 
-        router.push(`/library?${params.toString()}`);
+        router.push(`/living-library?${params.toString()}`);
     };
 
     return (

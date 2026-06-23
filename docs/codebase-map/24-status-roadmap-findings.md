@@ -52,19 +52,19 @@ DB row counts are from the owner's single seeded org (Phase C, read-only). "0 ro
 | Auth / login (04) | **DONE** | users 1, accounts 1, sessions 0 (JWT) | Google OAuth + JWT. |
 | Profiles / PIN / picker (05) | **DONE** (KID view STUB) | profiles 3 | Best-tested area; `viewMode=KID` falls through to standard view (TODO). |
 | Onboarding / blueprint (17) | **DONE** | organizations 1, classrooms 1, instructors 1, holidays 29 | Step-1 creates the Org. |
-| Academic spine (02/19) | **DONE** (reference) | subjects 12, strands 86, topics 366, subtopics 1,626, **objectives 26,015**, grade_bands 4 | Huge seeded taxonomy; REST API unauthenticated (Q-19-001). |
-| Courses / blocks (17) | **PARTIAL** | courses 2, course_blocks 9, **activities 0** | Activity authoring is **BROKEN** (Q-17-001: POSTs to a nonexistent route). |
+| Academic spine (02/19) | **DONE** (reference) | subjects 12, strands 86, topics 366, subtopics 1,626, **objectives 26,015**, grade_bands 4 | Huge seeded taxonomy; REST API now session-gated (Q-19-001 ✅ 2026-06-22). |
+| Courses / blocks (17) | **PARTIAL** | courses 2, course_blocks 9, activities 0 | Activity authoring **wired** 2026-06-22 (Q-17-001 ✅ Session 35 — built the missing POST route); no activities seeded yet. |
 | Resource generation / Creation Station (10) | **PARTIAL** | resources 9, curriculum_specs 2, bundles 2 | Works; FILE source is an unfinished feature (Q-10-005). LOW triaged 2026-06-20 (Session 18; deep-link source pre-select fixed Q-10-011). MED triaged 2026-06-20 (Session 19): Q-10-004 ✅ resolved (input validation now wired) + Q-10-010 ✅/🔻 (withTenant write fixed; lineage-id residual → LOW). Q-10-012 ✅ resolved (cross-org PII read on `[id]` page). HIGH triaged 2026-06-20 (Session 20): Q-10-001 ✅ resolved (live IDOR — auth+org predicate added to `getSourceMetadata`); Q-10-002/003 ✅ resolved (withTenant RLS-readiness wrap; adversarial pass confirmed no live vuln — really MED). **ch.10 fully triaged.** |
 | Curriculum compiler — Inngest (23) | **DONE** | bundles 2 (completed) | Multi-step fan-out within Vercel's 60s/step ceiling. |
-| Living Library (14) | **PARTIAL** | books 5, videos 1, articles 1, documents 0 | 2 dead routes; write-path trusts client org/user (Q-14-005). |
-| OER ingestion + RAG corpora (13/15/23) | **DONE** | book_text_chunks 2,785, textbook_docs 3, textbook_chunks 1,581, coverage 90, book_extractions 6 + 18 sections | Real ingestion has run; `searchVideos`/video-vector path dead (Q-15). |
-| Students / learners (16) | **DONE** | learners 2, learner_profiles 2 | Create-student self-heals a missing org. |
-| Assessment & grading (16/18) | **BUILT, UNEXERCISED** | assessments / items / attempts / responses / progress all **0** | No real student-taking flow; grading API has **no input validation** (Q-18-001). |
-| Planner / scheduling (21) | **BUILT, UNEXERCISED** | schedule_items 0, custom_events 0 | Tenant-solid; "Auto-Reschedule" + `isLocked` unimplemented (Q-21-003). |
-| Transcripts (22) | **BUILT, UNEXERCISED** | transcripts 0 | `generateTranscriptData` discards real grades (Q-22-002); `PrintLayout` dead. |
-| Family discipleship (20) | **MIXED** | bible_memory 51, prayer_entries 2, catechism_progress 0, church_notes 0, prayer_categories 0 | bible-memory/prayer live; **prayer delete broken** (Q-20-002); missions/neighbor/devotionals/catechism **unauthenticated** (Q-20-001). |
+| Living Library (14) | **PARTIAL** | books 5, videos 1, articles 1, documents 0 | **LOW+MED triaged 2026-06-21 (S27/S28):** dead `POST /api/library/scan` removed (Q-14-002), `/library` nav + dead `revalidatePath` no-ops fixed (Q-14-003), write-path cross-tenant IDOR fixed + all catalog mutations parent-gated (Q-14-005/006), dead `GET` handler removed + create-route cache-bust (Q-14-007/008). **HIGH triaged 2026-06-21 (S29):** dead `GET /api/library/search` route removed (Q-14-001; its orphaned `searchBooks` also deleted → closes ch.15 Q-15-001) + the untyped `where` typed/coerced (Q-14-004 — org predicate always held, no leak, over-graded). **ch.14 fully triaged (LOW S27 / MED S28 / HIGH S29).** |
+| OER ingestion + RAG corpora (13/15/23) | **DONE** | book_text_chunks 2,785, textbook_docs 3, textbook_chunks 1,581, coverage 90, book_extractions 6 + 18 sections | Real ingestion has run; `searchVideos`/video-vector path dead (Q-15). **ch.13 LOW triaged 2026-06-21 (Session 26):** dead single-hit registry wrappers removed (Q-13-001), gutenberg converged onto shared `matching.ts` (Q-13-002), LibreTexts silent-cliff now logged (Q-13-005), scrape-fragility cluster accepted by-design (Q-13-007). **Session 29 minted Q-13-009 [LOW]** (cross-edition extraction dedup fragmentation → roadmapped fingerprint feature, §5), so ch.13 has 1 OPEN LOW again; no MED/HIGH. |
+| Students / learners (16) | **DONE** | learners 2, learner_profiles 2 | Create-student self-heals a missing org. **LOW triaged 2026-06-22 (Session 31):** broken assignment "Open Resource" link + dead `notes` block fixed (Q-16-004), ParentDashboard "Daily Liturgy" wired to the seeded `Devotional` table (Q-16-005), assessment route gained per-step Zod validation + lost 4 `any`s (Q-16-007); Q-16-001 kept OPEN — `/student/dashboard` re-documented as an unfinished built-but-unlinked daily view (roadmap §5). **MED triaged 2026-06-22 (Session 32):** Q-16-002 ✅ resolved (create-student learner/profile writes folded into one `withTenant` tx — RLS-ready + atomic) + Q-16-003 ✅ resolved (`student as any` replaced by a dedicated `studentCardSelect`/`StudentCardData` payload type). **ch.16 now LOW+MED done** (INFO Q-16-008 remains; no HIGH). |
+| Assessment & grading (16/18) | **BUILT, UNEXERCISED** | assessments / items / attempts / responses / progress all **0** | No real student-taking flow (Q-18-006, roadmap); grading API now **validates + recomputes grades server-side** and is tenant/atomic-hardened (Q-18-001/002/003 ✅ 2026-06-22). |
+| Planner / scheduling (21) | **BUILT, UNEXERCISED** | schedule_items 0, custom_events 0 | Tenant-solid; the no-op Auto-Reschedule button was removed (Q-21-003 ✅ 2026-06-22); reshuffle/`isLocked` roadmapped (§5). |
+| Transcripts (22) | **BUILT, UNEXERCISED** | transcripts 0 | `generateTranscriptData` provides titles + parent-classified defaults by design (Q-22-002 ✅); dead `PrintLayout` removed (Q-22-001 ✅ 2026-06-22). |
+| Family discipleship (20) | **MIXED** | bible_memory 51, prayer_entries 2, catechism_progress 0, church_notes 0, prayer_categories 0 | bible-memory/prayer live; prayer delete fixed (Q-20-002 ✅ 2026-06-22); missions/neighbor/devotionals/catechism content actions now session-gated (Q-20-001 ✅ 2026-06-22; pages were already proxy-gated). |
 | Thinkling chat (11) | **DONE** | (no table) | Streams Gemini; tenant-guarded; **no tools wired** (dead `tools.ts` removed 2026-06-20). LOW triaged 2026-06-20: PII debug logging removed, `error.stack`/`details` no longer leaked to client, dead `apiUrl` + route query-param fallback removed, ModeSelector id-drift now compile-guarded. MED Q-11-001 ✅ resolved 2026-06-20 (org filter folded into the chat-route learner read — explicit `where:{id, organizationId}` predicate + fail-closed null-org guard). **ch.11 fully triaged.** |
-| Child safety (12/23) | **DONE** (fails OPEN) | **safety_flags 15** | Pipeline has fired; LLM path **fails open** (Q-12-001); email-only; no UI reads flags. MED triaged 2026-06-20 (Session 24): Q-12-003 ✅ resolved (urgent routing severity-label-independent), Q-12-004 ✅ resolved (whitelist scoped per-pattern), T1-E delivery-layer hard-stop added. The owner's **child-safety hardening brief** minted Q-12-007 [HIGH] + Q-12-008..013 (§5 roadmap). HIGH Q-12-001 (fail-open) remains. (LOW S23: Q-12-002 removed, Q-12-005/006 resolved.) |
+| Child safety (12/23) | **DONE** | **safety_flags 15** | Pipeline has fired; LLM deep-path now **fails CLOSED** (Q-12-001 ✅ resolved 2026-06-20 / Session 25 — scanner error → durable `INTERNAL_LOG_ONLY` review flag, never auto-notifies); email-only; **no UI reads flags** (gates the deferred Q-12-007 feature). MED triaged 2026-06-20 (Session 24): Q-12-003 ✅ resolved (urgent routing severity-label-independent), Q-12-004 ✅ resolved (whitelist scoped per-pattern), T1-E delivery-layer hard-stop added. The owner's **child-safety hardening brief** minted Q-12-007 [HIGH] + Q-12-008..013 (§5 roadmap). **HIGH Q-12-007 (no in-the-moment child-facing layer) ⏳ deferred/OPEN** — structural feature + legal `[DECISION]`. (LOW S23: Q-12-002 removed, Q-12-005/006 resolved.) **ch.12 fully triaged (LOW S23 / MED S24 / HIGH S25).** |
 | Context engine (09) | **DONE** | (n/a) | Real production prompt path; LOW triaged 2026-06-20 (2 dead components + dead `bookPreferences` removed, truncation reorder bug fixed); MED Q-09-001 ✅ resolved 2026-06-20 (stale tenant-threading comment corrected — code was already correct). Only Q-09-005 LOW (unfinished media-narrowing) remains. **ch.09 fully triaged** (LOW S16 / MED S17; no HIGH). |
 | AI core (08) | **DONE** | (n/a) | **Gemini-only** — no OpenAI provider (the `@ai-sdk/openai` dep + dead retirement-fallback machinery removed 2026-06-19, Q-08-006/002); the 2 prompt-builders now share one Inkling guardrail source (Q-08-001 resolved 2026-06-19). |
 | App shell / nav (06) | **DONE** | (n/a) | Dead 2nd-gen nav surface **fully removed** 2026-06-19 (CommandPalette/MainNav/UserNav/SidebarClientIslands + CreationDrawer/ContextNav all deleted); Q-06-001/002 ✅ closed. ch.06 fully triaged (LOW S11 / MED S12). |
@@ -94,35 +94,67 @@ DB row counts are from the owner's single seeded org (Phase C, read-only). "0 ro
 ## 5. Roadmap — what's left (inferred from code + DB)
 
 **Broken / unfinished (fix to "work"):**
-- Activity authoring posts to a missing route → whole activity flow dead (Q-17-001).
-- Prayer-entry delete always fails (string vs object schema) (Q-20-002); new memory verses persist
-  empty text (Q-20-003).
+- *(Resolved 2026-06-22: prayer-entry delete (Q-20-002) + course delete (Q-14-009) string-vs-object bugs fixed; new
+  memory verses now fetch their text on add (Q-20-003).)*
 - No real **student-facing assessment-taking** flow — attempts are seeded blank, graded as `{}`
   (ch.18); grading writes no `letterGrade`/`isCorrect`.
-- `generateTranscriptData` discards real grade/credit/subject data (Q-22-002); transcript builder
-  can't edit several persisted fields (Q-22-003).
+- Transcript editor cannot add **test scores / notes / a signature** (render-only persisted fields; Q-22-003) — a
+  deferred multi-field editor feature; the signature gap means an "official" transcript can't be signed via the app.
+  *(Q-22-002 ✅ accepted: generate provides titles + parent-classified defaults — grade/credit have no schema source,
+  subject is a spine-vs-registrar taxonomy mismatch.)*
 - KID `viewMode` is a TODO stub (ch.05/16).
-- Planner "Auto-Reschedule" + `isLocked` unimplemented (Q-21-003).
+- `/student/dashboard` per-student daily-schedule checklist is fully built (auth+org gated; reads `getStudentDailySchedule`, toggles via `toggleItemStatus`) but **not linked from any live nav** — wire an inbound link (or fold it into the student dashboard) to ship it (Q-16-001, kept OPEN as unfinished; the weekly `/planner` is the only live scheduling surface today).
+- Planner **bulk reshuffle / "Auto-Reschedule"** is unbuilt — the no-op button was removed 2026-06-22 (Q-21-003, owner
+  chose remove-over-build); building it needs a reshuffle engine (recompute placement respecting holidays + school days)
+  that reads/writes the currently-dead `StudentScheduleItem.isLocked` pin. A from-scratch multi-file feature.
+- Prayer-journal **Public/Private toggle is half-built** (Q-20-008, ch.20): the `isPrivate` value is never persisted
+  (create hardcodes `false`; schemas omit it) and there is no sharing path, so the Lock/badge never triggers. **Owner
+  product decision:** either WIRE a real privacy/sharing model (needs a sharing surface) or REMOVE the misleading toggle +
+  Lock/badge. No security impact (all prayer reads are already per-user).
+
+**Community extraction library — semantic search + cross-edition dedup (planned feature, owner brief 2026-06-21 / Session 29).**
+The book pipeline already dedups extraction cross-org via the global `BookExtraction` catalog keyed on `computeDedupKey`
+(ISBN-13, else title|author slug) — the first org pays the LLM extraction; every later org links for free
+(02-data-model.md:120). Two gaps remain before "extract once, enrich the library for everyone" is whole:
+- **Cross-edition fragmentation (Q-13-009 [LOW], ch.13):** the ISBN-first key gives every printing/edition of the
+  same work a distinct dedup key, so content-identical editions (e.g. two printings of *1984*) re-extract redundantly
+  and fragment the shared corpus. Needs a content-fingerprint / fuzzy match that collapses editions onto ONE extraction.
+- **"Pre-extracted ✓" discovery:** when a user searches Google Books/OpenLibrary to add a book (`lookupBook`), indicate
+  whether a content-equivalent extraction already exists in the global corpus (semantic / fingerprint match over the
+  cross-org `BookExtraction` set — NOT per-org `books`).
+- **NOTE on the deleted code:** the old `GET /api/library/search` + `searchBooks` (deleted Session 29 — Q-14-001 /
+  Q-15-001) and the parallel per-org video semantic-search pair `searchVideos` / `generateVideoEmbedding` (deleted
+  Session 30 — Q-15-002/003) all did per-org cosine search over an org's own tables — the WRONG corpus/scope for this
+  feature, so the real build is written fresh against the GLOBAL corpus, not revived from that dead code. This is a
+  multi-file feature (new global-corpus query + a fingerprinting strategy + a UI badge, likely a `BookExtraction` schema
+  touch) — out of a findings-resolution session's scope; sequence it as dedicated work.
 
 **Hardening before a 2nd tenant (security/tenancy):**
 - Flip on RLS (`RLS_ENABLED=true` + `DATABASE_URL`→`app_user`) — today the app bypasses the DB's 98
   policies (Q-001). **`app_user` cutover-readiness verified read-only 2026-06-19 (Session 8)** — the
   GRANT/role side is ready; see the ordered **RLS-cutover runbook** immediately below.
-- Close write-path trust + IDOR gaps: ~~Q-10-001/002/003~~ (✅ Session 20), Q-14-005, Q-16-002, Q-17-003/004, Q-18-001/002.
-- Make child-safety **fail closed** (Q-12-001); add a UI to review `SafetyFlag` rows. See the **child-safety
-  hardening brief** below for the full program.
-- Remove/auth-gate the unauthenticated infra-disclosure `/api/health` route (Q-24-001) and the
-  unauthenticated discipleship/spine endpoints (Q-19-001, Q-20-001).
+- Close write-path trust + IDOR gaps: ~~Q-10-001/002/003~~ (✅ Session 20), ~~Q-14-005~~ (✅ Session 28), ~~Q-16-002~~ (✅ Session 32 — RLS-readiness wrap), ~~Q-17-003/004~~ (✅ Session 34 — parent-gate+Zod; merged org predicate in all 6 course-REST handlers), ~~Q-18-001/002~~ (✅ 2026-06-22 — grading POST: Zod validation + server-side recompute + merged org predicate; consolidated pass).
+- **RLS-cutover blocker (NEW, Q-17-010, Session 34):** before flipping RLS, the `new:` taxonomy minting (`db.{subject,strand,topic,subtopic}.create` in `api/courses/route.ts` + `…/blocks/route.ts`) must be addressed — those reference tables are `app_user` **SELECT-only** (migration-2:139-144), so the creates fail-closed under RLS-on. Either add scoped INSERT policies in the batched migration, or move custom-taxonomy creation to a privileged/org-scoped path. NOT covered by Session 8's GRANT-level readiness check.
+- ~~Make child-safety **fail closed** (Q-12-001)~~ ✅ **done 2026-06-20 (Session 25)** — the LLM deep-path now
+  fails closed to an `INTERNAL_LOG_ONLY` review flag. Still open: **add a UI to review `SafetyFlag` rows**
+  (no reader exists today — gates the in-the-moment-layer feature Q-12-007). See the **child-safety hardening
+  brief** below for the full program.
+- ~~Remove/auth-gate the unauthenticated infra-disclosure `/api/health` route (Q-24-001).~~ ✅ DONE 2026-06-22 — route
+  removed (`git rm`, owner-approved; consolidated pass). *(The discipleship content actions Q-20-001 ✅ and the spine
+  REST routes Q-19-001 ✅ were session-gated 2026-06-22.)*
 
 **Child-safety hardening brief (owner, 2026-06-20 / Session 24).** A Tier-1/2/3 remediation brief for the
 child-safety subsystem (ch.12). The app-layer, no-schema, no-legal subset was done in Session 24 (Q-12-003 ✅,
 Q-12-004 ✅, T1-E delivery-layer hard-stop). The rest is tracked as findings (ch.12 §7) and drives dedicated
 sessions. `[DECISION]` = legal/policy item needing the owner's written sign-off (do NOT implement unilaterally).
-- **Tier 1 (before any child uses it):** T1-A = **Q-12-001** [HIGH] fail-open classifier (refine: return a
-  review-needed assessment, never `NO_ACTION`). T1-B = **Q-12-008** [MED] regex fabricates target/relationship/
-  coercion. T1-C = **Q-12-003** ✅ done. T1-D + T1-F = **Q-12-007** [HIGH] no in-the-moment child layer / inert
-  resolutions / bot-promise gap / no output scan / persistent crisis affordance. T1-E ✅ done. T1-G = **Q-12-009**
-  [MED] org-readable disclosure snippet. T1-H = **Q-12-010** [MED] durable fallback for a dropped safety enqueue.
+- **Tier 1 (before any child uses it):** T1-A = **Q-12-001** [HIGH] ✅ **done (Session 25)** — fail-open classifier
+  now returns a review-needed (`INTERNAL_LOG_ONLY`) assessment, never `NO_ACTION`; **roadmap refinement:** let
+  transient errors THROW so Inngest retries before falling closed (touches the ch.23 job — no `step.run` wrapper,
+  double-flag risk). T1-B = **Q-12-008** [MED] regex fabricates target/relationship/coercion. T1-C = **Q-12-003**
+  ✅ done. T1-D + T1-F = **Q-12-007** [HIGH] (⏳ deferred Session 25, OPEN/HIGH) no in-the-moment child layer / inert
+  resolutions / bot-promise gap / undelivered helplines / no output scan / persistent crisis affordance. T1-E ✅
+  done. T1-G = **Q-12-009** [MED] org-readable disclosure snippet. T1-H = **Q-12-010** [MED] durable fallback for
+  a dropped safety enqueue.
 - **Tier 2:** T2-A = **Q-12-011** [MED] conversation context for the scanner. T2-B → folded into **Q-12-013**
   [LOW] (`ageGap`/regex-`coercion` unused). T2-C = **Q-12-012** [MED] prompt-injection hardening. **T2-D
   `[DECISION]`** mandated-reporting vs the keep-secret policy — legal, no code without sign-off (paired with the
@@ -141,7 +173,12 @@ per-query `$extends`; `withTenant` GUC stamping `db.ts:107-110`). "Fixing" Q-001
 before any flip:
 - **Workstream A (infra, owner/ops):** the cutover itself (this runbook).
 - **Workstream B (code, per-query):** the org-filter audit — ~~Q-10-001/002/003~~ (✅ Session 20,
-  2026-06-20), Q-14-001/004, Q-17-001, Q-18-001, Q-20-001/002. Today a missing `where:{organizationId}`
+  2026-06-20), ~~Q-14-001/004~~ (✅ Session 29 — Q-14-001 dead cross-org-scan route removed; Q-14-004 typed/coerced,
+  org predicate always held so no leak), ~~Q-17-001~~ (✅ Session 35 — route built, org-scoped),
+  ~~Q-18-001/002~~ (✅ 2026-06-22 — grading POST merged org predicate + server-side validation/recompute),
+  ~~Q-20-001/002~~ (✅ 2026-06-22 — discipleship content actions session-gated + prayer-delete fixed; global content, no
+  org predicate needed). The remaining open items here are the **MED/LOW tenancy findings** (e.g. ch.16/21/22/23) + the
+  ⏳-deferred RLS-cutover blockers. Today a missing `where:{organizationId}`
   is a benign omission; **under RLS it becomes a 0-rows / broken-feature**, so the audit MUST land first
   or the flip breaks the live app.
 
@@ -188,8 +225,72 @@ and many actions rely on hand-written org checks, the absence of tenancy tests i
 
 ## 7. Consolidated findings register
 
-0 CRITICAL · **8 HIGH** · **27 MED open** · **40 LOW open** · 44 INFO (chapter findings) + foundational findings
-from 02/04. Full evidence/impact for each is in the owning chapter's §7.
+0 CRITICAL · **1 HIGH** · **6 MED open** · **8 LOW open** · 44 INFO (chapter findings) + foundational findings
+from 02/04. Full evidence/impact for each is in the owning chapter's §7. *(The sole open HIGH is Q-12-007, ⏳ deferred —
+no in-the-moment child-safety layer; needs a feature + a legal `[DECISION]`. Foundational `Q-001` [HIGH] is also OPEN,
+deferred-with-prep, outside this headline.)*
+
+> **Disposition note (2026-06-22, Session 34 / 17-MED):** all **3** OPEN ch.17 MED closed (owner-approved;
+> 3-skeptic adversarial Workflow — one per finding, each tasked to REFUTE the draft — all reproduce / FIX,
+> high-confidence, with 2 sharpenings adopted + 1 latent bug surfaced). **Q-17-002 ✅ RESOLVED** — one-line fix:
+> `CourseBuilder.tsx:683` passed `courseId` as `organizationId` to `ResourcePicker` → all 6 library tabs empty;
+> changed to the real `organizationId` prop (already wired, guaranteed non-null). **Q-17-003 ✅ RESOLVED** — added
+> a Zod `createCourseApiSchema` (`lib/schemas/courses.ts`, NOT `.uuid()` so `new:` minting survives; +10 tests) +
+> `assertParentProfile()`→403 to `POST /api/courses`, mirroring the twin `library/books/route.ts`; skeptic caught
+> a name clash with the existing `actions.ts:12` `createCourseSchema`. **Q-17-004 ✅ RESOLVED** — merged the org
+> filter into the course lookup in all **6** REST handlers (`findFirst({where:{id, organizationId}})` + fail-closed
+> null-org guard, replacing the droppable `findUnique` + `!==`); **no `withTenant`** (route handlers have a session,
+> so the per-query extension GUC-scopes under RLS-on — the merged predicate is the live boundary + RLS-ready).
+> **Minted Q-17-010 [MED] ⏳ DEFERRED** — the adversarial pass found the `new:` taxonomy CREATEs (Subject/Strand/
+> Topic/Subtopic; 4 sites) write **SELECT-only** RLS tables (migration-2:139-144, "writes only via migrations/seeds
+> as superuser") → fail-closed under RLS-on; verified at file:line, cross-linked to the Q-001 cutover (Workstream B).
+> **Net: MED 20 − 3 resolved + 1 minted = 18 open.** Partition: 3 in-scope → 3 resolved; +1 minted-deferred; 0
+> unaccounted. Consequential doc-currency (not new findings): ch.04 §3.5 `assertParentProfile` consumer count 11 → 13
+> (+`api/courses/route.ts`, a count already stale since Session 28) and ch.05 §6 importer list gained the same.
+> CI green (tsc 0, eslint 0/**1314**, vitest **148/148** / 23 files — +10 schema tests); `prisma/migrations/`
+> untouched; 6 code files M + 1 test. **ch.17 now LOW+MED done; HIGH Q-17-001 remains.** See CHANGELOG.md round 37.
+
+> **Disposition note (2026-06-22, Session 30 / 15-LOW):** all **4** OPEN ch.15 LOW closed (owner-approved;
+> 4-skeptic adversarial Workflow — one per finding, each tasked to refute the draft; all reproduce at current code,
+> high-confidence, and 2 of my drafts were overridden toward REMOVE). **Q-15-002 ✅ REMOVED** (`searchVideos` deleted
+> — the per-org video twin of the S29 `searchBooks` deletion; built-but-unwired, zero importers across 5 vectors, no UI
+> consumer). **Q-15-003 ✅ REMOVED** (`generateVideoEmbedding` deleted — wrote `video_resources.embedding`, a column
+> NOTHING reads; dead at both ends; also corrected the doc's wrong claim that `searchVideos` depended on it). **Q-15-004
+> ✅ REMOVED** (`git rm src/lib/cache.ts` — superseded dead caching scaffold; the inline `revalidateTag` pattern shipped
+> instead, never importing its `CACHE_TAGS` taxonomy). **Q-15-005 ✅ ACCEPTED (won't-fix)** (`crossWalkTextbookTopics`
+> N+1 ≤250 cosine queries — bounded best-effort bg Inngest step; verified NO vector index on `textbook_chunks.embedding`,
+> so a set-based rewrite has no algorithmic gain + regression risk). **LOW 35 → 31 open.** Partition: 4 in-scope → 4
+> closed (3 removed, 1 accepted); 0 unaccounted. No new findings / re-grades / deferrals; no out-of-chapter sibling
+> finding (ch.23/24 references are code-currency only). The §5 "Community extraction library" roadmap NOTE updated — the
+> video family it flagged is now deleted. CI green (tsc 0, eslint 0/**661**, vitest 130/130 / 22 files);
+> `prisma/migrations/` untouched. **ch.15 now FULLY TRIAGED** (LOW S30; MED Q-15-001 resolved-by-removal S29; no HIGH).
+> See CHANGELOG.md round 33.
+
+> **Disposition note (2026-06-21, Session 28 / 14-MED):** all **4** OPEN ch.14 MED closed (owner-approved;
+> 4-skeptic adversarial Workflow — all reproduce, FIX_AS_PROPOSED/REMOVE; sharpened Q-14-005 to a true HIGH).
+> **Q-14-002 ✅ REMOVED** (dead `POST /api/library/scan` route deleted — zero callers; ISBN uses `lookupBook`).
+> **Q-14-003 ✅ RESOLVED** (`ResourceList.tsx:41` `/library`→`/living-library`; 2 dead `revalidatePath("/library")`
+> no-ops deleted from the extract routes; + a sibling dead `revalidatePath("/resources")` in `deleteResource` deleted
+> — consequential cleanup, not a new finding). **Q-14-005 ✅ RESOLVED** (cross-tenant write IDOR — `addArticle`/
+> `addDocuments` now derive `{organizationId,userId}` via `getCurrentUserOrg()` + a null-org guard + `assertParentProfile()`,
+> dropping the client-supplied org/user args; adversarially graded a true HIGH but fix-and-CLOSED, so the re-grade is moot).
+> **Q-14-006 ✅ RESOLVED** (`assertParentProfile()`→clean 403 added to all 4 create/extract API routes; the
+> `addArticle`/`addDocuments` actions got the same gate as part of Q-14-005). **MED 27 → 23 open.** Partition: 4
+> in-scope → 4 closed (1 removed, 3 resolved); 0 unaccounted. No new findings / re-grades / deferrals; the ch.13/15/23
+> sibling line-ref shifts are code-currency only (no finding moved out of ch.14). **ch.14 now LOW+MED done** (HIGH
+> Q-14-001/004 remain — part of the "HIGH 7" tenancy cluster). CI green (tsc 0, eslint 0/664, vitest 130/130 / 22
+> files); `prisma/migrations/` untouched. See CHANGELOG.md round 31.
+
+> **Reconcile note (2026-06-20, Session 25 / 12-HIGH):** of the 2 OPEN ch.12 HIGH, **Q-12-001 ✅ RESOLVED**
+> (the LLM deep-path catch now FAILS CLOSED — returns an `isSafe:false` `INTERNAL_LOG_ONLY` "needs human
+> review" assessment, never a safe one, so a scanner error stores a durable flag and never auto-notifies;
+> +`guard.test.ts`; unanimous 3-lens adversarial Workflow; overrode the dedicated-resolution alternative).
+> **Q-12-007 re-verified & ⏳ DEFERRED** — kept **OPEN/HIGH** (no re-grade): the structural in-the-moment-layer
+> feature + the legal T2-D `[DECISION]` are beyond a resolution session (§9.3); the bot-promise wording +
+> undelivered-helpline sub-items are owner-decision (owner: leave-as-is). **HIGH 8 → 7 open.** No new findings
+> / re-grades / deferrals of new items; no out-of-chapter sibling finding (the fix is contained in ch.12
+> guard.ts). CI green (tsc 0, eslint 0/666, vitest 118/118 / 21 files — +1 test); `prisma/migrations/` untouched.
+> See CHANGELOG.md round 28.
 
 > **Reconcile note (2026-06-20, Session 24 / 12-MED):** closed the 2 ch.12 MED (Q-12-003 ✅ resolved — urgent
 > routing made severity-label-independent; Q-12-004 ✅ resolved — academic whitelist scoped per-pattern) and,
@@ -493,7 +594,42 @@ from 02/04. Full evidence/impact for each is in the owning chapter's §7.
   tracked at MED as Q-12-003 (Session 3, 2026-06-19). · `Q-014` [INFO] `TextbookTopicCoverage.topicId`
   has no FK.
 
-### HIGH (8 open) — all from the feature chapters
+### HIGH (1 open) — Q-12-007 only (⏳ deferred)
+> **3 → 1 (Consolidated final pass, 2026-06-22, ch.20 HIGH):** **Q-20-001 🔻→LOW + ✅ RESOLVED** — the
+> `/family-discipleship` unauthenticated-content finding was over-graded: the central proxy (`src/proxy.ts`, git-verified
+> to predate the doc SHA) fail-closed gates the whole subtree (pages AND the server-action POSTs to those page routes),
+> and the data is global non-tenant content, so the "unauthenticated surface / quota vector" did not exist for normal
+> invocation. Fixed anyway (defense-in-depth per the proxy's own "backstop NOT a replacement" note): added `auth()` to the
+> 7 content actions. **Q-20-002 ✅ RESOLVED** — the broken prayer-delete (`deletePrayerEntry(string)` vs an `{id}` schema)
+> fixed to `{ id }`; over-graded HIGH (a broken feature, not a vuln). The identical pattern broke course delete →
+> minted-and-resolved **Q-14-009** [MED]. **Only Q-12-007 (⏳ deferred — no in-the-moment child-safety layer) remains.**
+> See CHANGELOG.md round 46.
+> **4 → 3 (Consolidated final pass, 2026-06-22, ch.18 HIGH):** **Q-18-001 ✅ RESOLVED** — the grading POST now
+> validates its body (Zod `gradeAttemptApiSchema` + `safeParse`→400) and **recomputes the grade server-side**
+> (clamps each item score to `[0, item.points]`, derives `scorePoints`/`maxPoints` from the items, ignores client
+> totals, enum-checks `gradingMethod`) — a forged/buggy POST can no longer persist garbage grades. +`grading.test.ts`
+> (11). Folded in the deferred LOW Q-18-004 (client now sends a derived AI_ASSISTED-vs-MANUAL method, server-validated).
+> Adversarially designed (3-skeptic Workflow: recompute over bounds-only). Remaining HIGH: ch.12×1 (Q-12-007 ⏳) +
+> ch.20×2 (Q-20-001/002). See CHANGELOG.md round 41.
+> **5 → 4 (Session 35, 2026-06-22):** **Q-17-001 ✅ RESOLVED** — owner chose BUILD: created the missing
+> `POST /api/courses/[id]/blocks/[blockId]/activities` route (the feature was ~90% scaffolded — Activity model,
+> form UI, read/display, and the "Add Activity" entry point all existed; only the create handler was missing).
+> Mirrors `blocks/route.ts` POST + the Q-17-003 parent-gate (→403) + the Q-17-004 merged-predicate org check;
+> no Objective minting (the form drops `new:` custom objectives), no new RLS blocker (activities/activity_objectives
+> are join-scoped ORG tables, not SELECT-only like Q-17-010). +13 `createActivityApiSchema` tests; "(coming soon)"
+> copy corrected. ch.19 Q-19-002 confirmed unaffected (page unchanged at its cited line). See CHANGELOG.md round 38.
+> **7 → 5 (Session 29, 2026-06-21):** the ch.14 HIGH pair closed. **Q-14-001 ✅ RESOLVED (removed)** — deleted the
+> dead `GET /api/library/search` route (zero callers; an unscoped cross-org pgvector scan + a per-request embedding
+> call, reachable by any authed user); its orphaned sole consumer `searchBooks` was also deleted → closes ch.15
+> MED **Q-15-001** (resolved-by-removal). **Q-14-004 ✅ RESOLVED** — typed the generated-resources `where`
+> (`Prisma.ResourceWhereInput`) + coerced all 4 `searchParams` (no leak — the org predicate always held; HIGH was
+> over-graded, really MED/LOW input-validation; fix-and-close → re-grade moot). Owner deleted the wrong-scoped
+> per-org book-search; the **community semantic-search + cross-edition-dedup** vision is captured in the §5 roadmap
+> + new **Q-13-009** [LOW]. A 2-finding adversarial Workflow confirmed both (reproduces ✓ / sound ✓ / high-confidence).
+> **8 → 7 (Session 25, 2026-06-20):** **Q-12-001 ✅ RESOLVED** — the safety LLM deep-path catch now FAILS
+> CLOSED (returns an `isSafe:false` `INTERNAL_LOG_ONLY` "needs human review" assessment, never a safe one), so
+> a scanner error stores a durable flag and can never auto-notify a caregiver. **Q-12-007 stays ⏳ OPEN/HIGH**
+> (re-verified; structural feature + legal `[DECISION]` deferred to the §5 roadmap — see ch.12 §7).
 > **7 → 8 (Session 24, 2026-06-20):** minted **Q-12-007** [HIGH] (no in-the-moment child-safety layer; 4 inert
 > resolutions) from the owner's child-safety hardening brief — see §5 + ch.12 §7. The prior **10 → 7** lineage stands below.
 > **10 → 7 (Session 20, 2026-06-20):** the ch.10 tenancy cluster **Q-10-001/002/003 ✅ RESOLVED** —
@@ -512,17 +648,17 @@ from 02/04. Full evidence/impact for each is in the owning chapter's §7.
 | ~~Q-10-002~~ ✅ | **RESOLVED 2026-06-20 (Session 20)** — RLS-readiness (no live vuln): compile/patch curriculum writes wrapped in `withTenant({organizationId,userId})`, app-checks retained. Really MED (over-graded on cluster-membership). |
 | ~~Q-10-003~~ ✅ | **RESOLVED 2026-06-20 (Session 20)** — RLS-readiness (no live vuln): `suggestCourseBlocks` course read + CourseBlock create-loop wrapped in `withTenant`, app-check retained, AI call kept outside the tx. Really MED. |
 | ~~Q-10-012~~ ✅ | **RESOLVED 2026-06-20 (Session 19)** — `creation-station/[id]/page.tsx` read learner/book/video by URL-param id with no org-match guard (live cross-org PII read, RLS off); added the standard app-layer same-org guard on all 3 reads. Surfaced while tracing Q-10-010's inbound path. |
-| Q-12-001 | Safety LLM deep-path **fails OPEN** on any error — detection silently disabled. |
-| Q-12-007 | **No in-the-moment child-facing safety layer** — the pipeline is async/post-hoc (route.ts streams the reply in parallel, no input pre-check / output scan), and 4 of 6 resolutions only log (no channel to the child). Minted from the child-safety hardening brief (Session 24). |
-| Q-14-001 | Dead route `GET /api/library/search` runs a global cross-org vector scan before org-filtering. |
-| Q-14-004 | Generated-resources query builds a Prisma `where` from unvalidated `searchParams`. |
-| Q-17-001 | Activity-creation page POSTs to a **nonexistent** route — activity authoring broken. |
-| Q-18-001 | Grading API POST has **zero input validation** (trusts client scores/method). |
-| Q-20-001 | Unauthenticated server actions + ungated RSC pages (missions/catechism/neighbor/devotionals). |
-| Q-20-002 | `deletePrayerEntry(string)` vs `z.object` schema → prayer delete always fails. |
+| ~~Q-12-001~~ ✅ | **RESOLVED 2026-06-20 (Session 25)** — the safety LLM deep-path catch (guard.ts:194-225) now FAILS CLOSED: returns an `isSafe:false` / `category:"OTHER"` / `severity:"TIER_3"` → `INTERNAL_LOG_ONLY` "needs human review" assessment, so a model outage stores a durable flag (never `NO_ACTION`) and can never email a caregiver on an unclassified message. +`guard.test.ts`; unanimous 3-lens Workflow; no migration (free String columns). Throw-for-Inngest-retry refinement is roadmap (§5). |
+| Q-12-007 | **No in-the-moment child-facing safety layer** — the pipeline is async/post-hoc (route.ts streams the reply in parallel, no input pre-check / output scan), and 4 of 6 resolutions only log (no channel to the child). Minted Session 24; **re-verified & ⏳ DEFERRED Session 25** (kept OPEN/HIGH): structural feature + legal T2-D `[DECISION]` beyond a resolution session (§9.3); bot-promise wording + undelivered-helpline sub-items are owner-decision (owner: leave-as-is). See ch.12 §7 + §5 roadmap. |
+| ~~Q-14-001~~ ✅ | **RESOLVED 2026-06-21 (Session 29)** — deleted the dead `GET /api/library/search` route (zero callers; ran an unscoped cross-org pgvector scan + a per-request embedding, reachable by any authed user). Its orphaned sole consumer `searchBooks` was also removed → closes ch.15 **Q-15-001**. Community semantic search roadmapped fresh against the global corpus (§5 + Q-13-009). |
+| ~~Q-14-004~~ ✅ | **RESOLVED 2026-06-21 (Session 29)** — typed the generated-resources `where` as `Prisma.ResourceWhereInput` + coerced all 4 `searchParams` to single strings (a duplicate `?studentId=a&studentId=b` array no longer 500s the page). `organizationId` always present → no leak; HIGH over-graded (really MED/LOW), fix-and-close → re-grade moot. |
+| ~~Q-17-001~~ ✅ | **RESOLVED 2026-06-22 (Session 35)** — owner chose BUILD over remove. Created the missing `POST /api/courses/[id]/blocks/[blockId]/activities/route.ts` (auth + `assertParentProfile`→403 + `getCurrentUserOrg`/null-org guard + `createActivityApiSchema` validation + course/block org-scoped `findFirst` lookups + LESSON-only check + computed `position` + `Activity` create + optional `ActivityObjective` link to an existing global Objective). No Objective minting (the client drops `new:`); no new RLS blocker (join-scoped, not SELECT-only like Q-17-010). The create→display loop now closes end-to-end. +13 `createActivityApiSchema` tests; stale "(coming soon)" copy + author-comments corrected. |
+| ~~Q-18-001~~ ✅ | **RESOLVED 2026-06-22 (consolidated pass)** — grading POST now Zod-validates the body (`gradeAttemptApiSchema`→400) and **recomputes the grade server-side**: each item score clamped to `[0, item.points]`, `scorePoints`/`maxPoints` derived from the items (client totals ignored/stripped), `gradingMethod` enum-checked. Folds in Q-18-004 (client sends a derived, server-validated method). +`grading.test.ts` (11). Adversarially designed. |
+| ~~Q-20-001~~ ✅ | **RESOLVED 2026-06-22 (consolidated pass)** — 🔻 over-graded (proxy fail-closed gates the whole `/family-discipleship` subtree incl. server-action POSTs; data is global non-tenant content). Added defense-in-depth `auth()` to the 7 content actions anyway (per the proxy's "backstop NOT a replacement"). Fix-and-close → re-grade moot. |
+| ~~Q-20-002~~ ✅ | **RESOLVED 2026-06-22 (consolidated pass)** — broken prayer-delete (`deletePrayerEntry(string)` vs `{id}` schema) fixed to `{ id }`; over-graded HIGH (broken feature, not a vuln). Identical pattern broke course delete → minted-and-resolved Q-14-009 [MED]. |
 
-### MED (27 open) — by theme (see chapter §7 for evidence)
-> **Count basis:** this by-theme list is the canonical MED tally (the 37→35→33→30→28→27→26→25→24→**27** lineage — Session 24 closed 2 ch.12 MED + minted 5 ch.12 MED → net +3). **Foundational**
+### MED (6 open) — by theme (see chapter §7 for evidence)
+> **Count basis:** this by-theme list is the canonical MED tally (the 37→35→33→30→28→27→26→25→24→27→23→22→20→**18** lineage — Session 24 net +3: closed 2 ch.12 MED + minted 5; Session 28 closed the 4 ch.14 MED → 27→23; Session 29 closed 1 ch.15 MED → 23→22; Session 32 closed 2 ch.16 MED → 22→20; Session 34 net −2: closed the 3 ch.17 MED (Q-17-002/003/004) + minted 1 (Q-17-010 ⏳ deferred) → 20→18). **Foundational**
 > findings are listed in the Foundational section above and are **not** folded into this headline (same way
 > Q-001 [HIGH] sits outside the "HIGH 10"). The sole foundational MED, **Q-004**, was ✅ RESOLVED 2026-06-19
 > (Session 7), so open foundational MED is **0** and this list is the complete open-MED set. Session 10
@@ -548,12 +684,83 @@ from 02/04. Full evidence/impact for each is in the owning chapter's §7.
 > — **24 → 22** — then **minted 5** new ch.12 MED from the owner's child-safety hardening brief (Q-12-008/009/010/
 > 011/012; see the new by-theme entry below) — **22 → 27**. Also minted Q-12-007 [HIGH] + Q-12-013 [LOW]; T1-E
 > delivery-layer hard-stop added (no finding).
+> Session 28 (2026-06-21, 14-MED) closed **4** ch.14 MED — Q-14-002 ✅ removed (dead `POST /api/library/scan`),
+> Q-14-003 ✅ resolved (`/library`→`/living-library` nav + dead `revalidatePath` no-ops), Q-14-005 ✅ resolved
+> (cross-tenant write IDOR — server-derived org/user + parent gate; adversarially a true HIGH, fix-and-closed → re-grade
+> moot), Q-14-006 ✅ resolved (parent-gate→403 on the 4 create/extract API routes) — so **27 → 23**.
+> Session 29 (2026-06-21, 14-HIGH) closed **1** ch.15 MED — **Q-15-001 ✅ resolved-by-removal** (`searchBooks` was
+> deleted with the dead `/api/library/search` route during the ch.14 Q-14-001 HIGH fix — the cross-org-scan primitive
+> is gone, not patched) — so **23 → 22**. (Cross-chapter: the finding is owned by ch.15; the count moves in ch.15/ch.24.)
+> Session 32 (2026-06-22, 16-MED) closed **2** ch.16 MED — Q-16-002 ✅ resolved (the create-student learner/profile
+> writes folded into one `withTenant({organizationId,userId:null})` tx — RLS-ready + atomic; self-heal org-create stays
+> raw by necessity) and Q-16-003 ✅ resolved (dedicated `studentCardSelect` + `StudentCardData` payload type in the
+> canonical query module; `StudentCard` prop typed, the `student as any` dropped) — both fix-and-closed (true grade LOW,
+> carried MED on cluster/convention; re-grade moot) — so **22 → 20**.
+> Session 34 (2026-06-22, 17-MED) closed **3** ch.17 MED — Q-17-002 ✅ resolved (CourseBuilder passed `courseId`
+> as `organizationId` to ResourcePicker → empty library tabs; one-line fix to the real org prop), Q-17-003 ✅ resolved
+> (`POST /api/courses` got a Zod `createCourseApiSchema` + `assertParentProfile()`→403), Q-17-004 ✅ resolved (org
+> filter merged into all 6 course-REST handlers' lookups; no `withTenant` — route handlers are session-scoped so the
+> per-query extension GUC-scopes under RLS-on) — **20 → 17** — then **minted 1** (Q-17-010 ⏳ deferred, the `new:`
+> taxonomy CREATEs hit SELECT-only RLS tables → fail under RLS-on; see the new by-theme entry below) — **17 → 18**.
+> **Consolidated final pass (2026-06-22, ch.18 MED) closed 2** ch.18 MED — Q-18-002 ✅ resolved (grading POST org filter
+> merged into the attempt lookup via the `assessment.course` relation + fail-closed null-org guard) and Q-18-003 ✅ resolved
+> (header + item writes now ONE `withTenant` tx — atomic — and the per-item N+1 `findFirst` dropped for `updateMany`; an
+> adversarial pass overrode an initial `db.$transaction([…])` which would nest tenant tx on the RLS-extended client) —
+> **18 → 16**.
+> **Consolidated final pass (2026-06-22, ch.19 MED) closed 2** ch.19 MED — Q-19-001 ✅ resolved (added an `auth()`→401
+> session gate + normalized `runtime="nodejs"` across the 6 Academic-Spine REST routes; no org filter — global reference
+> data; every consumer is an authed page) and Q-19-003 ✅ removed (dead `server/queries/curriculum.ts`, 4 helpers / 0
+> importers / 218 lines; move-aside tsc delta = 0) — **16 → 14**.
+> **Consolidated final pass (2026-06-22, ch.20 MED) closed 3** ch.20 MED — Q-20-003 ✅ resolved (bible-memory
+> `getBibleText({reference})` arg-shape fix), Q-20-004 ✅ removed (5 dead legacy `family-discipleship/actions.ts` exports),
+> Q-20-006 ✅ resolved (fixed+wired the `bible-memory.ts` schemas into the 4 live actions; dead `copyFolderToStudent`
+> removed) — **14 → 11**.
+> **Consolidated final pass (2026-06-22, ch.21 MED) closed 1** — Q-21-003 ✅ removed (owner chose remove-over-build:
+> deleted the no-op Auto-Reschedule button; the reshuffle/`isLocked` feature is roadmapped §5 to be built fresh) — **11 → 10**.
+> **Consolidated final pass (2026-06-22, ch.22 MED) closed 2** — Q-22-002 ✅ accepted (over-graded→LOW: grade/credit have no
+> schema source; the course's spine `subject` is a different taxonomy than the transcript registrar dropdown, so "General"
+> +parent-classify is correct-by-design) + Q-22-003 ✅ accepted/roadmap (tests/notes/signature editor = a deferred §5
+> feature; pre9th/template are dead data) — **10 → 8**. *(Reconcile 2026-06-22, ch.23 pass: the ch.20-MED step above was miswritten `14 → 12` — should be `14 → 11` (14 − 3 = 11); that +1 cascaded through ch.21/22. Corrected so the lineage lands on the itemized open-MED list = 8: Q-12-008/009/010/011/012, Q-17-010, Q-23-002, Q-24-001.)*
+> **Consolidated final pass (2026-06-22, ch.23 MED) closed 1** — Q-23-002 ✅ removed (dead web-grounded section
+> producer chain, ~148 lines; zero importers; the live section path is the full-text `structureSectionsFromText`) — **8 → 7**.
+> **Consolidated final pass (2026-06-22, ch.24) closed 1** — Q-24-001 ✅ removed (`git rm` the unauthenticated
+> `/api/health` infra-disclosure diagnostic; owner-approved) — **7 → 6**.
 - **Tenancy / authz drift (raw `db` + manual checks, RLS off):** ~~Q-11-001~~ ✅ resolved 2026-06-20
   (explicit `where:{id, organizationId}` predicate in the chat-route guard + fail-closed `if(!organizationId)`;
-  no `withTenant` — single-op read, mirrors Q-10-001; Session 22), Q-14-005, Q-14-006,
-  Q-15-001, Q-16-002, Q-17-002, Q-17-003, Q-17-004, Q-18-002.
+  no `withTenant` — single-op read, mirrors Q-10-001; Session 22), ~~Q-14-005~~ ✅ resolved 2026-06-21
+  (cross-tenant write IDOR — `addArticle`/`addDocuments` derive org/user via `getCurrentUserOrg()` + null-guard +
+  `assertParentProfile()`, client args dropped; adversarially a true HIGH, fix-and-closed; Session 28),
+  ~~Q-14-006~~ ✅ resolved 2026-06-21 (`assertParentProfile()`→403 on the 4 create/extract API routes; Session 28),
+  ~~Q-15-001~~ ✅ resolved-by-removal 2026-06-21 (`searchBooks` deleted with the dead `/api/library/search` route —
+  ch.14 Q-14-001; the cross-org-scan primitive is gone, not patched; Session 29),
+  ~~Q-16-002~~ ✅ resolved 2026-06-22 (create-student learner + learnerProfile creates folded into the existing
+  `withTenant({organizationId,userId:null})` tx — all four org-scoped learner writes now tenant-stamped + atomic;
+  no live vuln, RLS-readiness only; self-heal org-create stays raw under the relaxed null-context org INSERT policy;
+  Session 32), ~~Q-17-002~~ ✅ resolved 2026-06-22 (CourseBuilder passed `courseId` as `organizationId` to
+  ResourcePicker → all 6 library tabs empty; one-line fix to the real org prop, already wired; Session 34),
+  ~~Q-17-003~~ ✅ resolved 2026-06-22 (`POST /api/courses` got a Zod `createCourseApiSchema` + `assertParentProfile()`
+  →403, mirroring the `library/books` twin; global taxonomy minting stays by-design; Session 34),
+  ~~Q-17-004~~ ✅ resolved 2026-06-22 (org filter merged into all 6 course-REST handlers' lookups —
+  `findFirst({where:{id, organizationId}})` + fail-closed null-org guard, replacing the droppable `findUnique` + `!==`;
+  no `withTenant` — route handlers are session-scoped so the per-query extension GUC-scopes under RLS-on; Session 34),
+  ~~Q-18-002~~ ✅ resolved 2026-06-22 (grading POST: org filter merged into the attempt lookup via the `assessment.course`
+  relation — AssessmentAttempt has no direct org column — + fail-closed null-org guard, replacing the post-fetch `!==`;
+  writes moved into a `withTenant` tx; no live vuln, RLS-readiness + refactor-safety; consolidated pass).
+- **RLS-cutover blocker — app writes to SELECT-only reference tables:** **Q-17-010** [MED] ⏳ deferred 2026-06-22
+  (minted Session 34) — the `new:` inline minting does `db.{subject,strand,topic,subtopic}.create` (4 sites:
+  `api/courses/route.ts:35,59`, `api/courses/[id]/blocks/route.ts:132,167`) but migration-2:139-144 grants
+  `app_user` **SELECT-only** on those reference tables (no INSERT policy → "writes only via migrations/seeds as
+  superuser") → every such create fails-closed under RLS-on. No live vuln (RLS off today); belongs to the Q-001
+  RLS-cutover gate (needs scoped INSERT policies via the batched migration, OR moving custom-taxonomy creation to a
+  privileged/org-scoped path). NOT caught by Q-001's GRANT-level readiness check (row-policy-blind).
 - **Broken / N+1 / missing validation:** ~~Q-10-004~~ ✅ resolved 2026-06-20 (corrected + wired
-  `generateResourceSchema` via `safeParse` in `generateResource`; Session 19), Q-18-003, Q-20-003, Q-20-006,
+  `generateResourceSchema` via `safeParse` in `generateResource`; Session 19),
+  ~~Q-18-003~~ ✅ resolved 2026-06-22 (grading POST: header + item writes now one atomic `withTenant` tx; the per-item
+  N+1 `findFirst` replaced by `updateMany` on the `@@unique([attemptId,itemId])`; consolidated pass),
+  ~~Q-20-003~~ ✅ resolved 2026-06-22 (bible-memory `addVerseToUser`: `getBibleText({reference})` arg-shape fix so a new
+  verse fetches text immediately; consolidated pass),
+  ~~Q-20-006~~ ✅ resolved 2026-06-22 (wired the fixed `bible-memory.ts` schemas — .cuid()→.uuid() — into the 4 live
+  bible-memory actions; dead `copyFolderToStudent` removed; +test; consolidated pass),
   ~~Q-05-002~~ ✅ resolved 2026-06-19 (PIN shape now validated in the shared `verifyPinWithThrottle`; Session 10).
 - **Tenancy / authz drift — ch.10 generative-UI (raw `db` + unverified ids):** ~~Q-10-010~~ 🔻 re-graded to
   LOW + ⏳ deferred 2026-06-20 (Session 19) — sub-claim 1 (plain-`db` write) ✅ resolved via `withTenant`;
@@ -569,7 +776,17 @@ from 02/04. Full evidence/impact for each is in the owning chapter's §7.
   `buildMasterPrompt` injects `INKLING_*`; builders stay separate by design; Session 15),
   ~~Q-09-001~~ ✅ resolved 2026-06-20 (stale `dashboard.ts` tenant-threading comment corrected; the code was
   already fully tenant-threaded — Session 17),
-  Q-14-002, Q-14-003, Q-16-003, Q-19-003, Q-20-004, Q-21-003, Q-22-002, Q-22-003, Q-23-002.
+  ~~Q-14-002~~ ✅ removed 2026-06-21 (dead `POST /api/library/scan` route deleted — zero callers; Session 28),
+  ~~Q-14-003~~ ✅ resolved 2026-06-21 (`ResourceList.tsx:41` `/library`→`/living-library`; 2 dead
+  `revalidatePath("/library")` no-ops + a sibling dead `revalidatePath("/resources")` deleted; Session 28),
+  ~~Q-16-003~~ ✅ resolved 2026-06-22 (dedicated `studentCardSelect` + `StudentCardData` payload type added to the
+  canonical `server/queries/students.ts`; `/students` list query + `StudentCard` prop now use it; the `student as any`
+  cast + `student: any` prop dropped — single source of truth, no over-fetch; type-DX only, Session 32),
+  ~~Q-19-003~~ ✅ removed 2026-06-22 (dead `server/queries/curriculum.ts` — 4 helpers, 0 importers, 218 lines; consolidated pass),
+  ~~Q-20-004~~ ✅ removed 2026-06-22 (5 dead legacy `family-discipleship/actions.ts` exports + naming collision; consolidated pass),
+  ~~Q-21-003~~ ✅ removed 2026-06-22 (owner chose remove-over-build: deleted the no-op Auto-Reschedule button; reshuffle/`isLocked` feature roadmapped §5),
+  ~~Q-22-002~~ ✅ accepted 2026-06-22 (grade/credit have no schema source; subject is a spine-vs-registrar taxonomy mismatch — "General"+parent-classify is correct-by-design; over-graded→LOW),
+  ~~Q-22-003~~ ✅ accepted/roadmap 2026-06-22 (tests/notes/signature editor = a deferred §5 feature; pre9th/template are dead data), ~~Q-23-002~~ ✅ removed 2026-06-22 (dead web-grounded section chain — `groundBookSections`/`structureBookSections` + helpers, ~148 lines; live path = `structureSectionsFromText`; consolidated pass).
 - **Safety vocabulary / robustness:** ~~Q-12-003~~ ✅ resolved 2026-06-20 (Session 24 — urgent-notify routing
   made severity-label-independent; the DB enum-typing stays deferred with ch.02 Q-013), ~~Q-12-004~~ ✅ resolved
   2026-06-20 (Session 24 — academic whitelist scoped per-pattern; explicit self-harm + incest-action disclosures
@@ -578,25 +795,46 @@ from 02/04. Full evidence/impact for each is in the owning chapter's §7.
   fast-path fabricates target/relationship/coercion), Q-12-009 (child disclosure snippet stored org-readable for
   hard-stop flags), Q-12-010 (a dropped safety-scan enqueue is only logged — sole signal lost), Q-12-011 (scanner
   sees one message, no conversation context), Q-12-012 (prompt-injection into the safety + Thinkling prompts).
-  *(Companion HIGH = Q-12-007 in the HIGH table; companion LOW = Q-12-013; T1-A = the existing HIGH Q-12-001.)*
+  *(Companion HIGH = Q-12-007 in the HIGH table, ⏳ deferred/OPEN; companion LOW = Q-12-013; T1-A = Q-12-001 ✅ resolved Session 25.)*
 - **Config / infra / privacy posture:** ~~Q-01-001~~ ✅ resolved 2026-06-19 (README rewritten + `.env.example`;
   QSF docs removed — Session 2), ~~Q-01-002~~ ✅ resolved 2026-06-19 (`images.remotePatterns: []` — Session 2),
   ~~Q-03-003~~ ✅ accepted 2026-06-19 (by-design: bypass-RLS required for global reference writes;
   `rejectUnauthorized:false` is the Supabase-standard posture, repo-wide incl. runtime `db.ts:16` — Session 5),
   ~~Q-05-001~~ ❌ DISMISSED 2026-06-19 (PARENT idle IS sliding — the proxy re-stamps `iat` every >5 min,
   `proxy.ts:74-89`; the "absolute cap" claim overlooked the proxy; Session 10),
-  Q-19-001 (spine REST unauthenticated).
-- **Synthesis-chapter additions (§9 ops):** **Q-24-001** [MED] `/api/health` is an unauthenticated
-  diagnostic that discloses DB host/project-ref/connection-role/`RLS_ENABLED`/table counts/commit —
-  explicitly marked "TEMPORARY … remove this route" but still present.
+  ~~Q-19-001~~ ✅ resolved 2026-06-22 (the 6 Academic-Spine REST routes got an `auth()`→401 session gate + `runtime="nodejs"` normalized; no org filter — global reference data; every consumer is an authed page; consolidated pass).
+- **Synthesis-chapter additions (§9 ops):** ~~**Q-24-001**~~ [MED] ✅ REMOVED 2026-06-22 (consolidated pass / ch.24,
+  owner-approved) — `git rm src/app/api/health/route.ts`. The unauthenticated diagnostic disclosed DB host/project-ref/
+  connection-role/`RLS_ENABLED`/table counts/commit; it was self-marked "TEMPORARY … remove this route" and had zero
+  references repo-wide.
 - **Account lockout (raised 2026-06-19):** ~~**Q-05-010**~~ ✅ RESOLVED 2026-06-19 (Session 10) — built an
   email-verified owner-PIN reset (Resend): picker "Forgot your parent PIN?" → 15-min token → `/select-profile/reset-pin`
   → `confirmOwnerPinReset` clears the owner PARENT `pinHash` (out-of-band factor = the owner's inbox).
 
-### LOW (77 total) + INFO (fully triaged 2026-06-19, see CHANGELOG.md)
+### LOW (78 total) + INFO (fully triaged 2026-06-19, see CHANGELOG.md)
 **INFO:** all 44 actioned — 28 resolved / 9 removed / 1 deferred / 1 partial / 1 verified / 1 accepted /
 3 re-graded→LOW (Q-13-005, Q-20-010, Q-23-003) / 0 open; chapter §7 entries are marked ✅ / ◑ / ⏳ / 🔻.
-**LOW: 77 total (71 original + 4 re-graded + 2 new: Q-10-011, Q-12-013); 40 still open.** Session 1 (2026-06-19, ch.01 LOW) closed 3:
+**LOW: 78 total (71 original + 4 re-graded + 3 new: Q-10-011, Q-12-013, Q-13-009); 8 still open** (reconciled 2026-06-22 — the ch.23 pass set the base to 9; the end-of-pass straggler sweep then closed Q-13-009 → 8).
+
+> **Count basis — open LOW is itemized (this list is the ground truth, like the MED by-theme list).** The
+> session-by-session prose *below* is **historical** and had silently drifted to **undercount** carried-forward
+> deferred / kept-open / re-graded items (its tail read "4"); the authoritative current open-LOW set — verified
+> against each chapter's §7 `Status:` line on 2026-06-22 — was the **9** below; the end-of-pass straggler sweep then
+> closed Q-13-009 (✅ accepted), leaving **8**. (HIGH/MED reconcile fine via their own lists; this is the one grade whose
+> running tally was prose-only.)
+> **Open LOW set (authoritative, 8):**
+> 1. **Q-01-004** (ch.01) — lint rules downgraded to warnings; owner-accepted deliberate adoption ratchet → **kept-OPEN (owner)**.
+> 2. **Q-09-005** (ch.09) — the unbuilt source-specific context-injection half of source-anchored generation → **kept-OPEN (unfinished feature)**.
+> 3. **Q-10-010** (ch.10) — unverified caller-supplied lineage-id *write* on `generate-tool.tsx` (no cross-org *read* leak) → 🔻 re-graded MED→LOW, **⏳ deferred** with the Q-001 RLS-cutover audit.
+> 4. **Q-011** (ch.02, foundational) — org-FK column rename → **⏳ deferred** to the batched migration.
+> 5. **Q-013** (ch.02, foundational) — stringly-typed→enum conversions → **⏳ deferred** to the batched migration.
+> 6. **Q-12-013** (ch.12) — safety type/contract cleanups → **⏳ OPEN, deferred WITH the child-safety brief**. (2nd stray, surfaced this pass — minted in ch.12's MED cell after its LOW cell.) The straggler sweep re-verified it as **substantially overstated**: sub-claim (c) `isSafe`-is-unused is **refuted** (load-bearing store-the-flag gate at `safety-scan.ts:80`); `coercion` is by-design; `reasoning` dual-use is already handled (`[EVIDENCE:]` tag stripped at `notifications/safety-alert.ts:90`). Genuine residual = 2 minor safety refactors (z.infer-derive + reasoning split), deferred with Q-12-008..012 (§5). Evidence corrected in ch.12 §7.
+> 7. **Q-16-001** (ch.16) — built-but-unlinked per-student daily-schedule view → **kept-OPEN (unfinished)**; wire-an-inbound-link roadmapped §5.
+> 8. **Q-23-003** (ch.23) — `process-document` has no `onFailure`/retry tuning + the `extractionStatus` enum → **⏳ deferred** to the batched migration (bundled w/ Q-011/Q-013).
+>
+> *Closed by the end-of-pass straggler sweep:* ~~Q-13-009~~ ✅ ACCEPTED 2026-06-22 (ch.13 — ISBN-first dedup is correct-by-design; cross-edition collapse = a roadmapped content-fingerprint feature, §5). **9 → 8 open.**
+
+*Historical running log (numbers below reflect the drifted prose tally; retained for provenance):* Session 1 (2026-06-19, ch.01 LOW) closed 3:
 Q-01-003 ✅ removed (`prisma.config.ts.bak` deleted), Q-01-005 ✅ resolved (`verify-seed.ts` + `debug-connect.ts`
 deleted, tsconfig excludes trimmed), and — consequentially — Q-03-002 ✅ removed (same `verify-seed.ts` deletion);
 Q-01-004 reviewed → kept OPEN (owner). Session 3 (2026-06-19, ch.02 LOW) reviewed Q-011 + Q-013 → both
@@ -635,7 +873,92 @@ lives at `db.ts:33-55` and a courseIds-based comment would mis-frame the safety)
 zero importers) + Q-09-006 ✅ resolved (rewrote `truncateContext` to a carry-forward classifier — preserves
 section order, keeps the headerless `PHILOSOPHY_PROMPTS` blob with its FAMILY header, sheds lowest-priority
 sections last; + 3 new unit tests, the file's first coverage); Q-09-005 kept **OPEN** (re-documented as an
-unfinished source-specific-context-injection feature, not dead fields). Session 18 (2026-06-20, ch.10 LOW) closed 3 + minted-and-resolved 1 → **45 open**: Q-10-005 ✅ resolved-by-doc (FILE upload re-documented as an unfinished feature, kept) + Q-10-006 ✅ accepted (DEEP_VISION grounding relies on gemini-2.5-pro's native YouTube processing — honest-incomplete, by-design) + Q-10-007 ✅ resolved (deleted dead `let tools: any = {}`; remaining boundary `any`s accepted under Q-01-004); new **Q-10-011 ✅ resolved** (GeneratorsClient dropped the `sourceId`/`url` deep-link params → 5 library "Use in Generator" buttons pre-selected no source; now read from `searchParams`). Session 19 (2026-06-20, ch.10 MED) re-graded **1 into LOW → 46 open**: Q-10-010's residual sub-claim 2 (unverified caller-supplied lineage ids on `generate-tool.tsx` — confirmed **no** cross-org read leak; low-value unverified-FK write) 🔻 re-graded MED→LOW + ⏳ deferred with the HIGH tenancy cluster (sub-claim 1, the plain-`db` write, was ✅ resolved via `withTenant`). Session 21 (2026-06-20, ch.11 LOW) closed 4 → **42 open**: Q-11-002 ✅ resolved (removed PII/debug `console.log`s — session email, full request JSON/chat, etc. — and stopped returning `error.stack`/`details` to the client; generic 400/500 bodies) + Q-11-003 ✅ resolved (removed dead `apiUrl` + stale commented options + the now-unreachable route query-param fallback) + Q-11-004 ✅ resolved (removed unused `Scales` import + added `as const satisfies` guard so a renamed/mistyped mode id fails compilation) + Q-11-005 ✅ removed (`git rm` the entirely-dead `src/lib/types/tools.ts`). Session 23 (2026-06-20, ch.12 LOW) closed 3 → **39 open**: Q-12-002 ✅ removed (dead `recommendedResolution` schema/type field — collected from the model, never read; REMOVE over WIRE to protect the deterministic "Minimum Social Responsibility" policy) + Q-12-005 ✅ resolved (`sendSafetyAlert` flag read/update moved off raw `db` onto explicit-ctx `withTenant` + an explicit `student.organizationId` predicate — no live vuln, but the one safety-pipeline op that could silently fail-closed at the RLS cutover) + Q-12-006 ✅ resolved (caregiver hard-stop centralized into one shared `isCaregiverHardStop()` predicate consumed by both `policy.ts` and the job; De Morgan-identical, the two independent runtime re-checks preserved). **Session 24 (2026-06-20, ch.12 MED) minted 1 new LOW → 40 open:** Q-12-013 (safety type/contract cleanups — unused `ageGap` + always-`NONE` regex `coercion`, `SafetyAssessment` hand-maintained vs the Zod schema, unused `isSafe`, dual-use `reasoning`; from the child-safety hardening brief). Recurring themes: dead
+unfinished source-specific-context-injection feature, not dead fields). Session 18 (2026-06-20, ch.10 LOW) closed 3 + minted-and-resolved 1 → **45 open**: Q-10-005 ✅ resolved-by-doc (FILE upload re-documented as an unfinished feature, kept) + Q-10-006 ✅ accepted (DEEP_VISION grounding relies on gemini-2.5-pro's native YouTube processing — honest-incomplete, by-design) + Q-10-007 ✅ resolved (deleted dead `let tools: any = {}`; remaining boundary `any`s accepted under Q-01-004); new **Q-10-011 ✅ resolved** (GeneratorsClient dropped the `sourceId`/`url` deep-link params → 5 library "Use in Generator" buttons pre-selected no source; now read from `searchParams`). Session 19 (2026-06-20, ch.10 MED) re-graded **1 into LOW → 46 open**: Q-10-010's residual sub-claim 2 (unverified caller-supplied lineage ids on `generate-tool.tsx` — confirmed **no** cross-org read leak; low-value unverified-FK write) 🔻 re-graded MED→LOW + ⏳ deferred with the HIGH tenancy cluster (sub-claim 1, the plain-`db` write, was ✅ resolved via `withTenant`). Session 21 (2026-06-20, ch.11 LOW) closed 4 → **42 open**: Q-11-002 ✅ resolved (removed PII/debug `console.log`s — session email, full request JSON/chat, etc. — and stopped returning `error.stack`/`details` to the client; generic 400/500 bodies) + Q-11-003 ✅ resolved (removed dead `apiUrl` + stale commented options + the now-unreachable route query-param fallback) + Q-11-004 ✅ resolved (removed unused `Scales` import + added `as const satisfies` guard so a renamed/mistyped mode id fails compilation) + Q-11-005 ✅ removed (`git rm` the entirely-dead `src/lib/types/tools.ts`). Session 23 (2026-06-20, ch.12 LOW) closed 3 → **39 open**: Q-12-002 ✅ removed (dead `recommendedResolution` schema/type field — collected from the model, never read; REMOVE over WIRE to protect the deterministic "Minimum Social Responsibility" policy) + Q-12-005 ✅ resolved (`sendSafetyAlert` flag read/update moved off raw `db` onto explicit-ctx `withTenant` + an explicit `student.organizationId` predicate — no live vuln, but the one safety-pipeline op that could silently fail-closed at the RLS cutover) + Q-12-006 ✅ resolved (caregiver hard-stop centralized into one shared `isCaregiverHardStop()` predicate consumed by both `policy.ts` and the job; De Morgan-identical, the two independent runtime re-checks preserved). **Session 24 (2026-06-20, ch.12 MED) minted 1 new LOW → 40 open:** Q-12-013 (safety type/contract cleanups — unused `ageGap` + always-`NONE` regex `coercion`, `SafetyAssessment` hand-maintained vs the Zod schema, unused `isSafe`, dual-use `reasoning`; from the child-safety hardening brief). **Session 26 (2026-06-21, ch.13 LOW) closed 4 → 36 open:** Q-13-001 ✅ removed (dead single-hit `discoverFullText`/`findFullText` registry wrappers + the orphaned `BookTextResult` interface — superseded by the all-hits + fetch-fallback path) + Q-13-002 ✅ resolved (gutenberg.ts converged onto the shared `matching.ts` helpers; bespoke `scoreMatch` now delegates to `scoreTitleAuthor`, byte-identical; added the sources layer's FIRST unit test `matching.test.ts`; corrected the false matching.ts header that listed gutenberg as a consumer) + Q-13-005 ✅ resolved (LibreTexts deki-token silent coverage cliff now `console.error`-logged at the `assembleLibreTextsSections` `!tree?.page` degradation point — adversarial pass moved the log off the benign token-scrape onto the book-level failure that captures token/markup/network causes) + Q-13-007 ✅ accepted/correct-by-design (fail-safe null is the right guard for HTML/DOM scraping; no unguarded JSON trust-boundary; the by-title scrapers have registry-fallthrough masking, the corpus-only LibreTexts cliff is covered by Q-13-005). **Session 27 (2026-06-21, ch.14 LOW) closed 2 → 34 open:** Q-14-007 ✅ resolved (deleted the dead `GET /api/library/books` handler — zero callers, duplicated the books slice of `getLibraryResources`; also removed the unused GET-scoped `userId`) + Q-14-008 ✅ resolved (the book/video CREATE routes now `revalidateTag(`library-${org}`)` like the add-actions/extract routes, so the cached `/living-library` catalog busts on add instead of staying stale to the 1h TTL; corrected the finding's false `router.refresh()`-bypasses-the-cache hedge — `unstable_cache` Data Cache only clears via revalidateTag/TTL). **Session 29 (2026-06-21, ch.14 HIGH) minted 1 new LOW
+→ 35 open:** Q-13-009 (ch.13) — cross-org extraction dedup fragments across editions of the same work (`computeDedupKey`
+is ISBN-first, so different printings of *1984* re-extract redundantly + fragment the community corpus); the proper fix is
+a roadmapped content-fingerprint dedup feature (24 §5), so LOW now. **Session 30 (2026-06-22, ch.15 LOW) closed 4 →
+31 open:** Q-15-002 ✅ removed (`searchVideos` deleted — the per-org video twin of the S29 `searchBooks`; built-but-unwired,
+zero importers, no UI consumer) + Q-15-003 ✅ removed (`generateVideoEmbedding` deleted — wrote `video_resources.embedding`,
+a column nothing reads; dead at both ends) + Q-15-004 ✅ removed (`git rm src/lib/cache.ts` — superseded dead caching
+scaffold; the inline `revalidateTag` pattern shipped instead, never importing its `CACHE_TAGS` taxonomy) + Q-15-005 ✅
+accepted/won't-fix (`crossWalkTextbookTopics` N+1 ≤250 cosine queries — bounded best-effort bg Inngest step; **no vector
+index** on `textbook_chunks.embedding` so a set-based rewrite has no algorithmic gain + carries regression risk).
+**Session 31 (2026-06-22, ch.16 LOW) closed 3 → 28 open:** Q-16-004 ✅ resolved (fixed the broken
+`/living-library/resource/undefined` "Open Resource" link via the already-selected `assignment.resource.id` +
+deleted the dead `notes` block — `ResourceAssignment.notes` has no producer) + Q-16-005 ✅ resolved (wired the
+ParentDashboard "Daily Liturgy" card to the seeded `Devotional` table via a new bare-`db` `getTodayDevotional()`
++ prop — honest dynamic content with a static fallback) + Q-16-007 ✅ resolved (per-step `assessmentSchema`
+discriminated union via `safeParse` → 400 before the paid AI call + dropped 4 `any`s; permissive on values so the
+nested interests payload still parses, precise on per-step shape). **Q-16-001 kept OPEN** (re-documented from
+"orphaned/dead" to an **unfinished built-but-unlinked daily-schedule view** — owner keeps it; wire-an-inbound-link
+roadmapped §5; the cascade fns `getStudentDailySchedule`/`toggleItemStatus` + INFO Q-21-010 stay live, no ch.21 change).
+**Session 33 (2026-06-22, ch.17 LOW) closed 3 → 25 open:** Q-17-005 ✅ removed (`git rm` dead `course-pacing.ts`,
+~193 lines — zero importers, build-safety proven via move-aside + `tsc` delta; the live `distributeCourse` never
+consulted pacing output; ch.21 §6 cross-refs updated) + Q-17-006 ✅ resolved (added shared
+`validateBlockNesting`/`BLOCK_KIND_ALLOWED_PARENTS` to `lib/schemas/courses.ts` + the file's first test
+`courses.test.ts` (8 cases), enforced on the create POST + edit PATCH — PATCH validates the **merged** post-update
+`(kind, parentKind)` pair since the two change independently; owner chose FIX over the leaning-ACCEPT, single-tenant
+so no live security/crash impact) + Q-17-007 ✅ resolved (comment-only correction of the stale "Step 3 removed /
+only 2 steps" comments in `blueprint.ts`/`onboarding.ts` — the 3-step wizard is correct and the only reader of
+`progress.step` renders step 3 as the live Environment form, not "Done"; same shape as Q-09-001, no behavioral change).
+**Consolidated final pass (2026-06-22, ch.18 LOW) closed 3 → 22 open:** Q-18-005 ✅ accepted/correct-by-design
+(`letterGrade`/`AssessmentItemResponse.isCorrect` never written — re-verify CONFIRMED **zero readers** anywhere in
+src/, so the "transcripts see nulls" impact was overstated; the transcript subsystem types course grades into a
+`TranscriptData` JSON blob and never queries attempts — populating them now is false precision needing an attempt-level
+grading scale that doesn't exist → aspirational columns, roadmapped §5) + Q-18-006 ✅ accepted/correct-by-design (no
+student-facing assessment-taking flow — a multi-file feature explicitly "a separate, larger feature", already on the
+§5 roadmap; Q-18-006 is the canonical register home, ch.16 mints none) + Q-18-007 ✅ resolved (grading save UX: 4
+blocking `alert()` → sonner `toast`, `window.location.reload()` → `router.refresh()`, matching NewAttemptForm /
+PrayerJournalClient.tsx:117-119). **Q-18-004 ⏳ deferred** (grades always labeled `AI_ASSISTED`; MANUAL never set) —
+folded into the Q-18-001 server-side payload-validation fix (same pass, ch.18 HIGH): `gradingMethod` has zero readers
+and stays client-spoofable until validated server-side; a standalone client heuristic was refuted (adversarial pass).
+**Then ✅ resolved in the ch.18 HIGH cell (same pass)** — the client now sends a derived AI_ASSISTED-vs-MANUAL method,
+server enum-validated alongside the Q-18-001 fix → **22 → 21 open.**
+**Consolidated final pass (2026-06-22, ch.19 LOW) closed 3 (all ✅ ACCEPTED by-design — doc-only cell; adversarial pass
+refuted the action-bias on all three) → 18 open:** Q-19-002 ✅ accepted (the ungated `getSubtopicObjectives` read is
+correct-by-design for global Objective data — its true twin `spine-actions.getObjectives` is also ungated; a session gate
+would regress + relitigate a reviewed decision; the Zod-skip is an inert footgun on a plain-String id — auth-gate sub-claim
+rejected, doc's false "security comments" framing corrected) + Q-19-004 ✅ accepted (merging the two diverged read surfaces
+is disproportionate; the dead 3rd copy is removed by Q-19-003; corrected the false "small/complete" premise — the spine IS
+user-growable, but unbounded REST reads are the *correct* complete-dropdown behavior; a `take` ceiling is an optional
+owner-discretionary nicety, not done) + Q-19-006 ✅ accepted (cosmetic runtime/try-catch drift; corrected the inaccurate
+evidence — only subjects+topics pin runtime, NOT resource-kinds; the pins are redundant-with-the-Node-default; runtime
+normalization folds into the Q-19-001 MED edit). No code change this cell.
+**Consolidated final pass (2026-06-22, ch.20 LOW) closed 4 → 14 open:** Q-20-005 ✅ resolved (SPLIT — removed 3 dead
+symbols `searchBible`/`fetchUnreachedByCountry`/`toggleQuestionMastery` + the searchBible orphan tail; `lib/schemas/bible-memory.ts`
+kept for fix+wire by Q-20-006) + Q-20-007 ✅ accepted (the `/students/*` suite pages are proxy-gated — the "renders
+unauthenticated" impact was FALSE; cross-tenant studentId residual is inert, used only for hrefs / org-asserted actions) +
+Q-20-008 ✅ accepted/won't-fix (the `isPrivate` toggle is half-built — value never persisted, Lock/badge never triggers — no
+leak since all prayer reads are per-user; wire-vs-remove is a deferred product/UI decision, §5 roadmap) + Q-20-010 ✅
+accepted (cold-path `fs.readFile` micro-opt; only Missions calls it, the 175KB is already RSC-serialized to the client, and
+React `cache()` would be a no-op). Adversarial pass corrected the action-bias on 007/010 + the factual evidence on 007/008/010.
+**Consolidated final pass (2026-06-22, ch.21 LOW) closed 5 → 9 open:** Q-21-001 ✅ resolved (`getNextSchoolDays` reads
+`classroom.schoolDaysOfWeek` with a Mon-Fri fallback for null/empty — fixes 4-day/Sunday schedules) + Q-21-002 ✅ resolved
+(wired the dead `distributeCourseSchema` via `safeParse`; +test) + Q-21-004 ✅ resolved (ad-hoc add now awaits the write
+before `router.refresh()`, mirroring `handleDragEnd` — also fixed a dead `toast.promise` error branch that showed success
+on failure) + Q-21-005 ✅ resolved (removed a dead server-helper import from the client PlannerGrid) + Q-21-009 ✅ resolved
+(un-exported `getHolidays` — live via `isHoliday`, dead export keyword dropped).
+**Consolidated final pass (2026-06-22, ch.22 LOW) closed 5 → 4 open:** Q-22-001 ✅ removed (dead `PrintLayout.tsx` + 4
+sibling primitives) + Q-22-004 ✅ removed (dead `deleteTranscript` + orphaned `assertParentProfile` import,
+`getDefaultCoursesForGrade`, `validateCourse`) + Q-22-005 ✅ accepted (data-export raw-db org reads: explicit `orgId`
+predicate is the live boundary RLS-off + `resolveTenant()` GUC-scopes RLS-on — already RLS-ready; "no backstop" framing
+corrected) + Q-22-006 ✅ resolved (PDF empty-card `0.0`→`formatGPA(0)`/`formatCredits(0)` precision + removed the
+duplicate GPA/Cr line + 3 dead CSS blocks; the full preview↔PDF merge stays accepted) + Q-22-008 ✅ accepted
+(`isOfficial` aspirational orphaned column, like Q-18-005's letterGrade — removal=migration, wiring=feature).
+**Consolidated final pass (2026-06-22, ch.23 LOW) closed 3** — Q-23-001 ✅ accepted (operator-triggered ops
+pipeline — correct PARTIAL, not removable; misleading "user-triggered" comments noted), Q-23-004 ✅ accepted
+(non-blocking QA gate is deliberate Gemini-outage tolerance; tightening is an owner §5 quality-tuning call),
+Q-23-006 ✅ removed (`git rm src/data/heidelberg.json` — 2,480-line orphan, zero importers, incompatible shape vs
+the live `catechisms/heidelberg.ts`). Q-23-003 stays **⏳ deferred** (batched migration). **This pass also reconciled
+the LOW headline: the prose tail "4 → 1" was wrong — true open LOW = 9 (the carried-forward deferred/kept-open set
++ the newly-surfaced 2nd stray Q-12-013); see the authoritative itemized set at the top of this section.**
+**End-of-pass straggler sweep (2026-06-22) closed 1 → 8 open:** Q-13-009 ✅ accepted (ISBN-first cross-edition dedup is
+correct-by-design; cross-edition collapse = a roadmapped content-fingerprint feature, §5). Q-12-013 stays ⏳ OPEN,
+deferred WITH the child-safety brief — the sweep re-verified it as **substantially overstated** (sub-claim (c)
+`isSafe`-is-unused **refuted**: it is the load-bearing store-the-flag gate at `safety-scan.ts:80`; `coercion` is by-design;
+`reasoning` dual-use is already handled), evidence corrected in ch.12 §7; genuine residual = 2 minor safety refactors
+folded into the §5 child-safety program.
+Recurring themes: dead
 exports, missing Zod on REST routes, unbounded `findMany` (no `take`), and Gemini-model-name churn.
 
 ## 8. Live-DB grounding appendix (Phase C, read-only)
@@ -672,7 +995,7 @@ exports, missing Zod on REST routes, unbounded `findMany` (no `take`), and Gemin
 
 | File | Status | Notes |
 |---|---|---|
-| `src/app/api/health/route.ts` | **PARTIAL / risk** | Unauthenticated DB-diagnostic; leaks host/projectRef/connection-role/`RLS_ENABLED`/table counts/commit. Self-labelled temporary. → Q-24-001. |
+| ~~`src/app/api/health/route.ts`~~ | **REMOVED** | ✅ `git rm` 2026-06-22 (Q-24-001, owner-approved) — was an unauthenticated DB-diagnostic leaking host/projectRef/connection-role/`RLS_ENABLED`/table counts/commit; self-labelled temporary, zero references. |
 | `src/app/api/test/seed/route.ts` | DONE (safe) | 404 in prod + auth-required; was previously a public DB-write hole (now fixed). Non-prod only. |
 | `src/server/utils/errorTaxonomy.ts` | PARTIAL | `ERROR_CODES`/`StandardError`/`createSuccessResponse`; only consumer is `src/server/actions/bible-study.ts`. |
 | `src/types/index.ts` | DEAD (placeholder) | Comment-only stub; no exports. |

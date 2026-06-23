@@ -104,6 +104,53 @@ export type StudentWithRelations = Prisma.LearnerGetPayload<{
     select: typeof studentSelect;
 }>;
 
+/**
+ * Leaner select for the /students list-grid cards (StudentCard). Deliberately NOT studentSelect —
+ * that is a superset for the full profile page (activityProgress/courseProgress/personalizedResources/
+ * strand/…) and would over-fetch a grid. Single source of truth for the list query + the card prop type.
+ */
+export const studentCardSelect = {
+    id: true,
+    firstName: true,
+    lastName: true,
+    preferredName: true,
+    currentGrade: true,
+    birthdate: true,
+    avatarConfig: true,
+    createdAt: true,
+    learnerProfile: {
+        select: {
+            id: true,
+            personalityData: true,
+            learningStyleData: true,
+            interestsData: true,
+        },
+    },
+    courseEnrollments: {
+        select: {
+            courseId: true,
+            status: true,
+            course: {
+                select: {
+                    id: true,
+                    title: true,
+                    subject: {
+                        select: {
+                            id: true,
+                            name: true,
+                            code: true,
+                        },
+                    },
+                },
+            },
+        },
+    },
+} satisfies Prisma.LearnerSelect;
+
+export type StudentCardData = Prisma.LearnerGetPayload<{
+    select: typeof studentCardSelect;
+}>;
+
 const objectiveSelect = {
     id: true,
     code: true,

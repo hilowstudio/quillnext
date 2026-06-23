@@ -5,7 +5,6 @@ import { auth } from "@/auth";
 import type { TranscriptData, TranscriptCourse, StudentInfo, SchoolInfo } from "@/components/transcript/types";
 import { DEFAULT_GRADING_SCALE } from "@/components/transcript/utils";
 import { getCurrentUserOrg } from "@/lib/auth-helpers";
-import { assertParentProfile } from "@/server/profiles/guards";
 import { revalidatePath } from "next/cache";
 import { Prisma } from "@/generated/client";
 
@@ -198,30 +197,6 @@ export async function getTranscripts(studentId: string) {
     }));
 }
 
-/**
- * Delete a transcript
- */
-export async function deleteTranscript(transcriptId: string) {
-    const session = await auth();
-    if (!session?.user?.id) throw new Error("Not authenticated");
-    await assertParentProfile();
-    const { organizationId } = await getCurrentUserOrg(session);
-    if (!organizationId) throw new Error("Organization not found for user");
-
-    const existing = await withTenant(
-        (tx) => tx.transcript.findUnique({ where: { id: transcriptId }, select: { organizationId: true } }),
-        undefined,
-        { organizationId, userId: null }
-    );
-    if (!existing || existing.organizationId !== organizationId) throw new Error("Unauthorized");
-
-    await withTenant(
-        (tx) => tx.transcript.delete({
-            where: { id: transcriptId }
-        }),
-        undefined,
-        { organizationId, userId: null }
-    );
-
-    revalidatePath("/transcripts");
-}
+// (deleteTranscript removed 2026-06-22 — dead code, zero callers / no delete UI, Q-22-004. The
+// parent-guard it carried was a mechanical security-sweep artifact, not a planned-feature signal.
+// Re-add fresh if a transcript-delete UI is ever built.)

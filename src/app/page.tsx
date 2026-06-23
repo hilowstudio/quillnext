@@ -6,7 +6,7 @@ import { getLearnerIdForProfile } from "@/server/profiles/queries";
 import { getMyLearning } from "@/server/profiles/my-learning";
 import { ParentDashboard } from "@/components/dashboard/ParentDashboard";
 import { StudentDashboard } from "@/components/dashboard/StudentDashboard";
-import { getParentDashboardData, getStudentDashboardData } from "@/server/queries/dashboard";
+import { getParentDashboardData, getStudentDashboardData, getTodayDevotional } from "@/server/queries/dashboard";
 
 export default async function HomePage(props: {
   searchParams: Promise<{ studentId?: string }>;
@@ -41,6 +41,7 @@ export default async function HomePage(props: {
 
   const data = await getParentDashboardData(organizationId);
   const myLearning = await getMyLearning(active.id, organizationId);
+  const todayDevotional = await getTodayDevotional();
   return (
     <ParentDashboard
       students={data.students}
@@ -50,6 +51,7 @@ export default async function HomePage(props: {
       suggestions={data.suggestions}
       classroomName={data.classroomName || "My Classroom"}
       myLearning={myLearning}
+      todayDevotional={todayDevotional}
     />
   );
 }

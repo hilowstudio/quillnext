@@ -122,7 +122,23 @@ export async function getLibraryResources(organizationId: string) {
     return getCached();
 }
 
-export async function addArticle(url: string, organizationId: string, userId: string): Promise<{ success: boolean; error?: string; article?: any }> {
+export async function addArticle(url: string): Promise<{ success: boolean; error?: string; article?: any }> {
+    // Derive tenancy + enforce the parent gate SERVER-SIDE — never trust client-supplied
+    // organizationId/userId (the action is directly invokable, outside the proxy/page gate).
+    const session = await auth();
+    if (!session?.user) {
+        return { success: false, error: "Unauthorized" };
+    }
+    try {
+        await assertParentProfile();
+    } catch {
+        return { success: false, error: "Only a parent profile can add resources." };
+    }
+    const { organizationId, userId } = await getCurrentUserOrg();
+    if (!organizationId) {
+        return { success: false, error: "User has no organization" };
+    }
+
     // (1) Validate the URL before doing any network work. Only http/https are scrapeable.
     let parsedUrl: URL;
     try {
@@ -247,7 +263,23 @@ export async function addArticle(url: string, organizationId: string, userId: st
     }
 }
 
-export async function addDocuments(formData: FormData, organizationId: string, userId: string): Promise<{ success: boolean; documents?: any[]; errors?: string[] }> {
+export async function addDocuments(formData: FormData): Promise<{ success: boolean; documents?: any[]; errors?: string[] }> {
+    // Derive tenancy + enforce the parent gate SERVER-SIDE — never trust client-supplied
+    // organizationId/userId (the action is directly invokable, outside the proxy/page gate).
+    const session = await auth();
+    if (!session?.user) {
+        return { success: false, errors: ["Unauthorized"] };
+    }
+    try {
+        await assertParentProfile();
+    } catch {
+        return { success: false, errors: ["Only a parent profile can add resources."] };
+    }
+    const { organizationId, userId } = await getCurrentUserOrg();
+    if (!organizationId) {
+        return { success: false, errors: ["User has no organization"] };
+    }
+
     try {
         const files = formData.getAll("files") as File[];
         if (!files || files.length === 0) {
@@ -404,6 +436,5 @@ async function deleteResource(id: string, model: "book" | "videoResource" | "art
 
     revalidateTag(`library-${organizationId}`, {});
     revalidatePath("/living-library");
-    revalidatePath("/resources");
     return { success: true };
 }

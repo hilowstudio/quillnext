@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { getCurrentUserOrg } from "@/lib/auth-helpers";
 import { withTenant } from "@/server/db";
 import { excludeParentLearners } from "@/server/queries/learner-filters";
+import { studentCardSelect } from "@/server/queries/students";
 import { cacheQuery } from "@/lib/utils/prisma-cache";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -13,43 +14,7 @@ const getOrganizationStudents = cacheQuery(
   async (organizationId: string) => {
     return withTenant((tx) => tx.learner.findMany({
       where: { organizationId, ...excludeParentLearners },
-      select: {
-        id: true,
-        firstName: true,
-        lastName: true,
-        preferredName: true,
-        currentGrade: true,
-        birthdate: true,
-        avatarConfig: true,
-        createdAt: true,
-        learnerProfile: {
-          select: {
-            id: true,
-            personalityData: true,
-            learningStyleData: true,
-            interestsData: true,
-          },
-        },
-        courseEnrollments: {
-          select: {
-            courseId: true,
-            status: true,
-            course: {
-              select: {
-                id: true,
-                title: true,
-                subject: {
-                  select: {
-                    id: true,
-                    name: true,
-                    code: true,
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
+      select: studentCardSelect,
       orderBy: { createdAt: "desc" },
       take: 100, // Explicit bound - organizations shouldn't have hundreds of students
     }), undefined, { organizationId, userId: null });
@@ -106,7 +71,7 @@ export default async function StudentsPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {students.map((student) => (
-            <StudentCard key={student.id} student={student as any} />
+            <StudentCard key={student.id} student={student} />
           ))}
 
         </div>

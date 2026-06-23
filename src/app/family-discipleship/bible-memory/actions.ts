@@ -4,6 +4,12 @@ import { withTenant } from "@/server/db";
 import { revalidatePath } from "next/cache";
 import { getBibleText } from "@/server/actions/bible-study";
 import { getCurrentUserOrg } from "@/lib/auth-helpers";
+import {
+    addVerseSchema,
+    createFolderSchema,
+    renameFolderSchema,
+    moveVerseSchema,
+} from "@/lib/schemas/bible-memory";
 
 // --- Types ---
 
@@ -132,15 +138,19 @@ export async function getUserVerses(studentId?: string) {
     );
 }
 
-export async function addVerseToUser(data: { studentId: string, reference: string, text?: string }) {
+export async function addVerseToUser(rawData: unknown) {
     try {
+        const data = addVerseSchema.parse(rawData); // Q-20-006: shape/length + uuid validation
         const { organizationId, userId } = await requireCaller();
         await assertStudentInOrg(data.studentId, organizationId, userId);
 
         let text = data.text;
         if (!text) {
+            // Q-20-003: getBibleText expects { reference } (Zod object), not a bare string — passing the
+            // string threw (caught → empty text on add). Keep the try/catch so an ESV outage / bad reference
+            // still creates the verse (PracticeMode lazy-backfills the text on first practice).
             try {
-                text = await getBibleText(data.reference);
+                text = await getBibleText({ reference: data.reference });
             } catch {
                 text = "";
             }
@@ -250,8 +260,8 @@ export async function getStudentFolders(studentId: string) {
 }
 
 export async function createFolder(studentId: string, name: string) {
-    if (!studentId || !name) return { success: false, error: "Missing required fields" };
     try {
+        createFolderSchema.parse({ studentId, name }); // Q-20-006: validate shape/length + uuid
         const { organizationId, userId } = await requireCaller();
         await assertStudentInOrg(studentId, organizationId, userId);
 
@@ -286,6 +296,7 @@ export async function deleteFolder(folderId: string) {
 
 export async function renameFolder(folderId: string, name: string) {
     try {
+        renameFolderSchema.parse({ folderId, name }); // Q-20-006: validate shape/length + uuid
         const { organizationId, userId } = await requireCaller();
         await assertFolderInOrg(folderId, organizationId, userId);
 
@@ -303,6 +314,7 @@ export async function renameFolder(folderId: string, name: string) {
 
 export async function moveVerseToFolder(verseId: string, folderId: string | null) {
     try {
+        moveVerseSchema.parse({ verseId, folderId }); // Q-20-006: validate uuid (folderId nullable)
         const { organizationId, userId } = await requireCaller();
         await assertVerseAccess(verseId, organizationId, userId);
         // Moving INTO a folder requires that folder to belong to the caller's org too.
@@ -320,49 +332,8 @@ export async function moveVerseToFolder(verseId: string, folderId: string | null
     }
 }
 
-export async function copyFolderToStudent(folderId: string, targetStudentId: string) {
-    try {
-        const { organizationId, userId } = await requireCaller();
-        // Both the source folder and the destination student must be in the caller's org.
-        await assertFolderInOrg(folderId, organizationId, userId);
-        await assertStudentInOrg(targetStudentId, organizationId, userId);
-
-        const result = await withTenant(async (tx) => {
-            const sourceFolder = await tx.bibleMemoryFolder.findUnique({
-                where: { id: folderId },
-                include: { verses: true }
-            });
-            if (!sourceFolder) return { success: false as const, error: "Folder not found" };
-
-            const newFolder = await tx.bibleMemoryFolder.create({
-                data: { studentId: targetStudentId, name: sourceFolder.name }
-            });
-
-            const versesToCreate = sourceFolder.verses.map((v: any) => ({
-                studentId: targetStudentId,
-                folderId: newFolder.id,
-                reference: v.reference,
-                text: v.text,
-                isDefault: false,
-                currentStep: 0
-            }));
-
-            if (versesToCreate.length > 0) {
-                await tx.bibleMemory.createMany({ data: versesToCreate });
-            }
-
-            return { success: true as const };
-        }, undefined, { organizationId, userId });
-
-        if (!result.success) return result;
-
-        revalidatePath('/family-discipleship/bible-memory');
-        return { success: true };
-    } catch (e) {
-        console.error(e);
-        return { success: false, error: "Failed to copy folder" };
-    }
-}
+// (copyFolderToStudent removed 2026-06-22 — dead code, zero callers; surfaced during the Q-20-006
+// wiring. Same dead-code class as Q-20-005.)
 
 // --- Refresh & Restore Actions ---
 

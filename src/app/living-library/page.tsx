@@ -1,6 +1,7 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { db as prisma, withTenant } from "@/server/db";
+import { Prisma } from "@/generated/client";
 import { excludeParentLearners } from "@/server/queries/learner-filters";
 import { getLibraryResources } from "@/app/actions/resource-library-actions";
 import { LibraryClient } from "@/app/living-library/LibraryClient";
@@ -44,13 +45,22 @@ export default async function LibraryPage(
     { organizationId, userId: null }
   );
 
-  // Fetch Filtered Generated Resources logic
-  const where: any = { organizationId };
+  // Fetch Filtered Generated Resources logic. searchParams values are string | string[] |
+  // undefined (Next typing); coerce each to a single string so a duplicate query param can't
+  // flow a string[] into a scalar Prisma filter (which would throw a validation error and 500
+  // the page). The organizationId predicate is unconditional, so the catalog stays org-scoped.
+  const firstParam = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
+  const where: Prisma.ResourceWhereInput = { organizationId };
 
-  if (searchParams.studentId) where.generatedForStudentId = searchParams.studentId;
-  if (searchParams.courseId) where.assignments = { some: { courseId: searchParams.courseId } };
-  if (searchParams.bookId) where.generatedFromBookId = searchParams.bookId;
-  if (searchParams.toolType) where.resourceKind = { code: searchParams.toolType };
+  const studentId = firstParam(searchParams.studentId);
+  const courseId = firstParam(searchParams.courseId);
+  const bookId = firstParam(searchParams.bookId);
+  const toolType = firstParam(searchParams.toolType);
+
+  if (studentId) where.generatedForStudentId = studentId;
+  if (courseId) where.assignments = { some: { courseId } };
+  if (bookId) where.generatedFromBookId = bookId;
+  if (toolType) where.resourceKind = { code: toolType };
 
   // Converted include to select for precise field selection
   const resources = await withTenant(
@@ -120,7 +130,6 @@ export default async function LibraryPage(
     <LibraryClient
       initialData={initialData}
       organizationId={user.organizationId}
-      userId={userId}
     />
   );
 }

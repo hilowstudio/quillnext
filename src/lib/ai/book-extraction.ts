@@ -7,17 +7,19 @@ import { models } from "@/lib/ai/config";
  * book-extraction.ts — the web-search-grounded PRODUCER core for the cross-org
  * shared BOOK EXTRACTION feature.
  *
- * Grounding tools (google_search) CANNOT be combined with generateObject, so this
- * runs a deliberate TWO-STEP pipeline, exposed as two separately-callable producers:
- *   1) GROUND   (groundBook / groundBookSections) — generateText + google.tools.googleSearch
- *      research THIS book on the public web, returning a free-text dump + grounding `sources`.
- *      These THROW on a content-filtered empty response, so the retry happens at the INNGEST
- *      STEP level (one bounded call per Vercel invocation) instead of an in-process loop.
- *   2) STRUCTURE (structureBookResearch / structureBookSections) — generateObject (no tools)
- *      structure that research into JSON. These NEVER throw — they degrade gracefully.
+ * Grounding tools (google_search) CANNOT be combined with generateObject, so the BOOK-LEVEL
+ * extraction runs a deliberate TWO-STEP pipeline, exposed as two separately-callable producers:
+ *   1) GROUND   (groundBook) — generateText + google.tools.googleSearch researches THIS book on
+ *      the public web, returning a free-text dump + grounding `sources`. It THROWS on a
+ *      content-filtered empty response, so the retry happens at the INNGEST STEP level (one
+ *      bounded call per Vercel invocation) instead of an in-process loop.
+ *   2) STRUCTURE (structureBookResearch) — generateObject (no tools) structures that research
+ *      into JSON. NEVER throws — degrades to degradedBookResult on a persistent grounding failure.
  *
- * The worker runs ground + structure as separate Inngest steps; on a persistent grounding
- * failure it falls back to degradedBookResult (book) / [] (sections).
+ * Per-section ("spine") extraction is NOT web-grounded: structureSectionsFromText builds the facts
+ * sheet from the book's OWN ingested full text (the grounded section path was removed — it exceeded
+ * Vercel's 60s ceiling regardless of batch size; see Q-23-002). classifySectionsToObjectives then
+ * maps sections to curriculum objective codes.
  */
 
 export type BookExtractionStage = "perfect-parse" | "chapter-parse" | "manual-needed";
@@ -185,22 +187,15 @@ function extractGroundingSources(groundingRes: {
  */
 async function runBookGrounding(
   prompt: string,
-  opts?: { abortMs?: number },
 ): Promise<{ notes: string; sources: Array<{ title?: string; url: string }> }> {
   const groundingRes = await generateText({
     model: models.flash,
     // Provider-defined Google Search grounding tool. MUST be keyed "google_search".
     tools: { google_search: google.tools.googleSearch({}) },
     prompt,
-    // The grounded google_search research is search-round-trip bound — it runs ~50-60s for these
-    // prompts (measured: even a ONE-chapter sections call hits 50s). The MAIN extraction grounding
-    // passes NO opts → original behaviour (it fits Vercel's 60s in prod; do NOT cut it short). A caller
-    // that must fail FAST + CATCHABLY on Hobby (the per-section facts-sheet) passes abortMs so an
-    // AbortSignal trips before the uncatchable 60s process kill → a clean, single-attempt degrade.
-    // NOTE: that sections grounding exceeds 60s regardless of batch size, so it degrades to UNAVAILABLE
-    // on Hobby no matter what — a higher ceiling (Vercel Pro 300s) or a non-grounded approach is the
-    // only way to actually produce it.
-    ...(opts?.abortMs ? { abortSignal: AbortSignal.timeout(opts.abortMs) } : {}),
+    // The grounded google_search research is search-round-trip bound (~50-60s) but fits Vercel's 60s
+    // ceiling in prod for the book-level pass — do NOT cut it short. (The only caller that needed a
+    // fast, catchable abort was the per-section grounding, removed in Q-23-002.)
   });
   const sources = extractGroundingSources(groundingRes);
   const notes = groundingRes.text ?? "";
@@ -293,13 +288,13 @@ export function degradedBookResult(meta: BookMeta): BookExtractionResult {
 }
 
 // ============================================================================
-// Phase 2 — per-section ("spine") grounded extraction + objective classification.
+// Phase 2 — per-section ("spine") extraction + objective classification.
 //
-// Same shape as the book-level producers above: a GROUND producer (groundBookSections,
-// generateText + google_search on flash) that THROWS on a content-filtered empty so the
-// Inngest step retries, plus a never-throws STRUCTURE producer (structureBookSections,
-// generateObject). They are pure AI producers: no DB access, no withTenant — the worker
-// persists the results into the GLOBAL Phase-2 tables.
+// structureSectionsFromText builds the per-section facts sheet from the book's OWN ingested full
+// text (a single no-tools generateObject over retrieved excerpts — fits Vercel's 60s, unlike a
+// web-grounded approach). classifySectionsToObjectives then maps those sections to curriculum
+// objective codes. Both are pure AI producers: no DB access, no withTenant — the worker persists
+// the results into the GLOBAL Phase-2 tables.
 // ============================================================================
 
 /** Per-chapter/section facts grounded in real public sources. */
@@ -312,15 +307,7 @@ export interface SectionFacts {
   vocabulary: string[];
 }
 
-/** Metadata anchor for section extraction. tableOfContents pins the section list/numbers. */
-interface SectionMeta {
-  title: string;
-  authors?: string[] | null;
-  isbn?: string | null;
-  tableOfContents?: unknown;
-}
-
-/** Zod schema for the per-section array produced by structureBookSections. */
+/** Zod schema for the per-section facts array (used by structureSectionsFromText). */
 const sectionFactsSchema = z.object({
   sections: z.array(
     z.object({
@@ -335,145 +322,11 @@ const sectionFactsSchema = z.object({
 });
 
 /**
- * Render the provided tableOfContents into a compact, human-readable anchor block so the
- * model is constrained to the REAL section list/numbers and does not invent chapters.
- * Returns null when no usable TOC is present.
- */
-function describeTableOfContents(toc: unknown): string | null {
-  if (!Array.isArray(toc) || toc.length === 0) return null;
-  const lines: string[] = [];
-  for (let i = 0; i < toc.length; i++) {
-    const entry = toc[i];
-    if (entry == null) continue;
-    if (typeof entry === "string") {
-      lines.push(`${i + 1}. ${entry}`);
-      continue;
-    }
-    if (typeof entry === "object") {
-      const e = entry as { chapterNumber?: unknown; sectionNumber?: unknown; number?: unknown; title?: unknown };
-      const num =
-        typeof e.chapterNumber === "number"
-          ? e.chapterNumber
-          : typeof e.sectionNumber === "number"
-            ? e.sectionNumber
-            : typeof e.number === "number"
-              ? e.number
-              : i + 1;
-      const title = typeof e.title === "string" ? e.title : `Chapter ${num}`;
-      lines.push(`${num}. ${title}`);
-    }
-  }
-  return lines.length > 0 ? lines.join("\n") : null;
-}
-
-/** Human-readable line describing the book for grounding (section-extraction subset). */
-function describeSectionBook(meta: SectionMeta): string {
-  const authors = (meta.authors ?? []).filter(Boolean).join(", ");
-  const lines = [
-    `Title: ${meta.title}`,
-    authors ? `Author(s): ${authors}` : null,
-    meta.isbn ? `ISBN: ${meta.isbn}` : null,
-  ].filter(Boolean);
-  return lines.join("\n");
-}
-
-/** Metadata anchor accepted by the section producers (title/authors/isbn + the TOC to pin to). */
-type SectionGroundMeta = {
-  title: string;
-  authors?: string[] | null;
-  isbn?: string | null;
-  tableOfContents?: unknown;
-};
-
-/**
- * GROUND a book chapter-by-chapter on the public web (ONE attempt). Throws on a content-filtered
- * empty response so the caller (the Inngest worker step) retries it. Pairs with structureBookSections.
- * Anchored to meta.tableOfContents when present so it does not invent chapters beyond the TOC.
- */
-export async function groundBookSections(
-  meta: SectionGroundMeta,
-): Promise<{ notes: string; sources: Array<{ title?: string; url: string }> }> {
-  const bookDescription = describeSectionBook(meta);
-  const tocBlock = describeTableOfContents(meta.tableOfContents);
-  const groundingPrompt =
-    `Research this specific book on the public web, CHAPTER BY CHAPTER, and report what ` +
-    `you find. Use authoritative sources: the publisher's page, Wikipedia, chapter ` +
-    `summaries, study guides (e.g. SparkNotes/LitCharts/CliffsNotes), library catalogs, ` +
-    `and reputable reviews. Use the metadata to make sure you are looking at the correct ` +
-    `book and edition (match the ISBN when possible).\n\n` +
-    `${bookDescription}\n\n` +
-    (tocBlock
-      ? `Use EXACTLY this published table of contents as the authoritative section list. ` +
-        `Report on each of these sections, keeping these section numbers and titles. Do NOT ` +
-        `add, drop, renumber, or invent chapters beyond this list:\n${tocBlock}\n\n`
-      : `If you can find the real, published table of contents, use it as the authoritative ` +
-        `section list (keep the published chapter numbers and titles in order). Do NOT invent ` +
-        `chapters; if the structure had to be inferred, say so explicitly.\n\n`) +
-    `For EACH chapter/section, report, as plainly and factually as you can:\n` +
-    `1. The chapter number and title (exactly as published).\n` +
-    `2. A 2-3 sentence factual summary of what happens / what it covers.\n` +
-    `3. The key events or key points (a short list).\n` +
-    `4. The characters or real figures present in that chapter.\n` +
-    `5. 3-5 vocabulary words or key terms introduced or central to that chapter.\n` +
-    `Cite the specific pages you used. Ground every claim in the sources.`;
-  // Fail FAST + catchably on Hobby (the worker degrades to sectionsStatus=UNAVAILABLE) rather than the
-  // uncatchable 60s kill + retries. (This grounding exceeds 60s on Hobby regardless — see runBookGrounding.)
-  return runBookGrounding(groundingPrompt, { abortMs: 50_000 });
-}
-
-/**
- * STRUCTURE chapter-by-chapter research notes into the per-section facts array (generateObject, no
- * tools). NEVER throws — degrades to [] on failure. Pairs with groundBookSections; re-derives the
- * TOC anchor from meta so the structured list stays pinned to the published sections.
- */
-export async function structureBookSections(
-  notes: string,
-  meta: SectionGroundMeta,
-): Promise<SectionFacts[]> {
-  try {
-    const bookDescription = describeSectionBook(meta);
-    const tocBlock = describeTableOfContents(meta.tableOfContents);
-
-    const structuredRes = await generateObject({
-      model: models.flash,
-      schema: sectionFactsSchema,
-      prompt:
-        `Convert the following chapter-by-chapter research notes about a book into structured ` +
-        `JSON that matches the provided schema (an array of sections).\n\n` +
-        (tocBlock
-          ? `Anchor the section list to EXACTLY this published table of contents — use these ` +
-            `section numbers and titles, in order, and produce exactly one entry per listed ` +
-            `section. Do NOT add, drop, renumber, or invent chapters beyond this list:\n${tocBlock}\n\n`
-          : `Preserve the real chapter list and ordering exactly as reported in the notes — do ` +
-            `not add, drop, renumber, or rephrase chapters.\n\n`) +
-        `For each section set:\n` +
-        `- "sectionNumber": the chapter/section number (integer).\n` +
-        `- "title": the chapter/section title.\n` +
-        `- "summary": a 2-3 sentence factual summary grounded in the notes.\n` +
-        `- "keyPoints": the key events or points (strings).\n` +
-        `- "charactersPresent": characters or real figures present in that section.\n` +
-        `- "vocabulary": 3-5 vocabulary words or key terms for that section.\n` +
-        `Use empty arrays when a field is genuinely unknown; do not fabricate.\n\n` +
-        `Book metadata (for context only):\n${bookDescription}\n\n` +
-        `Researched notes:\n${notes}`,
-    });
-
-    return structuredRes.object.sections ?? [];
-  } catch (error) {
-    console.error(
-      `[book-extraction] structureBookSections failed for "${meta.title}" — returning [].`,
-      error,
-    );
-    return [];
-  }
-}
-
-/**
  * Build the per-section facts sheet from the book's OWN ingested full text (public-domain books) —
  * NO web grounding. The caller retrieves each section's most-relevant chunks (via retrieveBookChunks)
  * and passes them as `excerpts`; this is a single no-tools generateObject over those excerpts, so it's
- * fast and fits Vercel Hobby's 60s (unlike groundBookSections, whose google_search exceeds 60s). Takes
- * a BATCH of sections at once for efficiency. NEVER throws — degrades to [].
+ * fast and fits Vercel Hobby's 60s (a web-grounded section pass would exceed 60s — why that path was
+ * removed; see Q-23-002). Takes a BATCH of sections at once for efficiency. NEVER throws — degrades to [].
  */
 export async function structureSectionsFromText(
   meta: { title: string; authors?: string[] | null },

@@ -93,34 +93,4 @@ export async function fetchUnreachedOfTheDay(): Promise<UnreachedPeopleGroup | n
     }
 }
 
-export async function fetchUnreachedByCountry(countryCode: string) {
-    try {
-        const response = await fetch(
-            `${JOSHUA_PROJECT_BASE_URL}/v1/people_groups.json?api_key=${JOSHUA_PROJECT_API_KEY}&ROG3=${countryCode}&LeastReached=Y`
-        );
-
-        if (!response.ok) {
-            throw new Error(`Joshua Project API error: ${response.status}`);
-        }
-
-        const data = await response.json();
-
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        return data.map((group: any) => ({
-            id: group.PeopleID3,
-            name: group.PeopNameInCountry,
-            population: group.Population,
-            primaryLanguage: group.PrimaryLanguageName,
-            primaryReligion: group.PrimaryReligion,
-            percentEvangelical: group.PercentEvangelical,
-            jpScale: group.JPScale,
-            jpScaleText: group.JPScaleText,
-            photoUrl: group.PeopleGroupPhotoURL,
-            profileUrl: group.PeopleGroupURL
-        }));
-
-    } catch (error) {
-        console.error('Error fetching unreached by country:', error);
-        return [];
-    }
-}
+// (fetchUnreachedByCountry removed 2026-06-22 — dead code, Q-20-005.)

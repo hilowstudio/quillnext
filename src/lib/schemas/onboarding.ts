@@ -105,7 +105,7 @@ export const familyBlueprintSchema = z.object({
   classroom: classroomSchema,
   // Step 2: Schedule
   schedule: scheduleSchema,
-  // Step 3: Environment (Optional/Removed from wizard)
+  // Step 3: Environment (optional final step of the 3-step wizard)
   environment: environmentSchema.optional(),
 });
 

@@ -8,7 +8,7 @@ export const extractBook = inngest.createFunction(
     {
         id: "extract-book",
         // 4 (= 5 attempts) so the content-filter retries we moved from an in-process loop up to the
-        // STEP level (groundBook / groundBookSections throw on a content-filtered empty) get at least
+        // STEP level (groundBook throws on a content-filtered empty) get at least
         // as many tries as the old 3x loop, with Inngest backoff between them. Every step is
         // idempotent, so the extra retries are safe for the non-AI steps too.
         retries: 4,

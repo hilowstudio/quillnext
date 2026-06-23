@@ -1,14 +1,27 @@
 export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { auth } from "@/auth";
 import { db } from "@/server/db";
+import { Prisma } from "@/generated/client";
 import { getCurrentUserOrg } from "@/lib/auth-helpers";
 import {
   generateStudentProfile,
   generateLearningStyleProfile,
   generateInterestProfile,
 } from "@/server/ai/personality";
+
+// The questionnaire answers are serialized into AI prompts, so we validate the SHAPE per step and
+// fail fast before the paid AI call. personality/learning send a flat Record<string,string>; the
+// interests step sends a nested object, so its values stay permissive (unknown). A discriminated
+// union keeps each step typed to its generator's contract without unchecked casts. Mirrors the
+// create path's studentSchema.
+const assessmentSchema = z.discriminatedUnion("step", [
+  z.object({ step: z.literal("personality"), answers: z.record(z.string(), z.string()) }),
+  z.object({ step: z.literal("learning"), answers: z.record(z.string(), z.string()) }),
+  z.object({ step: z.literal("interests"), answers: z.record(z.string(), z.unknown()) }),
+]);
 
 export async function POST(
   request: NextRequest,
@@ -22,7 +35,12 @@ export async function POST(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { step, answers } = body;
+
+    const parsed = assessmentSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+    }
+    const { step } = parsed.data;
 
     console.log(`Processing assessment step '${step}' for student:`, id);
 
@@ -43,26 +61,29 @@ export async function POST(
 
     const studentName = student.preferredName || student.firstName;
     let result;
-    const updateData: any = { completedAt: new Date() };
+    const updateData: {
+      completedAt: Date;
+      personalityData?: Prisma.InputJsonValue;
+      learningStyleData?: Prisma.InputJsonValue;
+      interestsData?: Prisma.InputJsonValue;
+    } = { completedAt: new Date() };
 
-    // AI Generation & DB Update Logic based on Step
-    if (step === "personality") {
+    // AI Generation & DB Update Logic based on Step (answers narrows via the discriminated union).
+    if (parsed.data.step === "personality") {
       console.log("Generating Personality Profile...");
-      const profile = await generateStudentProfile(answers, studentName);
-      updateData.personalityData = profile as any;
+      const profile = await generateStudentProfile(parsed.data.answers, studentName);
+      updateData.personalityData = profile as Prisma.InputJsonValue;
       result = profile;
-    } else if (step === "learning") {
+    } else if (parsed.data.step === "learning") {
       console.log("Generating Learning Style Profile...");
-      const profile = await generateLearningStyleProfile(answers, studentName);
-      updateData.learningStyleData = profile as any;
-      result = profile;
-    } else if (step === "interests") {
-      console.log("Generating Interest Profile...");
-      const profile = await generateInterestProfile(answers, studentName);
-      updateData.interestsData = profile as any;
+      const profile = await generateLearningStyleProfile(parsed.data.answers, studentName);
+      updateData.learningStyleData = profile as Prisma.InputJsonValue;
       result = profile;
     } else {
-      return NextResponse.json({ error: "Invalid step" }, { status: 400 });
+      console.log("Generating Interest Profile...");
+      const profile = await generateInterestProfile(parsed.data.answers, studentName);
+      updateData.interestsData = profile as Prisma.InputJsonValue;
+      result = profile;
     }
 
     // Upsert LearnerProfile

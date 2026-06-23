@@ -232,6 +232,10 @@ export async function togglePrayerAnswered(id: string, date?: Date) {
 }
 
 export async function getPrayerCategories() {
+    // Q-20-001: PrayerCategory is global reference content, but require a session (defense-in-depth;
+    // the prayer page already gates, so this is a self-gating backstop).
+    const session = await auth();
+    if (!session?.user) throw new Error("Unauthorized");
     // In the future this could fetch from DB if we allow custom categories
     // For now we can return static or fetch from the PrayerCategory model if populated
     const categories = await db.prayerCategory.findMany({

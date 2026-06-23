@@ -67,14 +67,14 @@ verified read-only 2026-06-19 (Q-001, Session 8); see the **RLS-cutover runbook*
 
 ## Findings at a glance
 
-0 CRITICAL · **8 HIGH** · 27 MED · 40 LOW open · 44 INFO (chapter findings) + foundational `Q-0NN` from
+0 CRITICAL · **1 HIGH** · 6 MED · 8 LOW open · 44 INFO (chapter findings) + foundational `Q-0NN` from
 02/04 (`Q-001` [HIGH] open — cutover prep verified 2026-06-19 (Session 8), execution deferred to a gated
 infra task; `Q-011`/`Q-013` [LOW] deferred to the batched migration; foundational MED now
-fully closed — `Q-004` was the last, resolved 2026-06-19). The remaining HIGH set clusters around **tenancy/IDOR on raw `db`** (Q-14-001/004 — the ch.10 cluster Q-10-001/002/003 was ✅ resolved 2026-06-20, Session 20),
-**child-safety** (Q-12-001 fail-open + Q-12-007 no in-the-moment layer — Session 24 minted the latter from the owner's hardening brief; see 24 §5),
-**a broken activity flow** (Q-17-001), **an unvalidated grading API**
-(Q-18-001), and **unauthenticated + broken discipleship paths** (Q-20-001/002). See **24 §5/§7** for
-the prioritized roadmap and the full register.
+fully closed — `Q-004` was the last, resolved 2026-06-19). The feature-chapter HIGH set has been worked down to **one**:
+the tenancy/IDOR cluster (ch.10 Q-10-001/002/003 ✅ Session 20, ch.14 Q-14-001/004 ✅ Session 29, ch.18 grading API
+Q-18-001/002 ✅ 2026-06-22, ch.20 discipleship Q-20-001/002 ✅ 2026-06-22) is fully resolved; the **only** open HIGH is
+**child-safety** Q-12-007 (no in-the-moment layer — ⏳ deferred/OPEN: a structural feature + legal `[DECISION]`; see 24 §5).
+See **24 §5/§7** for the prioritized roadmap and the full register.
 
 ## Excluded from line-by-line reading (documented by shape)
 

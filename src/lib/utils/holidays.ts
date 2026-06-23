@@ -40,7 +40,8 @@ function getEaster(year: number): Date {
     return new Date(year, month, day);
 }
 
-export function getHolidays(year: number): Holiday[] {
+// Module-private (Q-21-009): only `isHoliday` (below) consumes this; no external importers.
+function getHolidays(year: number): Holiday[] {
     const holidays: Holiday[] = [];
 
     // Fixed Date Holidays

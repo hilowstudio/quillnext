@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { generateResourceSchema } from "./actions";
+import { generateResourceSchema, distributeCourseSchema } from "./actions";
 
 /**
  * Shape-lock for the generation input contract (Q-10-004). This schema is wired into the
@@ -95,5 +95,19 @@ describe("generateResourceSchema", () => {
       instructions: "a".repeat(8001),
     });
     expect(r.success).toBe(false);
+  });
+});
+
+/** Shape-lock for distributeCourseSchema, now wired into `distributeCourse` (Q-21-002). */
+describe("distributeCourseSchema", () => {
+  const UUID = "11111111-1111-4111-8111-111111111111";
+  it("accepts valid uuids, with the date optional (string or Date)", () => {
+    expect(distributeCourseSchema.safeParse({ courseId: UUID, studentId: UUID }).success).toBe(true);
+    expect(distributeCourseSchema.safeParse({ courseId: UUID, studentId: UUID, startDate: "2026-01-05" }).success).toBe(true);
+    expect(distributeCourseSchema.safeParse({ courseId: UUID, studentId: UUID, startDate: new Date() }).success).toBe(true);
+  });
+  it("rejects a non-uuid courseId or studentId", () => {
+    expect(distributeCourseSchema.safeParse({ courseId: "nope", studentId: UUID }).success).toBe(false);
+    expect(distributeCourseSchema.safeParse({ courseId: UUID, studentId: "nope" }).success).toBe(false);
   });
 });

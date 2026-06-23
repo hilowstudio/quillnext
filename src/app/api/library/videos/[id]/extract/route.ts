@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { revalidatePath, revalidateTag } from "next/cache";
 import { auth } from "@/auth";
 import { getCurrentUserOrg } from "@/lib/auth-helpers";
+import { assertParentProfile } from "@/server/profiles/guards";
 import { db, withTenant } from "@/server/db";
 import { inngest } from "@/inngest/client";
 import type { Prisma } from "@/generated/client";
@@ -37,6 +38,14 @@ export async function POST(
   const session = await auth();
   if (!session?.user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  // Triggering paid AI extraction is a parent-only action (defense-in-depth: the proxy does NOT
+  // gate /api routes, so a STUDENT-profile session on the shared family login could POST here).
+  try {
+    await assertParentProfile();
+  } catch {
+    return NextResponse.json({ error: "This action requires a parent profile." }, { status: 403 });
   }
 
   const { organizationId, userId } = await getCurrentUserOrg();
@@ -97,7 +106,6 @@ export async function POST(
 
     revalidateTag(`library-${organizationId}`, {});
     revalidatePath("/living-library");
-    revalidatePath("/library");
 
     return NextResponse.json({ status: "EXTRACTED", reused: true });
   }

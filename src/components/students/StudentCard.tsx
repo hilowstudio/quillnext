@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { Trash, Scroll } from "@phosphor-icons/react";
 import { deleteStudent } from "@/app/actions/student-actions";
+import type { StudentCardData } from "@/server/queries/students";
 import { toast } from "sonner";
 import {
     AlertDialog,
@@ -23,7 +24,7 @@ import {
 import { useState } from "react";
 
 interface StudentCardProps {
-    student: any; // Using any for simplicity as per existing pattern, but preferably typed
+    student: StudentCardData;
 }
 
 export function StudentCard({ student }: StudentCardProps) {

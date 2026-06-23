@@ -5,6 +5,7 @@ import { excludeParentLearners } from "@/server/queries/learner-filters";
 import { addDays, isSameDay, startOfDay } from "date-fns";
 import { revalidateTag, unstable_cache } from "next/cache";
 import { getCurrentUserOrg } from "@/lib/auth-helpers";
+import { distributeCourseSchema } from "@/lib/schemas/actions";
 
 // --- Authorization guards ---
 // Every exported action must derive the org from the session (NEVER trust a
@@ -52,7 +53,13 @@ async function getNextSchoolDays(
 ): Promise<Date[]> {
     const days: Date[] = [];
     let currentDate = startOfDay(startDate);
-    const schoolDaysOfWeek = [1, 2, 3, 4, 5];
+    // Q-21-001: honor the classroom's configured school days (0-6); fall back to Mon-Fri when unset/empty
+    // (schoolDaysOfWeek is persisted as [] for "varies/unset" — passing [] would never match a day and
+    // would hit the "no school days in a year" throw below).
+    const configured = classroom.schoolDaysOfWeek;
+    const schoolDaysOfWeek = (Array.isArray(configured) && configured.length > 0)
+        ? (configured as number[])
+        : [1, 2, 3, 4, 5];
     const holidays = classroom.holidays || [];
 
     while (days.length < count) {
@@ -74,6 +81,13 @@ export async function distributeCourse(
     startDateInput: Date | string
 ) {
     try {
+        // Q-21-002: validate the ids at the boundary (defense-in-depth + wires the previously-dead
+        // distributeCourseSchema). Authz still holds below; this fails fast on a malformed id.
+        const parsed = distributeCourseSchema.safeParse({ courseId, studentId, startDate: startDateInput });
+        if (!parsed.success) {
+            return { success: false, error: "Invalid course or student id" };
+        }
+
         const organizationId = await requireOrg();
         await assertStudentInOrg(studentId, organizationId);
 

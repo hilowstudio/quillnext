@@ -309,28 +309,9 @@ function generatePrintHTML(transcript: TranscriptData): string {
       color: #383A57;
     }
     
-    .summary-divider {
-      grid-column: 1 / -1;
-      margin-top: 0.5rem;
-      padding-top: 0.5rem;
-      border-top: 2px solid rgba(86, 57, 99, 0.2);
-    }
-    
-    .credits-by-subject {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 0.5rem 0.5rem;
-      font-size: 0.625rem;
-    }
-    
-    .subject-credit-item {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding-bottom: 0.125rem;
-      border-bottom: 1px solid rgba(209, 213, 219, 0.6);
-    }
-    
+    /* (Dead CSS removed 2026-06-22, Q-22-006: .summary-divider/.credits-by-subject/.subject-credit-item
+       were never emitted in the HTML body — creditsBySubject is computed but rendered by neither target.) */
+
     /* Test Scores */
     .test-scores {
       margin-bottom: 1rem;
@@ -712,17 +693,13 @@ function generatePrintHTML(transcript: TranscriptData): string {
                   ${summary.yearLabel} ${summary.yearRange.start} - ${summary.yearRange.end}
                 </div>
                 <div style="font-size: 0.5625rem; color: #4b5563; font-weight: 500;">
-                  <span style="margin-right: 0.5rem;">GPA: <strong style="color: #383A57;">0.0</strong></span>
-                  <span>Cr: <strong style="color: #383A57;">0.0</strong></span>
+                  <span style="margin-right: 0.5rem;">GPA: <strong style="color: #383A57;">${formatGPA(0)}</strong></span>
+                  <span>Cr: <strong style="color: #383A57;">${formatCredits(0)}</strong></span>
                 </div>
               </div>
             </div>
             <div style="padding: 0.5rem;">
               <p style="color: #6b7280; font-style: italic; font-size: 0.5625rem; margin-bottom: 0.25rem;">No courses recorded.</p>
-              <div style="font-size: 0.5625rem; color: #4b5563; font-weight: 500;">
-                <span style="margin-right: 0.5rem;">GPA: <strong style="color: #383A57;">0.0</strong></span>
-                <span>Cr: <strong style="color: #383A57;">0.0</strong></span>
-              </div>
             </div>
           </div>
           `;

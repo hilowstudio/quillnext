@@ -154,16 +154,11 @@ export function StudentDashboard({ student, viewMode = "STANDARD" }: StudentDash
                                                     <p className="text-sm text-qc-text-muted">
                                                         {assignment.resource.resourceKind?.label || "Resource"}
                                                     </p>
-                                                    {assignment.notes && (
-                                                        <p className="text-sm text-qc-text-muted mt-2 italic">
-                                                            "{assignment.notes}"
-                                                        </p>
-                                                    )}
                                                 </div>
                                             </div>
                                             <div className="mt-4 flex justify-end">
                                                 <Button size="sm" variant="outline" asChild>
-                                                    <Link href={`/living-library/resource/${assignment.resourceId}`}>Open Resource</Link>
+                                                    <Link href={`/living-library/resource/${assignment.resource.id}`}>Open Resource</Link>
                                                 </Button>
                                             </div>
                                         </CardContent>

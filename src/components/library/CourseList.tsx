@@ -62,7 +62,7 @@ function CourseCard({ course }: { course: any }) {
     const handleDelete = async () => {
         setIsDeleting(true);
         try {
-            const result = await deleteCourse(course.id);
+            const result = await deleteCourse({ id: course.id });
             if (result.success) {
                 toast.success("Course deleted successfully");
                 router.refresh();

@@ -192,13 +192,29 @@ export async function assessMessageSafety(message: string): Promise<SafetyAssess
         });
         return object;
     } catch (error) {
+        // FAIL CLOSED (Q-12-001). A model outage, rate-limit, timeout, or schema-parse failure must
+        // NOT silently pass an unscanned message as safe — for a child-safety scanner, fail-OPEN is
+        // the dangerous direction (the regex fast-path covers only a few phrasings, so most messages
+        // depend on this LLM call). Return an UNSAFE assessment so the job stores a durable,
+        // DB-queryable "needs human review" flag (safety-scan.ts:80,84-100) instead of nothing.
+        //
+        // Route it to a NON-notifying resolution, never a caregiver email: category "OTHER" +
+        // severity "TIER_3" map to INTERNAL_LOG_ONLY (policy.ts:75), which sits below BOTH the job's
+        // PARENT_SUMMARY_* email gate (safety-scan.ts:103) and the delivery-layer hard-stop
+        // (isAlertDeliverable, safety-alert.ts), and is excluded from pattern-escalation
+        // (safety-scan.ts:34). We MUST NOT auto-notify a caregiver on an UNCLASSIFIED message:
+        // implicatedCaregiver / disclosureRisk are genuinely UNKNOWN on a scan error, so we leave them
+        // at their non-escalating defaults (false / "LOW") rather than fabricating a hard-stop.
+        // category MUST stay "OTHER" — SELF_HARM/VIOLENCE with INTENT/SELF would reach the urgent
+        // caregiver-email branch (policy.ts:50-54). (Letting transient errors throw so Inngest retries
+        // before falling closed is a roadmap refinement — see ch.12 §7 / ch.24 §5.)
         console.error("Safety Guard Error:", error);
         return {
-            isSafe: true,
-            severity: "SAFE",
-            category: "NONE",
+            isSafe: false,
+            severity: "TIER_3",
+            category: "OTHER",
             implicatedCaregiver: false,
-            reasoning: "Error during scan",
+            reasoning: "Scanner error - needs human review",
             evidenceLevel: "THOUGHT",
             target: "UNKNOWN",
             relationshipToTarget: "OTHER",

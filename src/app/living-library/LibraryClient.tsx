@@ -21,10 +21,9 @@ interface LibraryClientProps {
         students: any[];
     };
     organizationId: string;
-    userId: string;
 }
 
-export function LibraryClient({ initialData, organizationId, userId }: LibraryClientProps) {
+export function LibraryClient({ initialData, organizationId }: LibraryClientProps) {
     const [books, setBooks] = useState(initialData.books);
     const [videos, setVideos] = useState(initialData.videos);
     const [articles, setArticles] = useState(initialData.articles);
@@ -69,10 +68,10 @@ export function LibraryClient({ initialData, organizationId, userId }: LibraryCl
                     <VideoList videos={videos} setVideos={setVideos} />
                 </TabsContent>
                 <TabsContent value="articles">
-                    <ArticleList articles={articles} setArticles={setArticles} organizationId={organizationId} userId={userId} />
+                    <ArticleList articles={articles} setArticles={setArticles} />
                 </TabsContent>
                 <TabsContent value="documents">
-                    <DocumentList documents={documents} setDocuments={setDocuments} organizationId={organizationId} userId={userId} />
+                    <DocumentList documents={documents} setDocuments={setDocuments} />
                 </TabsContent>
                 <TabsContent value="courses">
                     <CourseList courses={courses} />

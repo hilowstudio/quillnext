@@ -235,23 +235,65 @@ Link related entries with `[[slug]]`. Verify a file/flag still exists before rel
 
 ---
 
-## 9. Findings-resolution sessions (per document × grade)
+## 9. Findings-resolution (per document × grade cell)
 
-After the mastery pass, findings are worked off in **sessions, one per (chapter document × severity
-grade)** — e.g. "Session: `01-platform-build-config.md` — LOW". The owner runs them grade-ascending
-within each doc (**LOW → MED → HIGH**), doc-ascending (01 → 24). The owner pastes a prompt to start
-each session; **you end each session by leaving every `/codebase-map` doc current and emitting the
-next session's prompt** (the next session trusts those docs as truth). This is the proven loop from
+After the mastery pass, findings are worked off **cell-by-cell**, where a **cell = one (chapter
+document × severity grade)** — e.g. "`18-grading-assessment-runtime.md` — LOW". Cells run
+grade-ascending within a doc (**LOW → MED → HIGH**), doc-ascending (01 → 24). The full per-cell
+discipline is **the "Per-cell steps" below** (re-verify at `file:line` → adversarial recommend → owner
+decision → execute → CI gates → docs current → §4 partition/reconcile); each cell leaves every
+`/codebase-map` doc current (the next cell trusts those docs as truth). This is the proven loop from
 the 44-INFO pass — follow it exactly.
 
-**NOTE — this is the one place the "document, don't fix" rule is lifted:** resolution sessions DO
-change code, but only for findings the owner approves this session. All other hard rules still hold
-(§1): DB read-only / protect seeded data, **never push**, no schema/migration changes without explicit
-owner approval (batch migrations and defer), keep the CI gates green.
+**Two run modes — SAME per-cell discipline either way; they differ only in batching + how you end:**
+- **One-cell sessions (ch.01-17, Sessions 1-35 — history):** the owner pasted a per-cell prompt, you did
+  exactly ONE cell and emitted the next cell's prompt. The §9.2 lessons are tagged by those session numbers.
+- **Consolidated final pass (ch.18→24 — the ACTIVE forward plan):** the owner triggers ONE pass that clears
+  the entire remaining backlog. You walk every remaining OPEN cell in strict order — ch.18 LOW→MED→HIGH,
+  ch.19 LOW→MED→HIGH, … ch.23, then ch.24's own findings — applying the Per-cell steps to each, then
+  **advance to the next cell instead of stopping/emitting a prompt.** See "Consolidated final-pass mode" below.
 
-### Per-session steps
-0. **Load this skill** and read the `findings-resolution-progress` memory to get the session target
-   `(doc, grade)` + queue position. Work in-skill.
+**NOTE — this is the one place the "document, don't fix" rule is lifted:** resolution DOES change code,
+but only for findings the owner approves. All other hard rules still hold (§1): DB read-only / protect
+seeded data, **never push**, no schema/migration changes without explicit owner approval (batch
+migrations and defer), keep the CI gates green.
+
+### Consolidated final-pass mode (ch.18→24) — the active forward plan
+The remaining backlog is cleared in **one continuous pass**, not ~18 separately-triggered sessions. The
+owner has pre-authorized the pass; run it autonomously cell-by-cell, pausing only for genuine decisions.
+- **Scope cleared this pass:** every OPEN LOW/MED/HIGH in **ch.18, 19, 20, 21, 22, 23**, then **ch.24's
+  own findings** (Q-24-001 + the final register reconcile). Also sweep the one stray reopened
+  **ch.13 Q-13-009 [LOW]** at the end so nothing is silently dropped (partition honesty). **NOT cleared
+  (stay ⏳ deferred — need a migration / owner infra, untouched here):** the batched-migration findings
+  (Q-011, Q-013, Q-23-003, the Q-12-003 enum subset, Q-17-010) and the foundational **Q-001** RLS cutover.
+- **Order (strict):** ch.18 LOW → ch.18 MED → ch.18 HIGH → ch.19 LOW → MED → HIGH → … → ch.23 LOW → MED →
+  HIGH → ch.24. Within a chapter always LOW→MED→HIGH; **skip any cell with zero OPEN findings** (confirm
+  against that doc's §7, not the rough queue hint).
+- **Per cell:** apply **Per-cell steps 1-6 in full** (re-verify at `file:line` → adversarial recommend →
+  owner-decision partition → execute → CI gates green → ALL docs current + §4 partition/reconcile). Run
+  `tsc`/`lint`/`tests` after **each cell's** code changes (localizes breakage) and leave the docs current
+  after each cell (so the pass is resumable). Many findings in a cell → use the Workflow reader→verifier
+  pipeline (§6); adversarially verify before acting (the lessons in §9.2 apply unchanged).
+- **Owner decisions in pass-mode (standing authority + surface the forks):** PROCEED automatically on
+  clear-cut, adversarially-defended dispositions — dead-code removal proven build-safe, obvious
+  bug/validation fixes, RLS-readiness wraps, accept-by-design, dismiss-on-refutation, re-grade,
+  comment-only corrections. **STOP and ask (`AskUserQuestion`) ONLY for genuine forks:** build-vs-remove
+  of a real feature (e.g. the Q-17-001 shape), a behavioral/tone change, anything destructive/irreversible,
+  or a true product/legal `[DECISION]`. Hard rules unchanged: **no schema/migration changes** (those stay
+  ⏳ deferred), **DB read-only**, **never push**. When genuinely in doubt, surface rather than act.
+- **Progress cadence (resumable):** update the `findings-resolution-progress` memory after **each chapter**
+  (a running per-cell line + the new tallies) so an interrupted pass (context summary, owner pause)
+  resumes at the next OPEN cell on reload — no new prompt needed beyond "continue the consolidated pass."
+  Append a `CHANGELOG.md` round per cell (or per chapter).
+- **End of pass:** when ch.24 + the ch.13 straggler are done (or the owner pauses), do a **final full §4
+  reconcile** across all docs, write the pass-completion entry in the memory, update this skill with
+  anything learned, and emit a **completion report** (not a next-cell prompt) — every cell's disposition
+  + the final register tallies + the remaining ⏳-deferred set.
+
+### Per-cell steps (one (doc × grade) cell — used by BOTH run modes)
+0. **Load this skill** and read the `findings-resolution-progress` memory. In one-cell mode this gives the
+   session target `(doc, grade)`; in pass-mode it tells you which cell to resume at (the next OPEN cell in
+   the strict order). Work in-skill.
 1. **Scope & re-verify.** Open the target chapter's §7; collect its **OPEN** findings of the target
    grade (skip ones already ✅ resolved / removed / accepted; ⏳ deferred and 🔻 re-graded stay
    tracked). Per §1, the doc is a *claim* — **re-verify each finding at its cited `file:line` against
@@ -806,6 +848,406 @@ owner approval (batch migrations and defer), keep the CI gates green.
    ways (24 − 2 closed + 5 minted = 27) — show the net in the lineage, put the new findings in a NEW by-theme entry
    (don't bury them under an existing theme), and bump EVERY tally spot (headline, grade header, by-theme, 00-INDEX,
    LOW running-log total+open) in the same pass.
+   **The canonical fix for a "fail-OPEN on error" safety/guard finding is to return the RESTRICTIVE value routed to a
+   NON-notifying-but-STORED state — NOT to invent a dedicated new enum value, and NOT to escalate (learned 2026-06-20,
+   Session 25 / 12-HIGH).** Q-12-001: the safety LLM catch returned a fully-safe assessment on any error → policy
+   `NO_ACTION` → the job stored nothing. The fix flips the catch to `isSafe:false` with field values that route to
+   `INTERNAL_LOG_ONLY` (a durable, DB-queryable "needs human review" flag that never emails). Four reusable sub-rules:
+   **(a)** "fail closed" in a system with a *"never notify the feared/implicated party"* invariant does NOT mean
+   "notify everyone" — on an error the hard-stop axes (here `implicatedCaregiver`/`disclosureRisk`) are genuinely
+   UNKNOWN, so closed = **preserve the signal (store a flag) + WITHHOLD the irreversible action (no auto-notify)**; leave
+   the unknown axes at their non-escalating defaults rather than fabricating a hard-stop (fabricated data is dishonest
+   in a stored row and pointless when you're not acting on it anyway). **(b)** Identify the ONE load-bearing field the
+   downstream router keys on and pin it (here `category:"OTHER"` keeps the error-flag out of the urgent
+   self-harm/violence branch; a drift to SELF_HARM/VIOLENCE+INTENT/SELF would route to a caregiver email on an
+   UNCLASSIFIED message) — the shape-lock test must assert that field AND the resulting resolution. **(c)** Do NOT
+   introduce a *novel* enum value to mark the error state: a producer that returns an INPUT type (a `SafetyAssessment`)
+   can't synthesize a downstream DECISION type (a `SafetyResolution`) without spilling into the consumer/policy/job
+   (out of the owning chapter), AND a novel value silently bypasses sibling allow/deny guards keyed on the known values
+   (here the job's escalation skip-list lists only `INTERNAL_LOG_ONLY`/`SUPPORTIVE_ONLY`, so a new `NEEDS_HUMAN_REVIEW`
+   would wrongly *enter* pattern-escalation — fragile accidental safety) — reuse an existing routed-correctly value and
+   carry the distinguishing detail in a plain `reasoning` string. **(d)** A retry-before-fail-closed refinement
+   (let transient errors THROW so the job's runner retries) often touches the *job* chapter and changes failure
+   semantics (here the Inngest fn has no `step.run` wrapper → a throw re-runs the whole body → double-flag risk) — defer
+   it to the roadmap; fail-closed is the safe terminal baseline regardless.
+   **A HIGH finding that is fundamentally a multi-file FEATURE build + a legal `[DECISION]` resolves as ⏳ DEFER-kept-OPEN
+   (no re-grade) — and its lone "bounded-looking" sub-item can ITSELF be owner-decision, not a born-resolvable fix, when
+   it is unverifiable safety/behavioral text (learned Session 25 / 12-HIGH).** Q-12-007 (no in-the-moment child-facing
+   layer): every structural part needs a channel/UI that doesn't exist (a feature) and/or carries a T2-D legal
+   `[DECISION]`, so §9.3 defers it; HIGH stays correct because the system fails SAFE (the hard-stop is enforced
+   redundantly). The tempting "just reword the bot prompt" slice is NOT a clean bounded fix: it is **unverifiable
+   LLM-governed text** (no test can prove the model honors it → fails the "bounded+testable" bar) AND a child-safety +
+   legal-adjacent edit where a naive "more honest" reword can be a *regression* (e.g. deterring disclosure) — so present
+   it as an OWNER_DECISION (recommend leave-as-is), never edit unilaterally. When a single finding fixes one half and
+   leaves another (here Q-12-001 fail-closed CLOSES the "classifier-error → zero post-hoc signal" half of Q-12-007, but
+   the "zero in-the-moment signal" half remains), say so explicitly in BOTH findings' notes so the deferred scope stays
+   accurate. **Owner-decision sub-items that the owner leaves as-is are still TRACKED (under the parent finding), never
+   silently dropped** (here Q-12-007's promise-gap + the "helplines promised at policy.ts:29 but emitted by no code" gap).
+   **An observability/logging finding ("X fails silently / is hard to diagnose") resolves by logging at the ACTUAL
+   degradation point — the place the whole-UNIT failure manifests AND has no downstream fallback — NOT at the specific
+   sub-step the finding (or the owner) names; the adversarial pass exists to catch that a sub-step log (a) FALSE-ALARMS
+   on the benign path that is structurally identical to the failure, and (b) MISSES the other causes of the same
+   failure (learned 2026-06-21, Session 26 / 13-LOW).** Q-13-005 (LibreTexts deki-token screen-scrape) drafted — and the
+   owner literally asked — for a warn inside `libraryToken` on a token-regex-miss; refuted because a regex-miss is
+   *benign* for the libraries that serve the deki API anonymously (the design comment says so), so it false-alarms every
+   cache-TTL **and** misses the token-valid-but-API-403/expired path. The right place was the book-level
+   `assembleLibreTextsSections` `!tree?.page` early-return: it fires once per failed book, captures every cause
+   (token/markup/network), and can't false-alarm (a healthy anonymous library returns a tree fine). Three corollaries:
+   (a) **prefer the no-fallback unit** — a silent failure is only consequential where nothing masks it; LibreTexts is
+   corpus-only (no registry fallthrough), unlike the by-title scrapers whose silent failure the next source covers, so
+   it's the one worth logging (and that asymmetry let the SIBLING fragility-cluster finding Q-13-007 close as
+   accept-by-design rather than demand a uniform log sweep); (b) **match the file's existing logging level** — grep for
+   `console.error`/`.warn` first (this file used `.error` everywhere, zero `.warn`); (c) when the owner's stated remedy
+   names a sub-step, say plainly you moved it and why (deviating from the literal ask is correct when the adversarial
+   pass earns it). General: for "make the silent failure visible," log at the failure's point-of-no-return, not the
+   first sub-step that can go wrong.
+   **A "duplication/drift" finding where ONE lone file diverges from an ALREADY-shared house module resolves as FIX
+   (converge the holdout onto the shared module) — the OPPOSITE of the Session-13 icon-lib accept; the discriminator is
+   direction × scope (learned 2026-06-21, Session 26 / 13-LOW).** Q-13-002: gutenberg.ts carried private copies of the
+   shared `matching.ts` helpers (and matching.ts's header even *falsely listed it as a consumer*) while the five other
+   adapters imported them. Converging the minority holdout onto the established shared module is low-churn + kills real
+   drift → FIX; Q-07-002's accept was right because standardizing there meant migrating **56 files** toward a
+   config-declared MINORITY lib (disproportionate). So: *converge-the-lone-holdout-onto-the-majority/shared = fix;
+   migrate-the-majority-toward-a-minority = accept.* Implement by **DELEGATION, not reimplementation** — wrap the
+   domain-specific extraction (here the Gutendex `{name}` → name-string pull) around the shared function so behavior is
+   *provably identical* (adversarially verify byte-equivalence of every score/null path), and keep the genuinely-local
+   specialization where it is (the `hasUtf8Text`+`download_count` edition ranking stayed in `findOnGutenberg`, never in
+   the shared matcher). Shape-lock the shared function with the layer's first unit test, and fix the now-true/false
+   header comment in the shared module (code-is-truth). **And before ACCEPTING a sibling "no schema guard / fragility"
+   finding, have the adversarial pass actively look for a genuinely-unguarded JSON/trust-boundary hiding under the
+   "it's all by-design fail-safe" framing** — the finding's *title* ("no schema guard") can point at a real Zod-able
+   boundary, not just HTML scraping; confirming the JSON endpoints already do conservative `typeof`-guarded extraction
+   is what makes the accept honest (Q-13-007).
+   **A cache-staleness / "invalidation is inconsistent" finding turns on the Next.js CACHE LAYER — identify which
+   cache holds the data before sizing the fix, because the fix differs per layer and the finding's own mitigation
+   guess is often WRONG (learned 2026-06-21, Session 27 / 14-LOW).** Q-14-008: a server action wrapped its reads in
+   `unstable_cache` (the **Data Cache** — keyed/tagged, TTL'd), but the CREATE routes didn't bust the tag while the
+   add-actions + extract routes did. The finding hedged that "`router.refresh()` happens to bypass the cache" —
+   **FALSE**, and disproving it *strengthened* the finding: `router.refresh()` clears the client **Router Cache** and
+   re-runs the RSC, but the RSC just calls the memoized `unstable_cache` function again, which returns the stale value
+   until the **tag is revalidated or the TTL expires** (Data Cache ⊥ Router Cache). So `revalidateTag` is the ONLY
+   real fix. This is the caching face of the Q-01-002 "verify what actually flows through the pipeline before sizing"
+   rule: pin the exact layer (Data Cache via `unstable_cache`/`fetch`; client Router Cache via
+   `router.refresh`/`<Link>` prefetch; Full Route Cache via static render) and match the invalidation to it — don't
+   trust the finding's parenthetical about how the cache "gets bypassed." Three right-sizing corollaries: **(a)** match
+   the invalidation call to the **closest write-path analogs** — here the sibling add-actions (`addArticle`/
+   `addDocuments`) used `revalidateTag` alone, so the CREATE routes do too (consistency + one mental model); **(b)** do
+   NOT add `revalidatePath` reflexively — a sibling finding (Q-14-003) had already flagged `revalidatePath("/library")`
+   as a **dead no-op** (that route was removed), so adding it would re-introduce dead code; **(c)** trace the *real*
+   staleness window per entry path before asserting impact — the BOOK add (redirects to a detail page that reads an
+   UNcached query, so the catalog is stale only on back-nav) was the clear case, the VIDEO add was partly **masked**
+   because its chained EXTRACTED-extract already revalidates (the create-route fix only closes the stuck-`EXTRACTING`
+   tail), and the standalone videos page reads an entirely UNcached DAL — so "stale for 1h" held only for the catalog
+   tab, not universally. **And a "dead HANDLER within a LIVE route file" (one dead export beside a live one) resolves
+   by deleting just the dead export — distinct from the chapter's higher-grade "whole dead route FILE" findings
+   (Q-14-001/002) — and the deletion clears any unused-var the dead handler carried (two issues, one deletion);
+   confirm every shared import is still used by the surviving export before deleting (here `db` stayed live via the
+   POST's subject/strand lookups, so no import orphaned).**
+   **A "trusts client-supplied `organizationId`/`userId`" WRITE finding (server action or route) is fixed by DERIVING
+   both server-side via `getCurrentUserOrg()` and DROPPING the client params (a kept-but-ignored param is dead/dishonest
+   code) — but `getCurrentUserOrg()` returns `organizationId: string | null` (User.organizationId is NULLABLE), so you
+   MUST add the `if (!organizationId) return/throw` guard the API routes already carry, or tsc fails (`string|null` ⊀
+   the Prisma `string` field); that guard also narrows the type for the downstream `where`/`data` (learned 2026-06-21,
+   Session 28 / 14-MED).** Three corollaries that recur for this shape (Q-14-005; same family as the remaining
+   Q-16-002/17-003/004/18-002 write-trust findings): **(a)** such a finding is often a true **HIGH** (authenticated
+   cross-tenant WRITE + injection into another tenant's storage namespace e.g. Firebase `documents/{org}/` + Inngest
+   job-payload), but **fix-and-CLOSE makes the re-grade moot** (Session-20 rule) — record the true grade in the
+   CHANGELOG, decrement the finding's *actual* (MED) grade count. **(b)** Dropping the params ripples to the call-site
+   component(s) + their parent props — **trace which props remain load-bearing for OTHER siblings before deleting**
+   (Session 28: `organizationId` stayed for `BookList`; only `userId` was fully removable end-to-end incl. `page.tsx` —
+   an over-eager removal of a still-used prop is a regression, a kept-but-unused one is a lint warning). **(c)** When
+   the same fix should add a THROWING guard (`assertParentProfile()`) to a **route handler** whose POST body has no
+   outer try/catch, **WRAP it → a clean 403** (`try { await assertParentProfile() } catch { return …403 }`); a bare
+   top-of-body `await assertParentProfile()` throws → an unhandled **500** (still a denial, but messy — the precedent
+   `api/courses/[id]/blocks/[blockId]/route.ts:216` wraps it). Verify regression-free by proving no
+   lower-privilege flow reaches the route (here `profile-access.test.ts` asserts STUDENT is blocked from the hosting
+   pages; the guard works in route handlers — it reads the active-profile cookie via `next/headers`).
+   **A dead-code finding whose KEEP-vs-DELETE turns on a PLANNED FEATURE: get the product intent from the owner, then
+   verify whether the dead code is the RIGHT SCOPE for that feature before deciding — "unfinished BUT wrong-scoped"
+   resolves as DELETE-now + ROADMAP-fresh, NOT keep-as-scaffolding (learned 2026-06-21, Session 29 / 14-HIGH).** Q-14-001
+   (dead `GET /api/library/search` → `searchBooks`, an unscoped cross-org pgvector scan reachable by any authed user)
+   read as a straight dead-route delete, but the owner flagged that book semantic search is roadmap-real (a community
+   "pre-extracted ✓" indicator + cross-edition dedup). The decisive question for keep-vs-delete was NOT "is the feature
+   planned?" but **"is THIS code a building block for it?"** — and it wasn't: `searchBooks` searched the per-org `books`
+   table, while the planned feature needs the GLOBAL `BookExtraction` corpus (different corpus/key/return-shape). So the
+   honest disposition was **delete the wrong-scoped code + capture the feature as a ch.24 §5 roadmap item to build fresh**
+   — keeping it "as scaffolding" would preserve misleading dead code the real build won't reuse. This is the third branch
+   of Session 16's superseded-vs-unfinished fork: *superseded → delete; unfinished-and-reusable → keep+re-document;
+   **unfinished-but-wrong-scoped → delete + roadmap.*** Three companion rules that recur: **(a)** when the owner answers
+   a scoped keep-vs-delete question with a FEATURE VISION, treat it like Session 24's strategic brief (§9.3 scope
+   expansion): resolve the in-scope findings + roadmap the vision + mint ONLY the code-grounded finding it warrants
+   (here **Q-13-009 [LOW]** — the cross-edition dedup-key fragmentation in *existing* `computeDedupKey`, verified at its
+   `file:line` before minting), but do NOT build the feature in a resolution session. A missing *feature* is a roadmap
+   item; a *limitation in existing code* is the finding. **(b)** the dead route's sole-consumer primitive (`searchBooks`)
+   was itself a *separately-filed finding in another chapter* (ch.15 **Q-15-001 [MED]** "no account_id predicate") —
+   deleting the route orphaned it, so the deletion **closes Q-15-001 resolved-by-removal** (count moves in the OWNING
+   chapter ch.15/ch.24 — the Session-12 cross-chapter orphan-tail rule, here applied to a *graded sibling finding*, not
+   just an un-findinged module), and the owner's delete-vs-patch fork on the primitive was decided by the same
+   wrong-scope logic; before deleting confirm the file's OTHER exports stay live (here `findSimilarBooks` has its own
+   consumer → no further orphan). **(c)** before presenting the keep-vs-delete fork, lead with the *scope mismatch*
+   itself — the owner's first instinct ("don't throw away search work") flips once they see the dead code searches the
+   wrong corpus for their own vision.
+   **A `where: any` built from Next `searchParams` → `Prisma.XWhereInput`: the type and the per-param coercion are
+   COUPLED, not two independent fixes (same session).** `searchParams` values are `string | string[] | undefined`; once
+   you type the `where`, a raw `searchParams.foo` no longer assigns to a scalar Prisma field (`string | StringFilter`),
+   so "type it" FORCES "coerce each param to a single string" (`Array.isArray(v)?v[0]:v`) — and the coercion must cover
+   EVERY param, not just the one the finding names (the adversarial verifier caught this). The win is real but modest (a
+   duplicate `?foo=a&foo=b` array currently 500s the page via `PrismaClientValidationError`; **no leak** — the
+   `organizationId` predicate is unconditional), so a HIGH graded on cluster-membership is over-graded (really MED/LOW
+   input-validation) → the input-validation face of the Session-20 fix-and-close-makes-re-grade-moot rule (close it
+   cheaply, record the over-grade in the CHANGELOG, decrement the *actual* grade — here HIGH).
+   **A perf finding that says "N+1 → replace the per-iteration query with ONE set-based query" turns on whether the
+   per-iteration query is INDEX-SERVED — READ THE MIGRATIONS for an index on the scanned column before sizing the fix;
+   with no index a set-based rewrite eliminates round-trips but NOT the compute (same scan either way), so there is NO
+   algorithmic gain, only round-trip latency, and for a bounded (≤N) best-effort BACKGROUND path that's not worth the
+   rewrite risk (learned 2026-06-22, Session 30 / 15-LOW).** Q-15-005 (`crossWalkTextbookTopics` issues ≤`MAX_TOPICS=250`
+   sequential cosine queries, one per topic): `textbook_chunks.embedding` has NO ivfflat/hnsw index (migration
+   `00000000000008` creates only `subject_idx`+`document_id_idx`), so the per-topic `max(1 - (embedding <=> $vec))` is a
+   full sequential scan regardless — a `unnest($1::vector[])` rewrite computes the identical ~250×1500 cosine ops, saving
+   only the 249 round-trips. Three checks right-size any "make it set-based / batch this loop" perf finding: **(1)** does
+   an index serve the per-iteration query? (no index ⇒ the rewrite buys only round-trips); **(2)** grep for PRECEDENT of
+   the SQL/idiom the rewrite would introduce — here `$1::vector[]`+`unnest` has ZERO precedent (every existing query binds
+   exactly one `$N::vector`), and a novel raw-SQL idiom **behind a swallowing `catch`→return-0** (`textbook-coverage.ts:96`)
+   is its own latent-data-quality regression surface (a casting bug makes the feature SILENTLY stop computing — worse than
+   a slow-but-correct loop); **(3)** weigh the path's criticality (request vs background, bounded vs unbounded, idempotent
+   /retried). Reading the migration for the index is the cheap load-bearing check that flips the disposition to
+   ACCEPT/won't-fix for a LOW. (A bounded-concurrency middle option — `p-limit` instead of full `Promise.all(250)` — is the
+   only low-risk speedup, but still not worth it when the function already runs at `concurrency:3` on a shared pool.)
+   **Companion (same session): a dead-code finding can be CORRECT in its conclusion (the symbol is dead) yet WRONG in its
+   stated REASON/coupling — re-derive the data flow and CORRECT the mis-attribution as part of the resolution.** Q-15-003's
+   impact claimed the dead `generateVideoEmbedding`'s sibling `searchVideos` "has no data path" because the summary vector
+   was unpopulated — but `searchVideos` read the CHUNK table (`video_extraction_chunks.embedding`, populated by the LIVE
+   `embedVideoChunks`), NOT the summary column, so the two were INDEPENDENT deaths, not one coupled pathway. Both were
+   still dead (the REMOVE disposition held), but the doc framed them as a coupled family; fixing the wrong evidence
+   sentence is part of leaving the doc code-true. (And surface the recent-precedent twin: the video pair was the same
+   built-but-unwired family as the S29-deleted `searchBooks`, so the adversarial pass rightly pushed my "balanced fork
+   with a keep-lean" to a confident REMOVE recommendation — present the fork, but lead with the evidence-backed lean, not
+   a neutral "owner's call.")
+   **A "hardcoded placeholder / looks-live-but-static" UI finding can resolve as an in-scope FIX_NOW by WIRING it to
+   already-seeded data — but VERIFY read-only that the data is actually seeded AND that a query pattern already exists
+   before believing a verifier's "it's just ~15 lines" (learned 2026-06-22, Session 31 / 16-LOW).** Q-16-005 (ParentDashboard
+   "Daily Liturgy" hardcoded "Psalm 23") drafted as OWNER_DECISION (remove vs accept, since wiring "felt like" a feature) —
+   a skeptic flipped it to FIX_NOW by pointing at the seeded `Devotional` table + the existing `findMany({where:{month,day}})`
+   pattern in `devotionals/page.tsx`; I confirmed BOTH read-only (Supabase MCP: 732 rows / 366 days / `time` am|pm, format
+   consistent across sampled days) before trusting it. So the discriminator from Session-25's "a multi-file FEATURE build
+   defers" is **data + query already exist** → a single bare-`db` read + a prop + a render-with-fallback is a proportionate
+   cleanup that makes a dishonest card honest; if the data ISN'T seeded or needs a new query/UI, it's REMOVE/ACCEPT, not a
+   build. (Mechanical: put `new Date()` inside the helper, not the RSC render body — Session-10 impure-call lint rule;
+   parse messy seeded text in the SERVER helper with fallbacks so the component stays dumb.) This is the
+   make-the-dishonest-thing-honest cousin of "wire a written-but-dead schema" (Q-10-004) — but the load-bearing check is
+   the read-only DB count, not just reading code.
+   **A "field X is read but not selected" finding SPLITS on whether the field has a PRODUCER — grep for a writer before
+   choosing "select it" vs "delete the read" (learned 2026-06-22, Session 31 / 16-LOW).** Q-16-004 bundled two reads the
+   query didn't select: (a) `assignment.resourceId` → the value WAS available elsewhere (`resource.id` already selected) and
+   the broken `/resource/undefined` link was a REAL bug → fix the read to the available source; (b) `assignment.notes` →
+   `ResourceAssignment.notes` has **ZERO writers app-wide** (the live assign action never sets it) → the never-rendering
+   block is dead UI → **DELETE it, do NOT add `notes:true`**. "Select the field the UI reads" is right ONLY when a producer
+   exists; otherwise it's wiring display for data nothing creates (false forward-compat). The skeptic correctly overrode my
+   "add `notes:true` for forward-compat" draft on exactly this — grep `model.field` writers (`db.*.create`/`update` data:)
+   before believing a field is merely "not yet selected."
+   **The discriminated-union-vs-permissive-record call for a step-tagged payload turns on the CONSUMER signatures, not on
+   "does a permissive record accept the input" — and the agent's REASON can be wrong while its RECOMMENDATION is right; adopt
+   the action for the CORRECT reason and record both (learned 2026-06-22, Session 31 / 16-LOW).** Q-16-007: a skeptic said
+   "`z.record(z.string(), z.unknown())` REJECTS the nested interests payload → use a discriminated union." The reason is
+   FALSE — `z.unknown()` values accept arrays/nested objects, so the permissive record DOES accept interests (re-derived by
+   hand; Session-9 "schema validates shape not substance"). BUT the discriminated union was still the right fix for a
+   DIFFERENT reason: the three downstream generators have DIFFERENT answer-type contracts (`Record<string,string>` ×2 vs
+   `Record<string,any>` ×1), so a single `Record<string,unknown>` won't typecheck against the string-typed consumers without
+   an unchecked `as` cast. So a discriminated union (narrow via `parsed.data.step`, NOT a destructured copy — destructuring
+   breaks the union correlation) validates each step to its consumer's exact contract with ZERO answer casts (and is precise,
+   not over-strict — it matches the consumer, Q-10-004) — the type-honest tool, not over-engineering. General: when validating
+   a discriminated payload, check whether the per-branch consumers demand different value types; if yes → discriminated union;
+   if uniform → one permissive record. Don't reject a verifier's recommendation just because its stated reason is wrong, and
+   don't accept its reason just because the recommendation is right.
+   **When the owner chooses to KEEP a "dead/orphaned" route/feature, the disposition is ⏳ kept-OPEN + re-documented as
+   UNFINISHED (Q-09-005 style, NOT decremented) when they're tracking unbuilt work — and the REMOVE alternative's orphan-tail
+   only fires UNDER REMOVE, so document it as "would-cascade-if-removed" for the next revisit, with NO cross-chapter change
+   today (learned 2026-06-22, Session 31 / 16-LOW).** Q-16-001 (`/student/dashboard`, a complete daily-checklist page with
+   only a self-referential link) was re-verified as UNFINISHED-not-superseded (a per-student DAILY view, distinct from the
+   live `StudentDashboard` and the WEEKLY `/planner`); owner chose keep + roadmap a wire-up → kept ⏳ OPEN at LOW (mirrors
+   Q-09-005's "kept open, re-documented"; contrast Q-10-005's "resolved-by-doc" — the discriminator is whether the owner is
+   tracking unbuilt work). The REMOVE path would have cascaded a big orphan tail into ANOTHER chapter (ch.21's
+   `getStudentDailySchedule`/`toggleItemStatus` — the dead route was their SOLE consumer — closing INFO Q-21-010
+   resolved-by-removal); present the keep-vs-remove fork with that cascade SCOPE explicit, but since the owner KEPT, the
+   cascade does NOT fire and there's no ch.21 doc change — just record it in the finding's note + CHANGELOG so the next
+   revisit inherits the traced tail. (Companion to the Session-12 cross-chapter orphan-tail rule: the tail is a REMOVE-only
+   consequence.)
+   **A "wrap the raw-`db` writes in `withTenant`" RLS-readiness tenancy finding (the Session-20 family) can include a genuine
+   BOOTSTRAP write that MUST stay raw — check the table's RLS INSERT `WITH CHECK` for a relaxed null-context carve-out AND
+   `CONTEXT_FREE_MODELS` BEFORE deciding what to wrap; fold only the genuinely org-scoped writes into ONE atomic tx and
+   re-derive the returned entity from the closure (learned 2026-06-22, Session 32 / 16-MED).** Q-16-002 (create-student
+   raw-`db` writes, route.ts): the org self-heal `organization.create` CANNOT be stamped to its own org — it must run under
+   null org context, which the relaxed `organizations` INSERT policy explicitly permits (`WITH CHECK (id = app.current_org()
+   OR app.current_org() IS NULL)`, migration `00000000000002`:64; you can't set a GUC for an org that doesn't exist yet), and
+   the sibling `user.update` hits a CONTEXT_FREE model (`User` — auth table, permissive policy) → BOTH stay raw, correctly.
+   Only the `learner`/`learnerProfile` creates are org-scoped-and-stampable, so the fix folds them into the EXISTING trailing
+   `withTenant({organizationId,userId:null})` block (matching the file's own call + the canonical `blueprint.ts` onboarding
+   precedent, which bootstraps the org under null context then re-stamps the GUC) — making all the learner writes atomic +
+   RLS-ready in one tx. Bind `const entity = await withTenant(async tx => { …; return created; }, …)` so the post-tx response
+   (`{ student }`) + the client redirect are byte-unchanged (the Session-20 "var created inside the closure leaves scope"
+   corollary). So for ANY "wrap the writes" tenancy finding: (a) read the table's RLS INSERT `WITH CHECK` for a null-context
+   carve-out (bootstrap/first-run rows often have one); (b) check `CONTEXT_FREE_MODELS`; (c) wrap only what's genuinely
+   org-scoped; (d) prefer folding sibling creates into ONE tx (atomicity bonus: it eliminates the prior orphaned-row window).
+   No live vuln (org connected explicitly, session-derived) → fix-and-close, re-grade moot (Session-20 rule).
+   **Before MINTING a skeptic's out-of-scope "schema↔RLS-policy table-name drift" flag, verify it against the RENAME
+   migration — a Postgres `ALTER TABLE x RENAME TO y` carries its RLS policies / grants / indexes / FKs AUTOMATICALLY
+   (policies are OID-bound), so a later migration referencing the OLD name in HISTORICAL SQL text is NOT live drift (same
+   session).** A skeptic flagged `Learner` @@maps `learners` vs the migration-2 policies naming `public.students` as a
+   cutover blocker; reading migration `00000000000013` — a metadata-only `ALTER TABLE "students" RENAME TO "learners"` whose
+   own comment states "indexes, FK constraints, the app_user_rls RLS policy, and grants all FOLLOW the table automatically on
+   RENAME" — confirmed it a FALSE alarm (the live policy follows the table by OID; only the frozen migration-2 SQL text still
+   says `students`). No finding minted. This is the Postgres-RENAME face of "a schema/agent verdict validates shape not
+   substance — re-derive by hand" (Sessions 9/10): a surface name-mismatch between a model `@@map` and an old migration's
+   policy text is not drift until you confirm no RENAME reconciled them. (And `pg_policies` via the read-only MCP gives the
+   authoritative live policy text if the migration history is ambiguous.)
+   **The gold-standard move-aside+`tsc` dead-code proof, when run by a WORKTREE-isolated agent, gives an unreliable
+   ABSOLUTE error count — trust the DELTA, not the number (learned 2026-06-22, Session 33 / 17-LOW).** A fresh git
+   worktree lacks the git-ignored generated Prisma client (`src/generated/`) and a primed `node_modules`, so the
+   isolated agent's `tsc` reports HUNDREDS of phantom errors (e.g. 457 "before") and even attributes a few to the
+   target file itself (an untyped `withTenant` result whose types are missing). The load-bearing signal is the
+   **delta**: moving the file out dropped *exactly* its own self-errors and produced **zero** new `Cannot find module`
+   orphan errors → nothing imports it. Always re-run the real `tsc` yourself in the MAIN tree (which has the generated
+   client + is at the 0-baseline) before claiming build-safety — the worktree proves "no static dependency," the main
+   tree proves "still 0 errors." (Cousin of the Session-9 "a schema/agent verdict validates shape not substance — the
+   agent optimizes for its sandbox" rule, here for the agent's ENVIRONMENT, not its reasoning.)
+   **A "validation enforced client-side only → add it server-side" fix on a PARTIAL-UPDATE (PATCH) endpoint must
+   validate the MERGED post-update state, NOT the request fields in isolation — when two COUPLED fields can change
+   independently, evaluate the effective `(fieldA, fieldB)` pair (request-value ?? existing-value for each) (learned
+   2026-06-22, Session 33 / 17-LOW).** Q-17-006 mirrored the client `getAvailableParentBlocks` kind-nesting rules into a
+   shared pure `validateBlockNesting(childKind, parentKind|null)` (homed in `lib/schemas/courses.ts`, shape-locked by the
+   file's first test). On the create POST the child kind + the just-fetched parent kind are both in the request, so it's
+   direct. But PATCH lets `kind` and `parentBlockId` change independently (`route.ts` builds the update from each
+   optionally), so a correct validator computes `effectiveKind = validated.kind ?? existingBlock.kind` and
+   `effectiveParentId = validated.parentBlockId !== undefined ? (… || null) : existingBlock.parentBlockId`, then fetches
+   the EFFECTIVE parent's kind (reuse the already-fetched parent when the parent changed; else one extra
+   `select:{kind:true}` read) — the skeptic's catch, because validating only the request's `kind` against only the
+   request's `parentBlockId` would miss "changed kind, kept old parent → now-illegal" and "changed parent, kept old
+   kind." No UI regression (the UI never sends an illegal pair); a `findUnique`→`findFirst` is NOT forced here (the
+   lookups are by unique `id`). General rule: for any mirror-the-client-validator fix, enumerate which fields the
+   partial-update endpoint lets move independently and validate the union, not the delta. **And mind the verification
+   gate's WARNING baseline across sessions: a jump (S33 saw 651→1314) can be the owner's intervening commit, NOT your
+   change — confirm by linting your touched files directly (0 new warnings) before recording, and note the baseline
+   shift transparently; the 0-ERRORS gate is the real bar (§9.5).**
+   **The "raw `db` / not `withTenant`" tenancy family (Sessions 20/22/23) has a ROUTE-HANDLER variant where the fix is
+   the MERGED PREDICATE and `withTenant` is genuinely NOT needed — the discriminator is *does the caller run in a
+   request/session context?* (learned 2026-06-22, Session 34 / 17-MED).** Q-17-004 (6 course-REST handlers did
+   `db.course.findUnique({where:{id}})` + droppable `course.organizationId !== organizationId`). Fix = merge the org
+   filter into the lookup (`findFirst({where:{id, organizationId}})` + fail-closed `if(!organizationId) 404` guard that
+   also narrows `string|null`→`string`), the Q-11-001 shape. **No `withTenant`:** a Next route handler runs the whole
+   request in ONE async context, so `getCurrentUserOrg()`→`setRlsContext` (auth-helpers.ts:29) means the per-query
+   extension's `getRlsContext()` returns the ctx and GUC-scopes every `db.*` op under RLS-on (db.ts:115-131); this is
+   the OPPOSITE of the Session-23 Q-12-005 background-job case (no session → `resolveTenant()`→null → MUST use
+   explicit-ctx `withTenant`). So the two prior rules reconcile under one discriminator: **session-scoped caller
+   (route handler / server action) → merged predicate is BOTH the live boundary (RLS-off) AND RLS-ready (the extension
+   handles per-op GUC); session-less caller (Inngest/boot) → explicit-ctx `withTenant` required.** `withTenant` alone
+   never closes a "droppable `!==`" finding (RLS-off it adds no predicate — Q-11-001), and wrapping single/independent
+   session-scoped ops in it is over-engineering (Session-20 corollary i). Use `replace_all` for the identical
+   course-check blocks, but watch for a handler that interleaves a line (PATCH had `const body = await request.json();`
+   between `getCurrentUserOrg()` and the check, so it needs a separate edit). **And before adding a new shared Zod
+   schema/symbol, grep the repo for the name — a same-named one may exist for a DIFFERENT path with an INCOMPATIBLE
+   contract** (Q-17-003: a `createCourseSchema` already lived in `actions.ts` with `.uuid()`+`gradeLevel` for the
+   server-action path and would have rejected the route's `new:`-token taxonomy minting → named the route one
+   `createCourseApiSchema`; the skeptic caught it).
+   **The Session-34 "session-scoped route handler needs NO `withTenant`" rule holds for SINGLE/independent ops, but a
+   MULTI-OP ATOMIC write MUST use `withTenant(async tx => …, undefined, {organizationId,userId})` with the un-extended
+   `tx` — `db.$transaction([...])` (batch-array) on the RLS-EXTENDED client NESTS tenant transactions and breaks at the
+   RLS cutover; the adversarial pass exists to catch this exact action-bias when YOU (the recommender) propose the batch
+   form (learned 2026-06-22, ch.18 MED / consolidated pass).** Q-18-003: my draft used `db.$transaction([update,
+   ...updateMany])`; all 3 skeptics independently refuted it. Mechanism (db.ts:113-132): when `RLS_ENABLED`, `db` is
+   `base.$extends(...)` whose `$allOperations` wraps EACH model op in its OWN `base.$transaction([setConfigRaw, query])`
+   (db.ts:118-127); passing those already-self-transacting promises into an OUTER `db.$transaction([...])` is exactly the
+   nesting db.ts:91-97 forbids → "Transaction already closed" / a silent set_config-on-wrong-connection tenant-scoping
+   failure / a pool deadlock. It is INVISIBLE today (RLS off → `db===base` → a plain batch, CI green) and **detonates only
+   at the RLS cutover — the exact scenario the tenancy finding hardens**, so tests/tsc won't catch it. The ONLY RLS-correct
+   multi-write pattern here is `withTenant(async tx => { await tx.X.update(...); for (…) await tx.Y.updateMany(...); }, …)`
+   on the un-extended `tx` (precedents: `account-actions.ts`, `suggest-blocks.ts`, the page loader `grading/[id]/page.tsx`).
+   So the full discriminator is **THREE-way: session-scoped + SINGLE op → merged predicate, no withTenant (S34); ANY caller
+   + MULTI-op atomic → `withTenant(async tx=>…)` with explicit ctx (this lesson); session-LESS single op → `withTenant`
+   for the GUC (S23/Q-12-005).** (Companion mechanical win: `updateMany({where:{attemptId,itemId}})` on a `@@unique`
+   drops a per-item `findFirst` N+1 and the 0-row case reproduces a prior `if(row)` skip — behavior-equivalent.)
+   **A "zero input validation" HIGH on a write that persists a DERIVED TOTAL (a grade, score, invoice, rollup) is fixed by
+   RECOMPUTING the total SERVER-SIDE from authoritative data, NOT by bounds-only validation — bounds-only is
+   UNDER-engineered because a forged total that is internally consistent with valid per-item inputs still passes (learned
+   2026-06-22, ch.18 HIGH / consolidated pass).** Q-18-001: the grading POST wrote client `scorePoints`/`maxPoints`
+   verbatim. The fix (adversarially chosen over bounds-only): OMIT the client totals from the Zod schema entirely (Zod
+   strip-mode drops them), load the authoritative item points on the SAME tenancy `findFirst`, clamp each submitted item
+   score to `[0, item.points]`, and DERIVE `scorePoints = Σ clamped`, `maxPoints = Σ item.points` server-side. Two
+   right-sizing details: **(a)** fall back to the EXISTING stored per-item score for items absent from the payload
+   (`submitted ?? existing ?? 0`) so a partial re-grade can't zero untouched items; **(b)** validate at the ONE
+   client-reachable boundary with `safeParse`→400 (`error.flatten()`), bound the free strings, and constrain enum fields
+   (`gradingMethod`) to the Prisma enum (a `z.enum([...])` kept in sync, the house pattern) so a non-enum string can't be
+   written. Honest-for-the-real-UI (the client computes the same sums) but unforgeable. Shape-lock the new schema with the
+   file's first test (incl. an assertion that client totals are stripped). This is the total-bearing-write face of Q-10-004
+   "never make a constraint stricter than the consumer needs, but DO validate at the boundary."
+   **An "unauthenticated server action / RSC page" finding is frequently OVER-GRADED — check `src/proxy.ts` (PUBLIC_ROUTES +
+   matcher) BEFORE grading, because Next server actions POST to their PAGE route, which the proxy matcher COVERS (it
+   excludes only `/api/*`), so a page-route action sits behind the proxy's fail-closed auth redirect just like the page
+   (learned 2026-06-22, ch.20 HIGH / consolidated pass).** Q-20-001 was graded HIGH on "unauthenticated content actions +
+   JP/ESV quota vector," but `proxy.ts`'s PUBLIC_ROUTES deliberately excludes the whole `/family-discipleship` subtree
+   (git-verify the guard predates the doc SHA), and the data is GLOBAL non-tenant content — so for NORMAL invocation there
+   is no unauthenticated surface → **REGRADE to LOW.** The only residual is the obscure attacker-crafted server-action POST
+   to a PUBLIC route (e.g. `/login`), which leaks only global content + burns a 3rd-party quota. **Still add in-file `auth()`
+   (defense-in-depth):** `proxy.ts` documents itself as a "backstop NOT a replacement — pages must still do their own
+   getCurrentUserOrg()/ownership checks," and the NEWER sibling actions already self-gate; adding a session check to the
+   older content holdouts converges them onto that posture + closes the bypass. So the disposition is **REGRADE→LOW +
+   fix-and-close** (the cheap auth() makes the re-grade moot; record the over-grade). NO org filter for global content —
+   just require a session. (Mirror image of the Q-19-001 spine-route gate, but here the proxy already covered it.)
+   **A string-vs-object schema mismatch silently BREAKS a feature and RECURS across sibling call sites — when you find one
+   (`deleteX(entry.id)` bare string vs an action that does `z.object({id}).parse`), grep the repo for the same `deleteY(z.id)`
+   shape (learned 2026-06-22, ch.20 HIGH / consolidated pass).** Q-20-002: `deletePrayerEntry(entry.id)` threw a ZodError
+   (caught → "failed" toast → row never deleted). The fix is to align the CALL to the object contract (`fn({ id: entry.id })`),
+   the house convention (`deleteStudent({id})`/`deleteBlock({id})`), NOT to loosen the action. The same pattern broke course
+   delete (`CourseList.tsx` `deleteCourse(course.id)` vs `deleteCourseSchema` object) → minted-and-resolved **Q-14-009** in
+   its OWNING chapter (ch.14), born-resolved (a broken FEATURE, not a vuln → MED; the action stays fully auth-guarded). This
+   is the delete-action face of the Session-18/19 "inbound/sibling trace surfaces a separate bug → mint-and-fix in the
+   owning chapter."
+   **A merged-predicate / RLS-readiness tenancy audit can surface a SEPARATE latent RLS-on bug: a CONTEXT_FREE
+   reference table that APP CODE WRITES but whose RLS grant is SELECT-only → the write fails-CLOSED under RLS-on; mint
+   it as an RLS-cutover-gate finding (learned Session 34 / 17-MED).** Q-17-010 (minted): the `new:` taxonomy minting
+   does `db.{subject,strand,topic,subtopic}.create` (app routes), but migration `00000000000002:139-144` grants
+   `app_user` only `FOR SELECT … USING(true)` on those reference tables ("writes only via migrations/seeds as
+   superuser") — **no INSERT policy → Postgres denies any INSERT with no permitting policy** for the non-bypass role.
+   So every such create 500s the moment RLS is flipped. **Two reusable checks:** (a) when auditing any "raw `db`"
+   tenancy flow, also note whether a CONTEXT_FREE-model WRITE in that flow hits a SELECT-only RLS table — grep the RLS
+   migration for the table's `CREATE POLICY … FOR (SELECT|ALL|INSERT)`; a SELECT-only table that app code writes is an
+   RLS-cutover blocker. (b) This is **NOT caught by a GRANT-level cutover-readiness check** (Session 8's "0 GRANT gaps"
+   is *row-policy-blind* — RLS needs BOTH a GRANT and a permitting policy), so it must be tracked separately and
+   cross-linked to the Q-001 runbook (Workstream B). The resolution is a migration (add scoped INSERT policies) or a
+   design change (privileged/org-scoped taxonomy creation) — deferred, not an app-layer session fix.
+   **A HIGH "broken / dead feature" finding's disposition is BUILD vs REMOVE (vs park) — "keep exactly as-is" is
+   DOMINATED when the broken surface is a LIVE, reachable, erroring entry point (not invisible scaffolding); and BUILD
+   is legitimately in-scope for a resolution session when the feature is ~90% scaffolded + the only gap is ONE
+   well-patterned handler AND the owner says build-now — this refines the Session-25 "feature build → defer" rule by
+   the SIZE of the gap (learned 2026-06-22, Session 35 / 17-HIGH).** Q-17-001 (the activity-authoring page POSTed to a
+   nonexistent route; the whole flow erred) re-verified, then a code-truth sweep proved **zero `activity.create`
+   anywhere** (only the broken route + an account-cascade `deleteMany`) while the `Activity` model is richly integrated
+   + the read/display side already worked → **unfinished, not superseded**. The discriminators that decided it:
+   **(a) keep-as-is is dominated, not an option** — for a HIGH whose symptom is a user-facing button that always
+   alerts an error, leaving it live is the worst outcome (contrast the *invisible* unfinished scaffolding of Q-09-005 /
+   Q-16-001, where ⏳ keep-open + re-document is fine); the real fork is BUILD (finish it) vs REMOVE (delete the broken
+   page + entry point + correct the "coming soon" copy, roadmap the feature). **(b) build-vs-defer turns on COUNTING
+   what already exists** — Session 25 (Q-12-007) deferred because it needed a whole new channel + UI + a legal
+   `[DECISION]` (fundamentally multi-file); here the model + form UI + read/display + the "Add Activity" entry point all
+   existed and the ONLY missing piece was a single REST handler with an established sibling pattern (`blocks/route.ts`
+   POST) → a *proportionate completion*, the same "data + pattern already exist → build-now" call as Q-05-010 / Q-16-005.
+   So a resolution session CAN ship a feature when the owner picks BUILD over remove AND the gap is one bounded,
+   well-patterned piece — present it as `OWNER_DECISION` (with a lean), don't unilaterally build. **When you do build,
+   five rules held:** **(1) mirror the NEWEST hardened sibling, not an older one with gaps** — net-new code is
+   secure-by-default at the *current* bar: the activities route took the Q-17-003 parent-gate (→403) + the Q-17-004
+   merged-predicate org check + `safeParse`→400, even though the older `blocks/route.ts` POST lacks the parent gate
+   (a pre-existing gap, flagged for owner awareness, NOT replicated). **(2) trace the create→display loop END-TO-END
+   before claiming "works"** — confirm the read side renders the new row (here the block GET already `include`d
+   `activities`), not just that the POST returns 200. **(3) net-new WRITE route RLS-readiness = caller-context +
+   policy-CLASS check:** a session-scoped route handler needs **no `withTenant`** (the per-query extension GUC-scopes
+   each op via `getCurrentUserOrg`→`setRlsContext`; Q-17-004), and the target table must have a *permitting INSERT
+   policy* — join-scoped ORG tables (activities/activity_objectives) do, SELECT-only reference tables do NOT (the
+   Q-17-010 trap); here the client's dropping of `new:` custom objectives meant the route only LINKS an existing global
+   Objective, sidestepping Objective-minting entirely. **(4) completing a feature makes its "(coming soon)" / placeholder
+   copy + any abandoned dev-comments FALSE → correct them in the same session** (code-is-truth, consequential currency,
+   not new findings). **(5) the cross-chapter orphan-tail is REMOVE-only** — the broken page was the sole live caller of
+   a *different chapter's* open finding (ch.19 Q-19-002, `getSubtopicObjectives` auth gate); under BUILD the page stays
+   and that sibling is **unaffected** (confirm the page is unchanged at the sibling's cited line), but had the owner
+   chosen REMOVE the deletion would have orphaned it → a ch.19 update. State which disposition the tail is contingent on.
 3. **Owner decisions (partition).** Present recommendations bucketed: `FIX_NOW` / `BATCH_CLEANUP` /
    `LEAVE_AS_IS` (split: *correct-by-design* vs *not-worth-churn*) / `OWNER_DECISION` / `RE-GRADE` /
    `DISMISS`. **Derive the buckets mechanically from the structured recs and apply the §4 partition &
@@ -830,6 +1272,15 @@ owner approval (batch migrations and defer), keep the CI gates green.
    files. **Excluded-file gotcha (learned Session 4):** `prisma/seed*.ts` is excluded from `tsc`
    (`tsconfig.json:40`) AND from `npm run lint` (next-lint skips `prisma/`), so edits there pass the green
    gates *unchecked* — run `npx eslint <changed seed file>` directly and hand-review carefully.
+   **Deleting a ROUTE file (`git rm src/app/**/route.ts`) makes `tsc` fail with `TS2307: Cannot find module
+   '…/route.js'` — a STALE `.next/types` generated route-type, NOT a code error (learned 2026-06-21, Session 28 /
+   14-MED).** Next generates `.next/types/app/<route>/route.ts` + a route list in `.next/types/validator.ts` and
+   `.next/dev/types/validator.ts`, and `tsconfig` includes `.next/types/**`, so tsc typechecks them; after you delete a
+   route those generated files still `import` the now-gone source → TS2307 (the baseline was green only because they
+   matched the then-present routes). Fix: **`rm -rf .next/types .next/dev/types && npx tsc --noEmit`** — they regenerate
+   on the next `next dev`/`build` and are gitignored, so it's safe (the SAME class as the stale-vite-cache wipe below,
+   not a regression in your change). This recurs for **every** session that deletes a dead route — e.g. the very next
+   Q-14-001 (`GET /api/library/search`).
    **Vitest "all 12 files fail to collect / `Cannot read properties of undefined (reading 'config')` / `Tests:
    no tests` " is a STALE VITE CACHE, not real flakiness (learned 2026-06-19, Session 8).** The owner knows it
    as "vitest randomly fails then works again"; the deterministic fix is to wipe the regenerable cache —
@@ -865,18 +1316,39 @@ owner approval (batch migrations and defer), keep the CI gates green.
 8. **Update the skill if you learned something** that future sessions need (a new gotcha, a process
    fix, a recurring pattern). Edit this SKILL.md **before the session ends** and state what you added
    and why it helps — that is a standing requirement, not optional.
-9. **Emit the next-session prompt — and ONLY the next session's prompt.** Never name or pre-compute the
-   session after it (e.g. don't write "Session 3" or its target into the Session 2 prompt) — picking
-   *that* target is the next session's job, done against the then-current docs. Choose the next
-   `(doc, grade)` by advancing **grade-ascending within a doc (LOW→MED→HIGH), then doc-ascending
-   (01→24), skipping any cell with zero OPEN findings** (confirm emptiness against the candidate doc's
-   §7, not just the rough queue hint). Emit the canonical template below **verbatim**, changing ONLY the
-   bracketed slots — add nothing else (no findings lists, no extra process clauses; lessons learned go
-   in this skill body, **never** in the prompt — that is what keeps the prompt from drifting over dozens
-   of runs).
+9. **Advance (pass-mode) or emit the next-cell prompt (one-cell mode).**
+   - **Consolidated pass (active):** do NOT emit a prompt or stop — **advance to the next OPEN cell** in
+     the strict order (ch.18 LOW→MED→HIGH → ch.19 … → ch.23 → ch.24, + the ch.13 straggler) and repeat
+     steps 1-8. Skip empty cells (confirm against the doc's §7). Only when the whole backlog is clear (or
+     the owner pauses) do you emit the **pass-completion report** (every cell's disposition + final
+     tallies + the remaining ⏳-deferred set), NOT a next-cell prompt.
+   - **One-cell mode (history / one-offs):** emit ONLY the next cell's prompt — never name or pre-compute
+     the cell after it. Choose the next `(doc, grade)` by advancing **LOW→MED→HIGH then doc-ascending
+     (01→24), skipping any cell with zero OPEN findings** (confirm against the candidate doc's §7). Emit
+     the per-cell template below **verbatim**, changing ONLY the bracketed slots — no findings lists / no
+     extra clauses (lessons live in this skill body, **never** in the prompt, which keeps it from drifting).
 
-**Canonical next-session prompt template** — the prompt is a thin, constant trigger; `<N>`, `<GRADE>`
-(appears twice), and `<DOC>` (appears twice) are the only things that change:
+**Canonical consolidated-pass prompt (ACTIVE — clears ch.18→24 in one pass):** a thin, constant trigger;
+nothing changes between runs (the pass resumes from the progress memory):
+
+```
+Consolidated final pass — resolve ALL remaining OPEN findings (LOW, MED, HIGH) across the remaining
+chapters in docs/codebase-map/, sequentially: ch.18 LOW→MED→HIGH, then ch.19, 20, 21, 22, 23 the same
+way, then ch.24's own findings.
+
+First, invoke the quillnext-mastery skill and read the findings-resolution-progress memory, then follow
+SKILL.md §9 "Consolidated final-pass mode" exactly. For EACH (chapter × grade) cell, in that strict
+order: re-verify each finding at its cited file:line → recommend (adversarial) → proceed on clear-cut
+dispositions, ask me only on genuine forks (build-vs-remove, behavioral, destructive, product/legal
+decisions) → execute → verify (tsc/lint/tests green, prisma/ untouched) → update ALL /codebase-map docs
+current + run the §4 partition/reconcile check → log a CHANGELOG round. Update the progress memory after
+each chapter so the pass is resumable, and keep advancing cell-to-cell without stopping. No
+schema/migration changes (keep those deferred). Nothing pushed. When the whole backlog is clear, emit a
+completion report — not a next prompt.
+```
+
+**Per-cell prompt template (one-off / the form used for ch.01-17)** — thin trigger; `<N>`, `<GRADE>`
+(×2), `<DOC>` (×2) are the only things that change:
 
 ```
 Session <N> — resolve the <GRADE>-grade findings in docs/codebase-map/<DOC>.
@@ -891,8 +1363,10 @@ update the progress memory → update the skill if you learned anything → emit
 Nothing pushed.
 ```
 
-### Session invariants (every session)
-- Ends with: CI gates green · `prisma/migrations/` untouched (or an approved, documented migration;
-  owner-approved `prisma/seed*.ts` edits are OK but never *run* against the seeded DB) · **all
-  `/codebase-map` docs current and partition-reconciled** · memory handoff written · next-session
-  prompt emitted · skill updated if anything was learned. Nothing pushed.
+### Cell / pass invariants
+- **Every cell** ends with: CI gates green · `prisma/migrations/` untouched (or an approved, documented
+  migration; owner-approved `prisma/seed*.ts` edits are OK but never *run* against the seeded DB) · **all
+  `/codebase-map` docs current and partition-reconciled** · progress memory updated. Nothing pushed.
+- **One-cell mode** additionally emits the next-cell prompt and ends. **Consolidated pass** instead
+  **advances to the next OPEN cell** and only at the very end (backlog clear or owner pause) does a final
+  full §4 reconcile + a completion report. Skill updated if anything was learned (either mode).

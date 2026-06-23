@@ -18,10 +18,16 @@ export async function GET(
 
   try {
     const { organizationId } = await getCurrentUserOrg();
+    if (!organizationId) {
+      return NextResponse.json({ error: "Course not found" }, { status: 404 });
+    }
     const courseId = params.id;
 
-    const course = await db.course.findUnique({
-      where: { id: courseId },
+    // Org filter is part of the query predicate (not a droppable post-fetch `!==`), so the
+    // tenant boundary can't be accidentally dropped. Under RLS-on the per-query extension also
+    // GUC-scopes this read; under RLS-off this explicit predicate is the live boundary.
+    const course = await db.course.findFirst({
+      where: { id: courseId, organizationId },
       include: {
         subject: true,
         strand: true,
@@ -29,7 +35,7 @@ export async function GET(
       },
     });
 
-    if (!course || course.organizationId !== organizationId) {
+    if (!course) {
       return NextResponse.json({ error: "Course not found" }, { status: 404 });
     }
 

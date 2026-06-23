@@ -1,13 +1,15 @@
 /**
  * registry.ts — the full-text SOURCE REGISTRY for Phase 3 grounded generation.
  *
- * Locating a public-domain full text is a TWO-PHASE operation, exposed as two entry points so the
- * caller can run each as its own bounded unit of work:
- *   - discoverFullText(meta)         — a light catalog lookup → { source, sourceId, textUrl }.
- *   - fetchFullText(source, textUrl) — the heavy download + de-boilerplating → text.
- * The Inngest worker runs them as SEPARATE steps so the multi-MB download never shares a timeout
- * budget with the lookup; `findFullText` composes both in one call as a convenience for
- * scripts/smoke tests.
+ * Locating a public-domain full text is a TWO-PHASE operation, exposed as separate entry points so
+ * the caller can run each as its own bounded unit of work:
+ *   - discoverAllFullText(meta)      — a light catalog lookup → every source that has the work,
+ *                                      ranked best-first.
+ *   - fetchFirstAvailable(locations) — the heavy download + de-boilerplating; tries each location in
+ *                                      priority order within a wall-clock budget (fetch-fallback),
+ *                                      built on the single-location fetchFullText(source, textUrl).
+ * The Inngest worker runs discover and fetch as SEPARATE steps so the multi-MB download never shares
+ * a timeout budget with the lookup.
  *
  * Sources are tried best-first (the registry returns the first that has the work):
  *   0. OpenStax         — open (CC BY) TEXTBOOKS via a regular content API; authoritative for
@@ -36,16 +38,6 @@ import { findOnSiyavula, fetchSiyavulaText } from "./siyavula";
  * allowing verbatim quotes the way it does for public-domain literature.
  */
 export const TEXTBOOK_SOURCES = new Set<string>(["openstax", "siyavula"]);
-
-/** The normalized result of locating a full public-domain text. */
-export interface BookTextResult {
-  /** Provenance source key, e.g. "gutenberg". Stored on book_extractions.full_text_source. */
-  source: string;
-  /** The source's native id (stringified), e.g. the Gutenberg book id. */
-  sourceId: string;
-  /** The de-boilerplated full text of the work. */
-  text: string;
-}
 
 /** Metadata the caller knows about the target work. */
 interface BookMeta {
@@ -127,9 +119,9 @@ const internetArchiveSource: TextSource = {
 
 /**
  * Registered sources in best-first priority order (highest text quality first; see the file header).
- * discoverFullText tries them in order and returns the FIRST that has the work, so a title available
- * on Standard Ebooks uses that over the others, and the OCR'd Internet Archive only catches what the
- * curated/transcribed sources lack.
+ * discoverAllFullText probes them in this order so the ranked locations it returns are best-first — a
+ * title available on Standard Ebooks ranks above the others, and the OCR'd Internet Archive only
+ * catches what the curated/transcribed sources lack.
  */
 const SOURCES: TextSource[] = [
   openstaxSource,
@@ -141,37 +133,11 @@ const SOURCES: TextSource[] = [
 ];
 
 /**
- * DISCOVER the full public-domain text for a work by trying each registered source best-first.
- * Returns WHERE the text is ({ source, sourceId, textUrl }) — a light catalog lookup, no large
- * download — or null when no source has the work. A source that throws is skipped. NEVER throws.
- */
-export async function discoverFullText(meta: {
-  title: string;
-  authors?: string[] | null;
-}): Promise<BookTextLocation | null> {
-  if (!meta || typeof meta.title !== "string" || !meta.title.trim()) return null;
-
-  for (const source of SOURCES) {
-    try {
-      const hit = await source.discover(meta);
-      if (hit && hit.textUrl) {
-        return { source: source.key, sourceId: hit.sourceId, textUrl: hit.textUrl };
-      }
-    } catch (error) {
-      console.error(`[sources/registry] source "${source.key}" discover failed`, error);
-      // Skip this source and fall through to the next.
-    }
-  }
-
-  return null;
-}
-
-/**
  * DISCOVER the work across ALL registered sources, returning EVERY source that has it, in best-first
- * priority order. Unlike discoverFullText (which stops at the first hit), this collects the full
- * ranked list so the caller can FETCH-fall-through: if the best source's heavy fetch fails (e.g. a
- * throttled Wikisource assembly), the next source's text is tried instead. Discovery is the light
- * step, so probing every source here is cheap. NEVER throws.
+ * priority order. It collects the full ranked list (not just the first hit) so the caller can
+ * FETCH-fall-through: if the best source's heavy fetch fails (e.g. a throttled Wikisource assembly),
+ * the next source's text is tried instead. Discovery is the light step, so probing every source here
+ * is cheap. NEVER throws.
  */
 export async function discoverAllFullText(meta: {
   title: string;
@@ -196,7 +162,7 @@ export async function discoverAllFullText(meta: {
 /**
  * FETCH the body for a previously-discovered location (the heavy step: a potentially multi-MB
  * download + de-boilerplating). Returns the de-boilerplated text, or null on miss/failure. NEVER
- * throws. Kept separate from discoverFullText so the download is its own bounded unit of work.
+ * throws. Kept separate from discovery so the download is its own bounded unit of work.
  */
 export async function fetchFullText(source: string, textUrl: string): Promise<string | null> {
   const src = SOURCES.find((s) => s.key === source);
@@ -233,21 +199,4 @@ export async function fetchFirstAvailable(
     if (text && text.length > 0) return { source: c.source, sourceId: c.sourceId, text };
   }
   return null;
-}
-
-/**
- * Convenience: discover + fetch in one call, returning the first source's { source, sourceId, text }
- * or null. NEVER throws. The Inngest worker deliberately does NOT use this — it runs discover and
- * fetch as separate steps so each fits the per-invocation ceiling (see extract-book.ts) — but it's
- * handy for scripts/smoke tests that just want the text.
- */
-export async function findFullText(meta: {
-  title: string;
-  authors?: string[] | null;
-}): Promise<BookTextResult | null> {
-  const hit = await discoverFullText(meta);
-  if (!hit) return null;
-  const text = await fetchFullText(hit.source, hit.textUrl);
-  if (!text) return null;
-  return { source: hit.source, sourceId: hit.sourceId, text };
 }

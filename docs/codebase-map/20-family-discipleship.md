@@ -95,46 +95,46 @@ A family-discipleship hub bundling nine devotional/educational tools for homesch
 | `students/[id]/family-discipleship/page.tsx` | PARTIAL | no auth/org gate on page; page.tsx:9-15 |
 | `students/[id]/family-discipleship/catechism/page.tsx` | PARTIAL | no auth/org gate on page; passes raw `id`; page.tsx:10-19 |
 | `family-discipleship/actions.ts` `addChurchNote`/`deleteChurchNote` | DONE | imported ChurchNotesClient.tsx:12 |
-| `family-discipleship/actions.ts` prayer/memory exports | DEAD | `createPrayerRequest`/`deletePrayerRequest`/`addMemoryVerse`/`deleteMemoryVerse`/`togglePrayerAnswered` zero importers (grep) |
+| `family-discipleship/actions.ts` prayer/memory exports | REMOVED | ✅ removed 2026-06-22 (Q-20-004) — 5 dead legacy exports (`createPrayerRequest`/`deletePrayerRequest`/`addMemoryVerse`/`deleteMemoryVerse`/`togglePrayerAnswered`); only `addChurchNote`/`deleteChurchNote` remain |
 | `bible-memory/page.tsx` | DONE | org-scoped resolution; page.tsx:22-44 |
-| `bible-memory/actions.ts` | DONE | tenant-guarded CRUD; consumed by dashboard/practice |
+| `bible-memory/actions.ts` | DONE | tenant-guarded CRUD + Zod input validation on the 4 mutating actions (Q-20-006); dead `copyFolderToStudent` removed; consumed by dashboard/practice |
 | `BibleMemoryDashboard.tsx` | DONE | wired to actions; full UI |
 | `PracticeMode.tsx` | DONE | 8-step flow; STEPS at PracticeMode.tsx:33 |
 | `bible-memory/BibleAudioPlayer.tsx` | DONE | used PracticeMode.tsx:372 |
-| `lib/schemas/bible-memory.ts` | DEAD | only self-references; actions.ts does no zod validation |
+| `lib/schemas/bible-memory.ts` | DONE | ✅ fixed (.cuid()→.uuid()) + WIRED into the 4 bible-memory actions 2026-06-22 (Q-20-006); trimmed to the 4 wired schemas; +`bible-memory.test.ts` |
 | `bible-study/page.tsx` | DONE | auth gate; page.tsx:7-11 |
 | `BibleStudyClient.tsx` | DONE | full passage/commentary/summary flow |
 | `bible-study/BibleAudioPlayer.tsx` | DONE | used BibleStudyClient.tsx:186 |
 | `server/actions/bible-study.ts` `getBiblePassage`/`getCommentary`/`getBibleAudio`/`getBibleText`/`summarizeCommentary` | DONE | imported by client + memory |
-| `server/actions/bible-study.ts` `searchBible` | DEAD | defined bible-study.ts:134, zero importers |
-| `catechism/page.tsx` | PARTIAL | renders manager but NO auth gate; page.tsx:5 |
-| `catechism/actions.ts` | PARTIAL | global reads, NO session check; actions.ts:7,27 |
+| `server/actions/bible-study.ts` `searchBible` | REMOVED | ✅ removed 2026-06-22 (Q-20-005) — dead, + its orphaned `searchBibleSchema`/`ESVSearchResponse`/`ESVSearchResult`/`MAX_SEARCH_RESULTS` tail |
+| `catechism/page.tsx` | DONE | proxy-gated (PUBLIC_ROUTES excludes the subtree); its action is now session-gated (Q-20-001 ✅); page.tsx:5 |
+| `catechism/actions.ts` | DONE | global reads, now session-gated (Q-20-001 ✅ — `requireSession()`); actions.ts |
 | `catechism/types.ts` | DONE | CatechismSummary used |
 | `CatechismManager.tsx` | DONE | carousel + lazy load |
 | `InteractiveCatechism.tsx` | DONE | full drill; progress only when studentId+catechismId |
 | `app/actions/student-catechism.ts` `get/update/markQuestionAsMastered` | DONE | org-guarded; used InteractiveCatechism.tsx:8 |
-| `app/actions/student-catechism.ts` `toggleQuestionMastery` | DEAD | defined student-catechism.ts:83, zero importers |
+| `app/actions/student-catechism.ts` `toggleQuestionMastery` | REMOVED | ✅ removed 2026-06-22 (Q-20-005) — dead + a redundant twin of the live `markQuestionAsMastered` |
 | `church/page.tsx` | DONE | per-user withTenant read; page.tsx:15 |
 | `ChurchNotesClient.tsx` | DONE | wired to addChurchNote/deleteChurchNote |
-| `devotionals/page.tsx` | PARTIAL | works but NO auth gate; global `Devotional` query; page.tsx:12 |
+| `devotionals/page.tsx` | DONE | proxy-gated (Q-20-001 ✅); global `Devotional` query; page.tsx:12 |
 | `DevotionalDisplay.tsx` | DONE | AM/PM tabs + heuristic parse |
 | `heart-check/page.tsx` | DONE | auth gate; page.tsx:9 |
 | `HeartCheckClient.tsx` | DONE | static content, no persistence |
-| `missions/page.tsx` | PARTIAL | works but NO auth gate; page.tsx:10 |
-| `missions/actions.ts` | PARTIAL | server actions with NO session check; actions.ts:33-88 |
+| `missions/page.tsx` | DONE | proxy-gated; its actions now session-gated (Q-20-001 ✅); page.tsx:10 |
+| `missions/actions.ts` | DONE | server actions now session-gated (Q-20-001 ✅ — `requireSession()`); actions.ts |
 | `MissionsClient.tsx` | DONE | map/list toggle, dynamic Leaflet |
 | `CountryInfoCard.tsx` | DONE | portal modal; used MissionsClient.tsx:114 |
 | `UnreachedOfTheDay.tsx` | DONE | JP card + prayer deep link |
 | `WorldMap.tsx` | DONE | Leaflet + self-hosted GeoJSON (✅ 2026-06-19: now fetches /world.geojson) |
 | `missions/utils/countryMapping.ts` | DONE | used by WorldMap |
 | `lib/joshua-project.ts` `fetchUnreachedOfTheDay` | DONE | used missions/actions.ts:34 |
-| `lib/joshua-project.ts` `fetchUnreachedByCountry` | DEAD | defined joshua-project.ts:96, zero importers |
-| `neighbor/page.tsx` | PARTIAL | works but NO auth gate; page.tsx:6 |
+| `lib/joshua-project.ts` `fetchUnreachedByCountry` | REMOVED | ✅ removed 2026-06-22 (Q-20-005) — dead, zero importers |
+| `neighbor/page.tsx` | DONE | proxy-gated; its actions now session-gated (Q-20-001 ✅); page.tsx:6 |
 | `CountyIssuesLookup.tsx` | DONE | full indicator UI |
 | `prayer/page.tsx` | DONE | auth gate; page.tsx:9 |
 | `server/actions/prayer-journal.ts` `getPrayerEntries`/`create`/`update`/`delete`/`togglePrayerAnswered` | DONE | per-user ownership checks |
-| `server/actions/prayer-journal.ts` `getPrayerCategories` | PARTIAL | global `PrayerCategory` read, no session check; prayer-journal.ts:234 |
-| `PrayerJournalClient.tsx` | PARTIAL | wired; passes string to `deletePrayerEntry` (bug); unused `togglePrayerAnswered` import |
+| `server/actions/prayer-journal.ts` `getPrayerCategories` | DONE | global `PrayerCategory` read, now session-gated (Q-20-001 ✅); prayer-journal.ts:234 |
+| `PrayerJournalClient.tsx` | DONE | wired; the `deletePrayerEntry({id})` string-vs-object delete bug fixed (Q-20-002 ✅) |
 | `PrayerJournalEditor.tsx` | DONE | TipTap + autosave |
 | `PrayerJournalSidebar.tsx` | DONE | list/search/filter |
 | `PrayerJournalFilters.tsx` | DONE | used by sidebar |
@@ -154,42 +154,42 @@ A family-discipleship hub bundling nine devotional/educational tools for homesch
 Q-20-001  [HIGH]  Unauthenticated server actions expose global content reads (missions/catechism/neighbor/devotionals)  — src/app/family-discipleship/missions/actions.ts:33-88, src/app/family-discipleship/catechism/actions.ts:7,27, src/server/actions/prayer-journal.ts:234, src/app/family-discipleship/devotionals/page.tsx:12, src/app/family-discipleship/neighbor/page.tsx:6, src/app/family-discipleship/missions/page.tsx:10, src/app/family-discipleship/catechism/page.tsx:5
   Evidence: `getOperationWorldStats`, `getCountiesForState`, `getAllStates`, `getUnreachedOfTheDayAction`, `getCatechisms`, `getCatechismQuestions`, `getPrayerCategories` are `'use server'`/RSC functions with no `auth()`/`getCurrentUserOrg()` call. The missions, neighbor, devotionals, and catechism RSC pages also render without a session gate (unlike bible-study/heart-check/prayer which `redirect` when unauthenticated).
   Impact: Any anonymous caller can invoke these actions / load these pages. Data is non-tenant (shared content + a 3rd-party API burning the JP/ESV quota), so no cross-tenant PII leak, but it is an unauthenticated surface and quota-exhaustion vector. Inconsistent with sibling features that gate.
-  Status: documented (not fixed)
+  Status: ✅ RESOLVED (2026-06-22, consolidated pass / ch.20-HIGH) — 🔻 over-graded (really LOW defense-in-depth): the adversarial pass proved the `/family-discipleship` PAGES are already fail-closed by the central proxy (`src/proxy.ts` — PUBLIC_ROUTES excludes the whole subtree; git-verified the guard predates the doc SHA), and the server actions POST to those same proxy-matched page routes, so the "unauthenticated surface / anonymous quota vector" the HIGH rested on does not exist for normal invocation; the data is global non-tenant content. **Fixed anyway** (defense-in-depth — per the proxy's own "backstop NOT a replacement" comment, converging the older content actions onto the gated-sibling posture + closing the obscure public-route-POST bypass): added an `auth()` session check to the 7 content actions (`getUnreachedOfTheDayAction`/`getOperationWorldStats`/`getCountiesForState`/`getAllStates`, `getCatechisms`/`getCatechismQuestions`, `getPrayerCategories`). No org filter (global data); pages stay proxy-gated (no page change). Fix-and-close → re-grade moot (over-grade recorded). CI green. (see CHANGELOG.md)
 
 Q-20-002  [HIGH]  `deletePrayerEntry` called with a string but validates an object → runtime throw on delete  — src/app/family-discipleship/prayer/PrayerJournalClient.tsx:138, src/server/actions/prayer-journal.ts:169-170
   Evidence: client calls `await deletePrayerEntry(entry.id)` (string); action does `deletePrayerSchema.parse(rawData)` where `deletePrayerSchema = z.object({ id: z.string().uuid() })`. Parsing a bare string throws a ZodError; caught only by the client's try/catch → toast "Failed to delete entry".
   Impact: Deleting prayer entries from the sidebar is broken; entries cannot be removed via the UI.
-  Status: documented (not fixed)
+  Status: ✅ RESOLVED (2026-06-22, consolidated pass / ch.20-HIGH) — fixed the call to match the contract: `deletePrayerEntry(entry.id)` → `deletePrayerEntry({ id: entry.id })` (PrayerJournalClient.tsx:138), matching `createPrayerEntry`/`updatePrayerEntry` (object args) + the house `deleteStudent({id})` convention. 🔻 over-graded HIGH (a broken FEATURE, not a vuln — the action is fully auth/org/ownership-guarded; the Zod throw merely rejected malformed input pre-write) → fix-and-close, re-grade moot. **Sibling bug fixed:** the identical string-vs-object pattern broke course delete (`CourseList.tsx:65` `deleteCourse(course.id)` vs `deleteCourseSchema` object) → minted-and-resolved **Q-14-009** (ch.14). CI green. (see CHANGELOG.md)
 
 Q-20-003  [MED]  `addVerseToUser` calls `getBibleText` with a bare string; signature expects `{reference}` → text always empty on add  — src/app/family-discipleship/bible-memory/actions.ts:143, src/server/actions/bible-study.ts:250-251
   Evidence: actions.ts passes `getBibleText(data.reference)` (string); `getBibleText` does `getBiblePassageSchema.parse(rawData)` expecting `{ reference }`. The bare string throws zod, caught at actions.ts:144-146 → `text=""`. (PracticeMode.tsx:117 calls the correct object form and lazy-backfills text.)
   Impact: Newly added verses are persisted with empty text until first practice; the dead-path try/catch hides the bug. Drift between two call sites of the same action.
-  Status: documented (not fixed)
+  Status: ✅ RESOLVED (2026-06-22, consolidated pass / ch.20-MED) — fixed the arg shape: `getBibleText(data.reference)` → `getBibleText({ reference: data.reference })` (bible-memory/actions.ts), so a newly-added verse fetches its text immediately. KEPT the surrounding try/catch→`text=""` (resilience for an ESV outage / bad reference — PracticeMode still lazy-backfills on first practice; removing it would regress to a failed add). CI green. (see CHANGELOG.md)
 
 Q-20-004  [MED]  Entire legacy `family-discipleship/actions.ts` is dead except church-note actions; duplicates dedicated server actions  — src/app/family-discipleship/actions.ts:8,31,54,76,100
   Evidence: `createPrayerRequest`, `togglePrayerAnswered`, `deletePrayerRequest`, `addMemoryVerse`, `deleteMemoryVerse` have zero importers (grep). They use raw `db` (no `withTenant`) and write `userId`-scoped `PrayerJournalEntry`/`BibleMemory` rows that overlap the live `prayer-journal.ts` / bible-memory `actions.ts` paths. PrayerJournalClient even imports a same-named `togglePrayerAnswered` from the *other* module.
   Impact: Dead code + naming collision risk; the legacy `addMemoryVerse` writes verses with no `withTenant` org context, inconsistent with the live path.
-  Status: documented (not fixed)
+  Status: ✅ REMOVED (2026-06-22, consolidated pass / ch.20-MED) — deleted the 5 dead legacy exports (`createPrayerRequest`/`togglePrayerAnswered`/`deletePrayerRequest`/`addMemoryVerse`/`deleteMemoryVerse`) from `family-discipleship/actions.ts`; kept the wired `addChurchNote`/`deleteChurchNote` (ChurchNotesClient). Confirmed zero importers + that PrayerJournalClient's `togglePrayerAnswered` comes from the LIVE `prayer-journal.ts` (resolving the naming collision). The shared `auth`/`db`/`revalidatePath` imports stay live via the church-note actions. CI green. (see CHANGELOG.md)
 
 Q-20-005  [LOW]  Dead exports: `bible-memory.ts` schemas, `searchBible`, `fetchUnreachedByCountry`, `toggleQuestionMastery`  — src/lib/schemas/bible-memory.ts (whole file), src/server/actions/bible-study.ts:134, src/lib/joshua-project.ts:96, src/app/actions/student-catechism.ts:83
   Evidence: each has zero importers repo-wide (grep). Notably `bible-memory.ts` Zod schemas use `.cuid()` while the actual `BibleMemory.id`/`studentId` are uuid (schema.prisma:1518) — so even if wired they would reject valid IDs.
   Impact: Dead code; the bible-memory `actions.ts` performs NO input validation at all because its intended schemas are unused.
-  Status: documented (not fixed)
+  Status: ✅ RESOLVED (2026-06-22, consolidated pass / ch.20-LOW) — SPLIT: ✅ REMOVED the 3 truly-dead symbols `searchBible` (bible-study.ts, + its orphaned `searchBibleSchema`/`ESVSearchResponse`/`ESVSearchResult`/`MAX_SEARCH_RESULTS` tail), `fetchUnreachedByCountry` (joshua-project.ts), and `toggleQuestionMastery` (student-catechism.ts — a redundant twin of the live `markQuestionAsMastered`). `lib/schemas/bible-memory.ts` is NOT dead-to-delete — it is the intended (drifted) validation for the bible-memory actions and is FIXED (.cuid()→.uuid()) + WIRED by Q-20-006 (ch.20-MED), so its deadness resolves by wiring. CI green. (see CHANGELOG.md)
 
 Q-20-006  [MED]  bible-memory `actions.ts` server actions accept fully untrusted input with no schema validation  — src/app/family-discipleship/bible-memory/actions.ts:135,252,287,304,323
   Evidence: `addVerseToUser`, `createFolder`, `renameFolder`, `moveVerseToFolder`, `copyFolderToStudent` take raw `string`/object args; they enforce org ownership via `assertStudentInOrg`/`assertVerseAccess`/`assertFolderInOrg` but never validate shape/length (the `bible-memory.ts` schemas are unused — see Q-20-005).
   Impact: No length/format bounds on `reference`/`name`/`text`; relies entirely on ownership asserts. Lower severity because authz IS enforced, but input validation is absent.
-  Status: documented (not fixed)
+  Status: ✅ RESOLVED (2026-06-22, consolidated pass / ch.20-MED) — fixed `lib/schemas/bible-memory.ts` (.cuid()→.uuid() to match the real uuid ids + bounded `text`) and WIRED the 4 LIVE actions (`addVerseToUser`/`createFolder`/`renameFolder`/`moveVerseToFolder`) to `parse` their schemas inside the existing try/catch (a ZodError degrades to `{success:false}`, not a crash). The 5th listed action `copyFolderToStudent` was DEAD (zero callers) → removed (a consequential Q-20-005-class cleanup) with its `copyFolderSchema`. This also completes Q-20-005's `bible-memory.ts` part (the dead schema is now live). +`bible-memory.test.ts` (8 cases). CI green. (see CHANGELOG.md)
 
 Q-20-007  [LOW]  Student-scoped suite pages do not gate on session/org before rendering  — src/app/students/[id]/family-discipleship/page.tsx:9-15, src/app/students/[id]/family-discipleship/catechism/page.tsx:10-19
   Evidence: both pages read `id` from params and render `DiscipleshipDashboard`/`CatechismManager studentId={id}` with no `auth()` or `getCurrentUserOrg` check. The downstream progress actions (`student-catechism.ts`) DO assert the student belongs to the caller's org, so writes are protected; but the page renders for any caller and leaks the studentId into client props.
-  Impact: Defense-in-depth gap; UI shells render for unauthenticated/cross-tenant callers even though mutating actions are guarded.
-  Status: documented (not fixed)
+  Impact: Defense-in-depth gap only. *(Corrected 2026-06-22: the "renders for UNAUTHENTICATED callers" claim is FALSE — `src/proxy.ts` fail-closed redirects any sessionless request for `/students/*` to `/login`, and `profile-access.ts` gates by profile type. The real residual is inert: a logged-in caller could load a shell carrying a cross-tenant `studentId` in client props, but no cross-tenant data is read/written — `DiscipleshipDashboard` uses `studentId` only for href suffixes, and `InteractiveCatechism`'s `studentId` calls all hit `assertStudentInOrg` which throws.)*
+  Status: ✅ ACCEPTED — correct-by-design / defense-in-depth note (2026-06-22, consolidated pass / ch.20-LOW). The proxy is the live gate; the residual is inert (no data leak). Mirroring `bible-memory/page.tsx`'s ~30-line org-scoped resolution would be disproportionate (these pages load NO per-student data server-side — only global catechism metadata). Kept as a defense-in-depth note: a future server-side per-student read here must add an org check. No code change. (see CHANGELOG.md)
 
 Q-20-008  [LOW]  `getPrayerEntries` returns `isPrivate` entries to the owner only, but `isPrivate` is never enforced anywhere  — src/server/actions/prayer-journal.ts:46-74, src/app/family-discipleship/prayer/PrayerJournalEditor.tsx:286
-  Evidence: prayer entries have an `isPrivate` toggle (editor) and the field is persisted, but `getPrayerEntries` filters only by `userId`; there is no consumer that treats private entries differently (no parent/child sharing path exists). The toggle is effectively cosmetic.
-  Impact: Feature appears to promise privacy semantics it does not implement; minor UX/expectation mismatch (no data leak since all queries are already per-user).
-  Status: documented (not fixed)
+  Evidence: *(Corrected 2026-06-22: the field is NOT persisted from the toggle — `createPrayerEntry` hardcodes `isPrivate:false` (prayer-journal.ts:93), `createPrayerJournalSchema`/`updatePrayerSchema` omit it, and the only other writer is dead (Q-20-004). So NO wired path ever stores `isPrivate:true`. There ARE cosmetic consumers — a Lock icon (PrayerJournalSidebar.tsx:141) + a "Private" badge (PrayerJournalEditor.tsx:292-296) — that therefore never trigger in normal use.)* `getPrayerEntries` filters only by `userId`; there is no sharing path for `isPrivate` to gate.
+  Impact: A half-built/disconnected Public/Private toggle (control + Lock/badge present; persistence severed). No data leak — every prayer query is already per-user, so there is nothing for `isPrivate` to gate.
+  Status: ✅ ACCEPTED — won't-fix this pass (2026-06-22, consolidated pass / ch.20-LOW). Security is settled (no leak). Whether to WIRE a real privacy/sharing model or REMOVE the misleading toggle + Lock/badge is a **product/UI decision** deferred to the owner (roadmap, ch.24 §5) — not a code fix for an adversarial pass. No schema change (the `isPrivate` column can stay unused). (see CHANGELOG.md)
 
 Q-20-009  [INFO]  ✅ RESOLVED 2026-06-19 — self-hosted world.geojson at public/world.geojson; WorldMap now fetches /world.geojson (see CHANGELOG.md). WorldMap fetches GeoJSON from an arbitrary third-party GitHub raw URL at runtime  — src/app/family-discipleship/missions/WorldMap.tsx:40
   Evidence: `fetch('https://raw.githubusercontent.com/holtzy/D3-graph-gallery/master/DATA/world.geojson')` on mount; map silently fails if the URL/repo changes or is unreachable.
@@ -197,6 +197,6 @@ Q-20-009  [INFO]  ✅ RESOLVED 2026-06-19 — self-hosted world.geojson at publi
   Status: documented (not fixed)
 
 Q-20-010  [LOW]  (re-graded INFO→LOW 2026-06-19, owner) `mission-stats.json` (~172KB) is read from disk on every Missions/Neighbor request  — src/app/family-discipleship/missions/actions.ts:41-51
-  Evidence: `getOperationWorldStats` does `fs.readFile(...)` + `JSON.parse` each call with no caching/memoization. Neighbor + Missions both hit county/state queries; OW stats reload per render.
-  Impact: Minor per-request CPU/IO; acceptable at current size but unbounded if file grows.
-  Status: documented (not fixed)
+  Evidence: `getOperationWorldStats` does `fs.readFile(...)` + `JSON.parse` each call with no memoization. *(Corrected 2026-06-22: only the Missions page calls it — once per render; Neighbor calls `getAllStates` and never touches the JSON. The same 175KB is already RSC-serialized to the client via the `MissionsClient stats` prop, so the server parse is the MINOR cost.)*
+  Impact: Minor per-request CPU/IO on a low-traffic authenticated page; the file is a static snapshot (no growth pipeline).
+  Status: ✅ ACCEPTED — correct-by-design / won't-fix (2026-06-22, consolidated pass / ch.20-LOW). A cold-path micro-optimization; the dominant cost (175KB client payload) is untouched by memoizing the parse, and React `cache()` would be a no-op (request-scoped — the call already happens once per render). Only a module-level / `unstable_cache` memo helps cross-request — disproportionate for a static file on a low-traffic page. No code change. (see CHANGELOG.md)

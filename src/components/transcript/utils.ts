@@ -314,48 +314,6 @@ export function formatCredits(credits: number): string {
     return credits.toFixed(2);
 }
 
-/**
- * Get default courses for a grade level
- */
-export function getDefaultCoursesForGrade(gradeLevel: number): Omit<TranscriptCourse, 'id' | 'studentId'>[] {
-    const defaults = [
-        { courseName: 'English', subject: 'English', grade: '' as GradeValue, credits: 1, courseType: 'Regular' as CourseType },
-        { courseName: 'Math', subject: 'Mathematics', grade: '' as GradeValue, credits: 1, courseType: 'Regular' as CourseType },
-        { courseName: 'Science', subject: 'Science', grade: '' as GradeValue, credits: 1, courseType: 'Regular' as CourseType },
-        { courseName: 'Social Studies', subject: 'Social Studies', grade: '' as GradeValue, credits: 1, courseType: 'Regular' as CourseType }
-    ];
-
-    return defaults.map(course => ({
-        ...course,
-        gradeLevel,
-        included: true
-    }));
-}
-
-/**
- * Validate course data
- */
-export function validateCourse(course: Partial<TranscriptCourse>): { valid: boolean; errors: string[] } {
-    const errors: string[] = [];
-
-    if (!course.courseName || course.courseName.trim() === '') {
-        errors.push('Course name is required');
-    }
-
-    if (!course.subject || course.subject.trim() === '') {
-        errors.push('Subject is required');
-    }
-
-    if (course.credits === undefined || course.credits <= 0) {
-        errors.push('Credits must be greater than 0');
-    }
-
-    if (course.gradeLevel === undefined || (course.gradeLevel < 0 || course.gradeLevel > 12)) {
-        errors.push('Grade level must be between 0 and 12');
-    }
-
-    return {
-        valid: errors.length === 0,
-        errors
-    };
-}
+// (getDefaultCoursesForGrade + validateCourse removed 2026-06-22 — dead code, zero callers, Q-22-004.
+// The generate path builds courses from enrollments; if a future transcript-editor revival wants
+// row validation, re-introduce a validator then.)

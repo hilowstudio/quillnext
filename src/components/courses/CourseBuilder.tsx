@@ -680,7 +680,7 @@ export function CourseBuilder({ courseId, organizationId, initialBlocks, availab
             </DndContext>
 
             <ResourcePicker
-                organizationId={courseId} // Using courseId as orgId proxy for now, or fetch proper orgId, wait blocks usually have orgId context? Actually CourseBuilder doesn't have orgId in props? Added it to props in recent edits.
+                organizationId={organizationId}
                 open={resourcePickerOpen}
                 mode="universal"
                 onOpenChange={setResourcePickerOpen}

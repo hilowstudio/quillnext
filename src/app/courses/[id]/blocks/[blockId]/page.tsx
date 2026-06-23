@@ -440,7 +440,7 @@ export default function EditCourseBlockPage() {
                 <div>
                   <CardTitle className="font-display text-xl">Activities</CardTitle>
                   <CardDescription>
-                    Activities for this lesson (coming soon)
+                    Activities for this lesson
                   </CardDescription>
                 </div>
                 <Button variant="outline" size="sm" asChild>
@@ -453,7 +453,7 @@ export default function EditCourseBlockPage() {
             <CardContent>
               {block.activities.length === 0 ? (
                 <p className="font-body text-sm text-qc-text-muted text-center py-8">
-                  No activities yet. Activity management coming soon.
+                  No activities yet. Add one to get started.
                 </p>
               ) : (
                 <div className="space-y-2">

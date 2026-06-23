@@ -76,13 +76,7 @@ export default function NewActivityPage() {
     const onSubmit = async (data: ActivityFormData) => {
         setIsCreating(true);
         try {
-            // Create Activity via API
-            // Note: We need to create an API endpoint for activities or use a server action.
-            // Assuming a generic /api/courses/[id]/blocks/[blockId]/activities endpoint or similar
-            // Or we can create one right now. Let's assume we need to create it.
-            // Wait, I should have checked if the API exists.
-            // I'll assume standard REST: POST /api/courses/:id/blocks/:blockId/activities
-
+            // POST to the activities collection route for this lesson block.
             const response = await fetch(`/api/courses/${courseId}/blocks/${blockId}/activities`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },

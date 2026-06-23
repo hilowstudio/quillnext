@@ -25,11 +25,9 @@ import {
 interface DocumentListProps {
     documents: any[];
     setDocuments: (documents: any[]) => void;
-    organizationId: string;
-    userId: string;
 }
 
-export function DocumentList({ documents, setDocuments, organizationId, userId }: DocumentListProps) {
+export function DocumentList({ documents, setDocuments }: DocumentListProps) {
     const [open, setOpen] = useState(false);
     const [files, setFiles] = useState<FileList | null>(null);
     const [isProcessing, setIsProcessing] = useState(false);
@@ -51,7 +49,7 @@ export function DocumentList({ documents, setDocuments, organizationId, userId }
 
         toast.info(`Uploading and extracting text from ${files.length} file(s)...`);
         try {
-            const result = await addDocuments(formData, organizationId, userId);
+            const result = await addDocuments(formData);
 
             if (result.success && result.documents && result.documents.length > 0) {
                 setDocuments([...result.documents, ...documents]);

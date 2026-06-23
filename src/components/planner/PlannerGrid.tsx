@@ -10,7 +10,6 @@ import { useState } from "react";
 import { Plus } from "@phosphor-icons/react";
 import { ResourcePicker } from "../courses/ResourcePicker";
 import { addAdHocEvent } from "@/server/actions/scheduling";
-import { getCurrentUserOrg } from "@/lib/auth-helpers";
 
 function DraggableItem({ item }: { item: any }) {
     const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
@@ -112,15 +111,20 @@ export function PlannerGrid({
             title = resource.title;
         }
 
-        toast.promise(
-            addAdHocEvent(targetSlot.studentId, targetSlot.date, title, description),
-            {
-                loading: "Adding to schedule...",
-                success: "Added to schedule",
-                error: (e) => `Failed to add: ${e.message}`
+        // Q-21-004: await the write before refreshing (the old code fired router.refresh() synchronously,
+        // racing the create + revalidateTag → the event was missing until a later refresh). addAdHocEvent
+        // returns {success,error} (never throws), so mirror handleDragEnd: branch on result.success.
+        try {
+            const result = await addAdHocEvent(targetSlot.studentId, targetSlot.date, title, description);
+            if (result.success) {
+                toast.success("Added to schedule");
+                router.refresh();
+            } else {
+                toast.error(`Failed to add: ${result.error}`);
             }
-        );
-        router.refresh();
+        } catch {
+            toast.error("Failed to add to schedule. Please try again.");
+        }
     };
 
     async function handleDragEnd(event: DragEndEvent) {

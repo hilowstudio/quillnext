@@ -72,7 +72,8 @@ A `User` starts with `organizationId = null`. An org is created in two places:
 - `src/server/actions/blueprint.ts:54` — the onboarding/blueprint flow (`tx.organization.create`),
   then sets `user.organizationId` (`:65`) and `setRlsContext`. Subsequent blueprint mutations verify
   the caller's `sessionOrg` matches the target org (`:186, :278, :329`) — a good ownership check.
-- `src/app/api/students/route.ts:23` — creating the first student auto-creates an org if none exists.
+- `src/app/api/students/route.ts:27` — creating the first student auto-creates an org if none exists
+  (raw-`db` self-heal; the subsequent learner writes run under one `withTenant` tx — Q-16-002 ✅ Session 32).
 
 ### 3.3 The proxy (route gate + profile gate)
 `proxy()` (`src/proxy.ts:42`) runs on every non-excluded path (matcher excludes
@@ -109,9 +110,9 @@ A `User` starts with `organizationId = null`. An org is created in two places:
 `assertParentProfile()` (`server/profiles/guards.ts:10`) re-reads the active profile server-side and
 throws unless `type === "PARENT"`. Called at the top of destructive/admin actions so a STUDENT
 session can't invoke them by calling the server action directly (the proxy only gates *navigation*).
-Used in 11 files (e.g. `account-actions`, `course-actions`, `student-actions`, `resource-library-actions`,
-`transcript`, `my-learning`, `api/courses/:id/blocks/:blockId`). The **completeness** of this
-coverage across all mutating actions is audited in `24-…`.
+Used in 13 files (e.g. `account-actions`, `course-actions`, `student-actions`, `resource-library-actions`,
+`transcript`, `my-learning`, `api/courses` POST, `api/courses/:id/blocks/:blockId`, the 4 `api/library/*`
+create/extract routes). The **completeness** of this coverage across all mutating actions is audited in `24-…`.
 
 ### 3.6 Tenancy & RLS machinery (`db.ts` + `rls-context.ts` + `auth-helpers.ts`)
 - **`getCurrentUserOrg()`** (`auth-helpers.ts:10`) — canonical gate: resolves session → looks up

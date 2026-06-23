@@ -3,43 +3,13 @@ import { randomUUID } from "node:crypto";
 import { embed, embedMany } from "ai";
 import { embeddingModel, embeddingProviderOptions } from "@/lib/ai/config";
 
-// Raw pgvector SQL for ORG-SCOPED tables (books, video_resources) must run via withTenant so the
+// Raw pgvector SQL for ORG-SCOPED tables (books) must run via withTenant so the
 // RLS tenant GUCs are set on the query's connection (the per-query Prisma extension only wraps
 // model ops, not $queryRaw/$executeRaw).
 //
 // The GLOBAL/cross-org video_extraction_chunks + video_extractions tables are CONTEXT_FREE_MODELS
 // with USING(true)/WITH CHECK(true) RLS for app_user, so their raw SQL runs on the PLAIN `db`
 // (no withTenant) — mirroring how the Inngest worker writes the global catalog.
-
-/**
- * Semantic search for books using pgvector cosine similarity.
- */
-export async function searchBooks(query: string, limit = 5) {
-  // Cap the embed input: a search query never needs to be long, and an unbounded string would
-  // inflate embedding cost/latency (an authenticated-abuse vector once multi-tenant).
-  const q = (query ?? "").trim().slice(0, 1000);
-  if (!q) return [];
-  const { embedding: queryEmbedding } = await embed({
-    model: embeddingModel,
-    value: q,
-    providerOptions: embeddingProviderOptions("RETRIEVAL_QUERY"),
-  });
-  const vectorQuery = `[${queryEmbedding.join(",")}]`;
-
-  return withTenant((tx) =>
-    tx.$queryRaw<
-      Array<{ id: string; title: string; summary: string | null; similarity: number }>
-    >`
-    SELECT id, title, summary,
-      1 - (embedding <=> ${vectorQuery}::vector) as similarity
-    FROM "books"
-    WHERE embedding IS NOT NULL
-      AND 1 - (embedding <=> ${vectorQuery}::vector) > 0.5
-    ORDER BY similarity DESC
-    LIMIT ${limit};
-  `,
-  );
-}
 
 /**
  * Generate and store an embedding for a book.
@@ -143,8 +113,7 @@ export async function embedVideoChunks(videoExtractionId: string, chunks: string
     }
 
     // INSERT each chunk via raw SQL so the pgvector `::vector` cast applies (Prisma can't bind the
-    // Unsupported("vector") column directly). Mirrors the generateVideoEmbedding [v.join(",")]::vector
-    // idiom. Plain db (global table).
+    // Unsupported("vector") column directly). Plain db (global table).
     for (let i = 0; i < cleaned.length; i++) {
       const vectorString = `[${embeddings[i].join(",")}]`;
       await db.$executeRawUnsafe(
@@ -160,55 +129,6 @@ export async function embedVideoChunks(videoExtractionId: string, chunks: string
   } catch (e) {
     console.error("[embedVideoChunks] non-fatal chunk embedding failure", e);
   }
-}
-
-/**
- * Semantic search for video resources using pgvector cosine similarity over the GLOBAL transcript
- * chunks, scoped to a single org's library.
- *
- * The embeddings live in the cross-org shared `video_extraction_chunks` catalog (one row per video,
- * shared by every org). We make search ORG-SCOPED by joining each matching extraction back to THIS
- * org's `video_resources` row via `video_extraction_id` — so an org only ever sees videos that
- * exist in its own library, even though the embeddings themselves are shared. (The org filter is
- * the per-org VideoResource join + the explicit account_id predicate, NOT RLS on the global table,
- * which is USING(true) for everyone.)
- *
- * Returns DISTINCT videos (the per-org VideoResource id) ranked by their single best-matching chunk.
- * The cosine search over the global chunk table runs on the plain `db`; the join to the org-scoped
- * `video_resources` runs inside withTenant so its RLS GUCs are stamped on the same connection.
- */
-export async function searchVideos(query: string, organizationId: string, limit = 10) {
-  const { embedding: queryEmbedding } = await embed({
-    model: embeddingModel,
-    value: query,
-    providerOptions: embeddingProviderOptions("RETRIEVAL_QUERY"),
-  });
-  const vectorQuery = `[${queryEmbedding.join(",")}]`;
-
-  return withTenant((tx) =>
-    tx.$queryRaw<
-      Array<{
-        id: string;
-        title: string | null;
-        extractedSummary: string | null;
-        similarity: number;
-      }>
-    >`
-    SELECT vr.id,
-           vr.title,
-           vr.extracted_summary as "extractedSummary",
-           MAX(1 - (vec.embedding <=> ${vectorQuery}::vector)) as similarity
-    FROM "video_extraction_chunks" vec
-    JOIN "video_extractions" ve ON ve.id = vec.video_extraction_id
-    JOIN "video_resources" vr ON vr.video_extraction_id = ve.id
-    WHERE vec.embedding IS NOT NULL
-      AND vr.account_id = ${organizationId}
-      AND 1 - (vec.embedding <=> ${vectorQuery}::vector) > 0.5
-    GROUP BY vr.id, vr.title, vr.extracted_summary
-    ORDER BY similarity DESC
-    LIMIT ${limit};
-  `,
-  );
 }
 
 /**
@@ -329,7 +249,7 @@ export async function embedPendingBookTextChunks(
 
 /**
  * Retrieve the top full-text chunks for a GLOBAL book extraction by pgvector cosine similarity,
- * optionally scoped to a single chapter/section. Phase-3 full-text RAG counterpart to searchVideos.
+ * optionally scoped to a single chapter/section. Phase-3 full-text RAG over the book's chunks.
  *
  * - Embeds the query with RETRIEVAL_QUERY (asymmetric to the stored RETRIEVAL_DOCUMENT vectors).
  * - The chunk table is GLOBAL / CONTEXT_FREE (USING(true) RLS for app_user), so the cosine search
@@ -386,40 +306,6 @@ export async function retrieveBookChunks(
     console.error("[retrieveBookChunks] non-fatal chunk retrieval failure", e);
     return [];
   }
-}
-
-/**
- * Generate and store an embedding for a video (summary + key points).
- *
- * Like generateBookEmbedding, the org-scoped UPDATE runs inside withTenant. Pass `ctx`
- * explicitly when invoked off the request frame (e.g. a background video-extract worker)
- * so the RLS GUCs are stamped from an EXPLICIT context instead of relying on
- * async-context propagation. Omitting `ctx` preserves the previous session-resolved behavior.
- */
-export async function generateVideoEmbedding(
-  videoId: string,
-  text: string,
-  ctx?: { organizationId: string | null; userId: string | null },
-) {
-  const { embedding } = await embed({
-    model: embeddingModel,
-    value: text,
-    providerOptions: embeddingProviderOptions("RETRIEVAL_DOCUMENT"),
-  });
-  const vectorString = `[${embedding.join(",")}]`;
-
-  await withTenant(
-    (tx) =>
-      tx.$executeRaw`
-    UPDATE "video_resources"
-    SET embedding = ${vectorString}::vector
-    WHERE id = ${videoId};
-  `,
-    undefined,
-    ctx,
-  );
-
-  return embedding;
 }
 
 // ============================================================================

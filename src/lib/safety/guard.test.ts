@@ -5,7 +5,8 @@ import { describe, it, expect, vi } from "vitest";
 vi.mock("ai", () => ({ generateObject: vi.fn() }));
 vi.mock("@/lib/ai/config", () => ({ models: { flashLite: {} } }));
 
-import { SafetyRegexEngine } from "./guard";
+import { generateObject } from "ai";
+import { SafetyRegexEngine, assessMessageSafety } from "./guard";
 import { decideSafetyResolution } from "./policy";
 
 /**
@@ -63,5 +64,34 @@ describe("SafetyRegexEngine.scan — recovered fast-path still routes the caregi
         expect(r?.disclosureRisk).toBe("HIGH");
         // The hard-stop must win even though this is a self-harm intent.
         expect(decideSafetyResolution(r!)).toBe("SUPPORTIVE_ONLY");
+    });
+});
+
+/**
+ * Shape-lock for the LLM deep-path FAIL-CLOSED behavior (Q-12-001). A scanner error (model outage,
+ * rate-limit, timeout, or schema-parse failure) must NOT pass an unscanned message as safe — it must
+ * produce an UNSAFE assessment so the job stores a durable "needs human review" flag, routed to a
+ * NON-notifying resolution that can never email a caregiver on an unclassified message.
+ *
+ * These tests fail if the catch reverts to fail-OPEN (isSafe:true/SAFE/NONE → NO_ACTION → no flag),
+ * or if the error category drifts off "OTHER" into SELF_HARM/VIOLENCE (which would reach the urgent
+ * caregiver-email branch, policy.ts:50-54).
+ */
+describe("assessMessageSafety — LLM deep-path fails CLOSED on error (Q-12-001)", () => {
+    it("a scanner error returns an UNSAFE review flag routed to a non-notifying resolution", async () => {
+        // Force the deep path (a benign message → no regex match) to throw — simulate a model outage.
+        vi.mocked(generateObject).mockRejectedValueOnce(new Error("simulated Gemini outage"));
+
+        const r = await assessMessageSafety("can you help me understand photosynthesis");
+
+        // Fail CLOSED: not safe, so the job stores a durable flag (safety-scan.ts:80) instead of nothing.
+        expect(r.isSafe).toBe(false);
+        // category MUST stay OTHER — the load-bearing field that keeps it out of the urgent branch.
+        expect(r.category).toBe("OTHER");
+        // Routed to a NON-notifying resolution — never a caregiver email on an unclassified message.
+        const resolution = decideSafetyResolution(r);
+        expect(resolution).toBe("INTERNAL_LOG_ONLY");
+        expect(resolution).not.toBe("PARENT_SUMMARY_URGENT");
+        expect(resolution).not.toBe("PARENT_SUMMARY_SAFETY_COACH");
     });
 });

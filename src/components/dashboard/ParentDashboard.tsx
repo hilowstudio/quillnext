@@ -16,6 +16,7 @@ export interface ParentDashboardProps {
     suggestions: any;
     classroomName: string;
     myLearning: MyLearning;
+    todayDevotional?: { reference: string; excerpt: string } | null;
 }
 
 export function ParentDashboard({
@@ -26,6 +27,7 @@ export function ParentDashboard({
     suggestions,
     classroomName,
     myLearning,
+    todayDevotional,
 }: ParentDashboardProps) {
     const pageTitle = classroomName || "My Classroom";
 
@@ -52,8 +54,12 @@ export function ParentDashboard({
                         <div className="p-4 bg-qc-parchment rounded-lg border border-qc-border-subtle flex items-start justify-between">
                             <div>
                                 <span className="text-xs font-bold uppercase tracking-wider text-qc-text-muted">Morning Reading</span>
-                                <h3 className="font-display text-lg font-bold text-qc-charcoal mt-1 text-balance">Psalm 23: The Shepherd</h3>
-                                <p className="text-sm text-qc-text-muted mt-2">"The Lord is my shepherd; I shall not want..."</p>
+                                <h3 className="font-display text-lg font-bold text-qc-charcoal mt-1 text-balance">
+                                    {todayDevotional?.reference ?? "Psalm 23: The Shepherd"}
+                                </h3>
+                                <p className="text-sm text-qc-text-muted mt-2 line-clamp-2">
+                                    {todayDevotional?.excerpt ?? "\"The Lord is my shepherd; I shall not want...\""}
+                                </p>
                             </div>
                             <Button size="sm" asChild>
                                 <Link href="/family-discipleship/devotionals">Start</Link>

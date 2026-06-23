@@ -54,7 +54,8 @@ export default async function PlannerPage({
                             <Link href={`/planner?start=${nextWeek}`}><ArrowRight size={16} /></Link>
                         </Button>
                     </div>
-                    <Button>Auto-Reschedule</Button>
+                    {/* Auto-Reschedule button removed 2026-06-22 (Q-21-003) — it was a no-op (no handler);
+                        the reshuffle/isLocked feature is roadmapped (ch.24 §5) to be built fresh. */}
                 </div>
             </div>
 

@@ -5,118 +5,12 @@ import { auth } from "@/auth";
 import { db } from "@/server/db";
 import { revalidatePath } from "next/cache";
 
-export async function createPrayerRequest(formData: FormData) {
-    const session = await auth();
-    if (!session?.user?.id) {
-        throw new Error("Unauthorized");
-    }
-
-    const request = formData.get("request") as string;
-    if (!request) {
-        throw new Error("Request content is required");
-    }
-
-    await db.prayerJournalEntry.create({
-        data: {
-            userId: session.user.id,
-            date: new Date(),
-            title: "Prayer Request",
-            content: request,
-        },
-    });
-
-    revalidatePath("/family-discipleship/prayer");
-}
-
-export async function togglePrayerAnswered(id: string, currentState: boolean) {
-    const session = await auth();
-    if (!session?.user?.id) {
-        throw new Error("Unauthorized");
-    }
-
-    // Ensure user owns the entry
-    const entry = await db.prayerJournalEntry.findUnique({
-        where: { id },
-    });
-
-    if (!entry || entry.userId !== session.user.id) {
-        throw new Error("Unauthorized or not found");
-    }
-
-    await db.prayerJournalEntry.update({
-        where: { id },
-        data: { answeredAt: !currentState ? new Date() : null },
-    });
-
-    revalidatePath("/family-discipleship/prayer");
-}
-
-export async function deletePrayerRequest(id: string) {
-    const session = await auth();
-    if (!session?.user?.id) {
-        throw new Error("Unauthorized");
-    }
-
-    // Ensure user owns the entry
-    const entry = await db.prayerJournalEntry.findUnique({
-        where: { id },
-    });
-
-    if (!entry || entry.userId !== session.user.id) {
-        throw new Error("Unauthorized or not found");
-    }
-
-    await db.prayerJournalEntry.delete({
-        where: { id },
-    });
-
-    revalidatePath("/family-discipleship/prayer");
-}
-
-export async function addMemoryVerse(formData: FormData) {
-    const session = await auth();
-    if (!session?.user?.id) {
-        throw new Error("Unauthorized");
-    }
-
-    const reference = formData.get("reference") as string;
-    const text = formData.get("text") as string;
-
-    if (!reference || !text) {
-        throw new Error("Reference and text are required");
-    }
-
-    await db.bibleMemory.create({
-        data: {
-            userId: session.user.id,
-            reference,
-            text,
-        },
-    });
-
-    revalidatePath("/family-discipleship/bible-memory");
-}
-
-export async function deleteMemoryVerse(id: string) {
-    const session = await auth();
-    if (!session?.user?.id) {
-        throw new Error("Unauthorized");
-    }
-
-    const verse = await db.bibleMemory.findUnique({
-        where: { id },
-    });
-
-    if (!verse || verse.userId !== session.user.id) {
-        throw new Error("Unauthorized or not found");
-    }
-
-    await db.bibleMemory.delete({
-        where: { id },
-    });
-
-    revalidatePath("/family-discipleship/bible-memory");
-}
+// NOTE (2026-06-22, Q-20-004): the legacy createPrayerRequest / togglePrayerAnswered /
+// deletePrayerRequest / addMemoryVerse / deleteMemoryVerse exports were removed — they were dead
+// (zero importers), used raw `db` (no withTenant), and duplicated the live prayer-journal.ts /
+// bible-memory actions. The legacy togglePrayerAnswered also collided by name with the LIVE one in
+// prayer-journal.ts (which is what PrayerJournalClient actually imports). Only the church-note
+// actions below are wired (ChurchNotesClient).
 
 export async function addChurchNote(formData: FormData) {
     const session = await auth();

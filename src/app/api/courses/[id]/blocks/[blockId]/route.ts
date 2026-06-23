@@ -6,7 +6,7 @@ import { auth } from "@/auth";
 import { getCurrentUserOrg } from "@/lib/auth-helpers";
 import { assertParentProfile } from "@/server/profiles/guards";
 import { db } from "@/server/db";
-import { courseBlockSchema } from "@/lib/schemas/courses";
+import { courseBlockSchema, validateBlockNesting, type CourseBlockKind } from "@/lib/schemas/courses";
 
 export async function GET(
   request: NextRequest,
@@ -20,13 +20,17 @@ export async function GET(
 
   try {
     const { organizationId } = await getCurrentUserOrg();
+    if (!organizationId) {
+      return NextResponse.json({ error: "Course not found" }, { status: 404 });
+    }
 
-    // Verify course exists and belongs to organization
-    const course = await db.course.findUnique({
-      where: { id: courseId },
+    // Verify course exists and belongs to organization (org filter in the query predicate,
+    // not a droppable post-fetch `!==`).
+    const course = await db.course.findFirst({
+      where: { id: courseId, organizationId },
     });
 
-    if (!course || course.organizationId !== organizationId) {
+    if (!course) {
       return NextResponse.json({ error: "Course not found" }, { status: 404 });
     }
 
@@ -94,14 +98,18 @@ export async function PATCH(
 
   try {
     const { organizationId } = await getCurrentUserOrg();
+    if (!organizationId) {
+      return NextResponse.json({ error: "Course not found" }, { status: 404 });
+    }
     const body = await request.json();
 
-    // Verify course exists and belongs to organization
-    const course = await db.course.findUnique({
-      where: { id: courseId },
+    // Verify course exists and belongs to organization (org filter in the query predicate,
+    // not a droppable post-fetch `!==`).
+    const course = await db.course.findFirst({
+      where: { id: courseId, organizationId },
     });
 
-    if (!course || course.organizationId !== organizationId) {
+    if (!course) {
       return NextResponse.json({ error: "Course not found" }, { status: 404 });
     }
 
@@ -119,6 +127,7 @@ export async function PATCH(
     const validated = partialSchema.parse(body);
 
     // Verify parent block if provided and different
+    let resolvedNewParentKind: CourseBlockKind | undefined; // set when the parent is (re)assigned to a block
     if (validated.parentBlockId && validated.parentBlockId !== existingBlock.parentBlockId) {
       // Prevent circular reference
       if (validated.parentBlockId === blockId) {
@@ -130,6 +139,7 @@ export async function PATCH(
 
       const parentBlock = await db.courseBlock.findUnique({
         where: { id: validated.parentBlockId },
+        select: { kind: true, courseId: true },
       });
 
       if (!parentBlock || parentBlock.courseId !== courseId) {
@@ -138,6 +148,32 @@ export async function PATCH(
           { status: 400 },
         );
       }
+
+      resolvedNewParentKind = parentBlock.kind;
+    }
+
+    // Enforce kind-nesting rules on the merged post-update (kind, parentKind) pair —
+    // kind and parentBlockId can change independently, so validate the effective result.
+    const effectiveKind: CourseBlockKind = validated.kind ?? existingBlock.kind;
+    const effectiveParentId =
+      validated.parentBlockId !== undefined
+        ? validated.parentBlockId || null
+        : existingBlock.parentBlockId;
+    let effectiveParentKind: CourseBlockKind | null = null;
+    if (effectiveParentId) {
+      effectiveParentKind =
+        resolvedNewParentKind ??
+        (
+          await db.courseBlock.findUnique({
+            where: { id: effectiveParentId },
+            select: { kind: true },
+          })
+        )?.kind ??
+        null;
+    }
+    const nesting = validateBlockNesting(effectiveKind, effectiveParentKind);
+    if (!nesting.ok) {
+      return NextResponse.json({ error: nesting.error }, { status: 400 });
     }
 
     // Update block
@@ -216,13 +252,17 @@ export async function DELETE(
     await assertParentProfile();
 
     const { organizationId } = await getCurrentUserOrg();
+    if (!organizationId) {
+      return NextResponse.json({ error: "Course not found" }, { status: 404 });
+    }
 
-    // Verify course exists and belongs to organization
-    const course = await db.course.findUnique({
-      where: { id: courseId },
+    // Verify course exists and belongs to organization (org filter in the query predicate,
+    // not a droppable post-fetch `!==`).
+    const course = await db.course.findFirst({
+      where: { id: courseId, organizationId },
     });
 
-    if (!course || course.organizationId !== organizationId) {
+    if (!course) {
       return NextResponse.json({ error: "Course not found" }, { status: 404 });
     }
 

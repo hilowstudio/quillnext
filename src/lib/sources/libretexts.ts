@@ -229,7 +229,16 @@ export async function assembleLibreTextsSections(bookID: string): Promise<LibreT
     const tree = (await getJson(`${base}/@api/deki/pages/${pageid}/tree?dream.out.format=json`, token)) as
       | { page?: unknown }
       | null;
-    if (!tree?.page) return [];
+    if (!tree?.page) {
+      // The deki tree fetch yielded nothing — almost always a missing/expired X-Deki-Token (scraped
+      // from HTML, brittle), a markup change, or a network blip. LibreTexts is corpus-only with NO
+      // registry fallthrough, so this book silently yields no content; log so the coverage cliff is
+      // diagnosable instead of looking identical to a book that legitimately has no sections (Q-13-005).
+      console.error(
+        `[libretexts] ${bookID}: deki tree fetch returned no data (token/markup/network) — book skipped`,
+      );
+      return [];
+    }
 
     const leaves = collectLeaves(tree.page)
       .filter((l) => !SKIP_PATH.test(l.path))

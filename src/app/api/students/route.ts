@@ -17,7 +17,11 @@ export async function POST(request: NextRequest) {
   try {
     let { organizationId, userId } = await getCurrentUserOrg();
 
-    // Self-healing: Ensure user has an organization
+    // Self-healing: Ensure user has an organization. These bootstrap writes stay on the raw `db`
+    // client by necessity: the org INSERT must run under the null org context the relaxed
+    // `organizations` RLS policy permits ("id = app.current_org() OR app.current_org() IS NULL" —
+    // you cannot stamp a GUC for an org that does not exist yet), and `User` is a CONTEXT_FREE
+    // model. The org-scoped learner writes below run under an explicit tenant transaction.
     if (!organizationId) {
       console.log("No organizationId found for user. Creating default organization...");
       const newOrg = await db.organization.create({
@@ -44,36 +48,36 @@ export async function POST(request: NextRequest) {
       birthdate: body.birthdate ? new Date(body.birthdate) : undefined,
     });
 
-    // Create student
-    const student = await db.learner.create({
-      data: {
-        organization: { connect: { id: organizationId } },
-        firstName: validated.firstName,
-        lastName: validated.lastName || null,
-        preferredName: validated.preferredName || null,
-        birthdate: validated.birthdate,
-        currentGrade: validated.currentGrade,
-        sex: validated.sex || null,
-        learningDifficulties: validated.learningDifficulties?.join(", ") || null,
-        support_labels: validated.supportLabels || [],
-        support_profile: validated.supportProfile || undefined,
-        support_intensity: validated.supportIntensity || null,
-      },
-    });
-
-    // Create empty learner profile
-    await db.learnerProfile.create({
-      data: {
-        studentId: student.id,
-      },
-    });
-
-    // Give the new learner a STUDENT profile so they appear in the picker (same id as the backfill).
-    // One tenant-scoped transaction so the profile + back-link are atomic (no orphaned profile if
-    // the link fails). organizationId is the caller's own org, resolved above.
-    const profileId = studentProfileId(student.id);
-    await withTenant(
+    // Create the learner, its empty profile, and a STUDENT picker Profile in ONE tenant-scoped
+    // transaction so every org-scoped write is tenant-stamped (RLS-ready) and atomic — no orphaned
+    // learner/profile if a later step fails. organizationId is the caller's own org, resolved/created
+    // above, and is passed explicitly as the tenant context (the only reliable path in the Next
+    // runtime). The same id as the backfill is used for the STUDENT profile.
+    const student = await withTenant(
       async (tx) => {
+        const learner = await tx.learner.create({
+          data: {
+            organization: { connect: { id: organizationId } },
+            firstName: validated.firstName,
+            lastName: validated.lastName || null,
+            preferredName: validated.preferredName || null,
+            birthdate: validated.birthdate,
+            currentGrade: validated.currentGrade,
+            sex: validated.sex || null,
+            learningDifficulties: validated.learningDifficulties?.join(", ") || null,
+            support_labels: validated.supportLabels || [],
+            support_profile: validated.supportProfile || undefined,
+            support_intensity: validated.supportIntensity || null,
+          },
+        });
+
+        await tx.learnerProfile.create({
+          data: {
+            studentId: learner.id,
+          },
+        });
+
+        const profileId = studentProfileId(learner.id);
         await tx.profile.create({
           data: {
             id: profileId,
@@ -82,7 +86,9 @@ export async function POST(request: NextRequest) {
             displayName: validated.preferredName || validated.firstName,
           },
         });
-        await tx.learner.update({ where: { id: student.id }, data: { profileId } });
+        await tx.learner.update({ where: { id: learner.id }, data: { profileId } });
+
+        return learner;
       },
       undefined,
       { organizationId, userId: null },

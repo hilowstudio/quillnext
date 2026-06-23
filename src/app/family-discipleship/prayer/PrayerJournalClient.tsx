@@ -135,7 +135,7 @@ export default function PrayerJournalClient({
     const handleDelete = async (entry: PrayerEntry) => {
         if (!confirm("Are you sure you want to delete this entry?")) return;
         try {
-            await deletePrayerEntry(entry.id);
+            await deletePrayerEntry({ id: entry.id });
             setEntries(entries.filter(e => e.id !== entry.id));
             if (selectedEntry?.id === entry.id) {
                 setSelectedEntry(null);

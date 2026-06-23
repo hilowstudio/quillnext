@@ -14,7 +14,7 @@
 | `src/components/transcript/pdfExport.ts` | `exportToPDF`: builds raw HTML string, opens print window, `document.write` + `print()`. |
 | `src/components/transcript/types.ts` | `TranscriptData` and all sub-shapes (courses, tests, activities, GPA settings). |
 | `src/components/transcript/utils.ts` | GPA math, grading-scale legends, credit totals, date formatting, validation. |
-| `src/components/print/PrintLayout.tsx` | Generic print primitives (`PrintLayout`/`Section`/`Box`/`Grid`/`Title`) — NOT used by transcripts. |
+| ~~`src/components/print/PrintLayout.tsx`~~ | **REMOVED 2026-06-22 (Q-22-001)** — dead generic print primitives, zero importers. |
 | `src/app/actions/data-export.ts` | `exportUserData`: GDPR-style JSON dump of one user's data incl. org transcripts. |
 
 ## 2. Purpose / intent
@@ -26,7 +26,7 @@ Lets a parent/admin produce an "Official High School Transcript" for each learne
 - **Editor**: `TranscriptBuilder` (`TranscriptBuilder.tsx:39`) holds the whole document in one `useState`, mutates via `updateTranscript` (shallow merge), delegates course rows to `CourseEntrySection` and activities to `ActivitiesSection`, renders `TranscriptPreview` in the Preview tab.
 - **Math**: `utils.ts` — `getGpaPoints` (`utils.ts:34`, scale-aware + special grades IP/Pass/Fail/Mastery), `applyCourseTypeWeighting` (`utils.ts:122`, Honors +0.5 / AP +1.0 capped 5.0), `calculateWeightedGPA`/`calculateUnweightedGPA`, `calculateAcademicSummary`/`calculateYearSummary`.
 - **Render & export**: `TranscriptPreview` (on-screen) and `pdfExport.generatePrintHTML` (`pdfExport.ts:52`) duplicate the same layout in two representations (JSX vs HTML string). `pdfExport` HTML-escapes every user value via `esc` (`pdfExport.ts:16`).
-- **PrintLayout**: `src/components/print/PrintLayout.tsx` is an unrelated, unused generic print component set (see §5, finding Q-22-001).
+- **PrintLayout** (`src/components/print/PrintLayout.tsx`) was an unrelated, unused generic print component set — **REMOVED 2026-06-22 (Q-22-001)**.
 
 ## 4. Data flow
 1. `/transcripts` (`page.tsx:13-43`): `auth()` → `getCurrentUserOrg` → `withTenant` learner.findMany scoped by `organizationId` (excludes parent-as-learner rows via `excludeParentLearners` — Q-05-006), including latest transcript. Renders cards.
@@ -41,20 +41,20 @@ Lets a parent/admin produce an "Official High School Transcript" for each learne
 |------|--------|----------|
 | `/transcripts` list page | DONE | `page.tsx:31-43` tenant-scoped query, rendered cards, linked CTA. |
 | `/transcripts/[studentId]` page | DONE | `[studentId]/page.tsx:20-37` loads/generates + renders builder. |
-| `generateTranscriptData` | PARTIAL | `transcript.ts:85-99` hardcodes `subject:"General"`, `grade:""`, `credits:1`; ignores course subject/grade/credit data. |
+| `generateTranscriptData` | DONE (by-design) | provides titles + parent-classified defaults; grade/credit have NO schema source, and the course's spine `subject` is a different taxonomy than the transcript registrar dropdown (Q-22-002 ✅ accepted 2026-06-22). |
 | `saveTranscript` | DONE | `transcript.ts:138-175` upsert wired to builder Save, tenant-guarded. |
 | `getTranscripts` | DONE | `transcript.ts:180-199` used by `[studentId]` page. |
-| `deleteTranscript` | DEAD | `transcript.ts:204` — zero callers repo-wide (grep: only its own definition). No delete UI. |
-| `TranscriptBuilder` | PARTIAL | `TranscriptBuilder.tsx` edits only info/courses/activities; never writes `tests`, `notes`, `pre9thCourses`, `signature`/`signed`, `template` (grep: no matches in file). |
+| `deleteTranscript` | REMOVED | ✅ removed 2026-06-22 (Q-22-004 — dead, no delete UI; + its orphaned `assertParentProfile` import). |
+| `TranscriptBuilder` | PARTIAL | edits info/courses/activities; `tests`/`notes`/`signature` are render-only persisted fields (editor UI = a deferred feature, §5 roadmap — Q-22-003); `pre9thCourses`/`template` are dead data (no renderer). |
 | `TranscriptPreview` | DONE | `TranscriptPreview.tsx:21` rendered in Preview tab (`TranscriptBuilder.tsx:394`). |
 | `CourseEntrySection` | DONE | `CourseEntrySection.tsx:21`, rendered per grade `TranscriptBuilder.tsx:367`. |
 | `ActivitiesSection` | DONE | `ActivitiesSection.tsx:34`, rendered `TranscriptBuilder.tsx:383`. |
-| `exportToPDF` / `generatePrintHTML` | DONE | `pdfExport.ts:29` wired via `handleExport`. |
+| `exportToPDF` / `generatePrintHTML` | DONE | `pdfExport.ts:29` wired via `handleExport`; empty-card GPA/Cr precision + duplication + dead CSS fixed (Q-22-006 ✅ 2026-06-22). |
 | `types.ts` | DONE | imported across transcript files. |
 | `utils.ts` GPA/scale fns | DONE | imported by preview, pdfExport, actions. |
-| `getDefaultCoursesForGrade` | DEAD | `utils.ts:320` — grep shows no importer. |
-| `validateCourse` | DEAD | `utils.ts:338` — grep shows no importer. |
-| `PrintLayout` & siblings | DEAD | `PrintLayout.tsx` — grep for `PrintLayout|PrintSection|PrintBox|PrintGrid|PrintTitle` matches only this file (Q-22-001). |
+| `getDefaultCoursesForGrade` | REMOVED | ✅ removed 2026-06-22 (Q-22-004 — dead helper). |
+| `validateCourse` | REMOVED | ✅ removed 2026-06-22 (Q-22-004 — dead validator; re-add on a future editor revival). |
+| `PrintLayout` & siblings | REMOVED | ✅ `git rm` 2026-06-22 (Q-22-001 — zero importers). |
 | `exportUserData` | DONE | `data-export.ts:6`, called by `ProfileSettingsDialog.tsx:74`. |
 
 ## 6. Integration points
@@ -69,32 +69,32 @@ Lets a parent/admin produce an "Official High School Transcript" for each learne
 Q-22-001  [LOW]  `PrintLayout` and its 4 sibling primitives are dead code  — `src/components/print/PrintLayout.tsx:11-70`
   Evidence: Grep for `PrintLayout|PrintSection|PrintBox|PrintGrid|PrintTitle` across the repo matches only this file; no JSX consumer. Transcript PDF uses raw HTML strings in `pdfExport.ts`, not these components.
   Impact: Dead, maintained-but-unused print system; misleads readers into thinking transcripts use it. Confirms task's "possible stub" suspicion — it is fully implemented but DEAD (no importers).
-  Status:   documented (not fixed)
+  Status: ✅ REMOVED (2026-06-22, consolidated pass / ch.22-LOW) — `git rm src/components/print/PrintLayout.tsx` (zero importers repo-wide; the transcript PDF uses raw HTML strings in `pdfExport.ts`, not these primitives). Build-safe (tsc 0). (see CHANGELOG.md)
 
 Q-22-002  [MED]  `generateTranscriptData` discards real course grade/credit/subject data  — `src/server/actions/transcript.ts:85-99`
   Evidence: Every enrolled course is mapped to `subject:"General"`, `grade:""`, `credits:1`, `courseType:"Regular"`, ignoring any actual grade/credit info on the enrollment or course.
-  Impact: Auto-generated transcripts always show empty grades and a flat 1-credit/General classification, requiring full manual re-entry; the "generate from database" affordance provides only course titles.
-  Status:   documented (not fixed)
+  Impact: Auto-generated transcripts show empty grades and a flat 1-credit/General classification. *(Corrected 2026-06-22: the schema has NO grade/credit source — `Course` has no credits/grade column and `CourseStudent` (enrollment) has only status/dates — so those defaults are correct (the parent enters grades/credits, the proper transcript workflow). The course's `subject` is the curriculum-SPINE subject (e.g. "Language Arts & Humanities"), a DIFFERENT taxonomy than the transcript's registrar-subject dropdown (English/Mathematics/...) — injecting it would render a blank editor Subject cell (no matching `<Select>` option) AND place a non-registrar value on the "official" transcript.)*
+  Status: ✅ ACCEPTED — correct-by-design (2026-06-22, consolidated pass / ch.22-MED). 🔻 over-graded (really LOW): `generateTranscriptData` correctly provides course titles + safe defaults for the parent to classify; the registrar-subject + grade + credit are deliberately parent-entered. Faithfully populating `subject` would need a spine→registrar mapping that doesn't exist + a dropdown overhaul to avoid a blank-cell regression — disproportionate, and the injected spine value is the wrong taxonomy for a transcript. No code change. (see CHANGELOG.md)
 
 Q-22-003  [MED]  Builder cannot edit several persisted `TranscriptData` fields  — `src/components/transcript/TranscriptBuilder.tsx` (whole file)
   Evidence: Grep for `tests|notes|pre9thCourses|signature|signed|template` in the builder returns no matches; only `studentInfo`, `schoolInfo`, `courses`, `activities`, `gradingSettings`, `name` are mutated. Yet preview/pdf render tests, notes, signature, and pre-9th, and the type/scale toggle UI exists.
-  Impact: No UI path to add test scores, notes, signatures, or pre-9th courses, or to switch `template` ('subject-based' is unreachable). Those sections only ever appear if injected via stored JSON; the signature block on the "official" transcript can never be populated through the app.
-  Status:   documented (not fixed)
+  Impact: No UI path to add test scores, notes, or signatures (render-only persisted fields), nor pre-9th courses / a `template` switch. *(Refined 2026-06-22: SPLIT the 6 fields — `tests`/`notes`/`signed`+`signature` are persisted-but-render-only (preview + PDF read them) → a deferred editor FEATURE; but `pre9thCourses` + `template`/'subject-based' are DEAD DATA, referenced only in types.ts and consumed by NO renderer — do NOT build editor UI for them.)*
+  Status: ✅ ACCEPTED — roadmap (2026-06-22, consolidated pass / ch.22-MED). Building the editor UI for tests/notes/signature is a multi-field FEATURE (defer per §9.3) — the signature gap (an "official" transcript can never be signed via the app) is the headline, roadmapped to ch.24 §5. `pre9thCourses` + `template` are dead data (Q-22-004-class) — flagged, not built. No code change. (see CHANGELOG.md)
 
 Q-22-004  [LOW]  `deleteTranscript`, `getDefaultCoursesForGrade`, `validateCourse` are unused  — `src/server/actions/transcript.ts:204`, `src/components/transcript/utils.ts:320`, `utils.ts:338`
   Evidence: Grep shows zero callers outside each definition. `deleteTranscript` even guards with `assertParentProfile` but no UI invokes it; course validation (`validateCourse`) is never run, so blank course names/credits<=0 save freely.
   Impact: Dead code; absence of `validateCourse` wiring means the editor accepts invalid course rows (empty title, 0 credits) directly into the saved document.
-  Status:   documented (not fixed)
+  Status: ✅ REMOVED (2026-06-22, consolidated pass / ch.22-LOW) — deleted all 3 dead symbols: `deleteTranscript` (transcript.ts — + its now-orphaned `assertParentProfile` import; the guard was a mechanical security-sweep artifact, NOT a planned-feature signal per git blame), `getDefaultCoursesForGrade` + `validateCourse` (utils.ts). *(The invalid-row gap is caused by validation being wired NOWHERE, not by `validateCourse` being dead — re-introduce a validator on a future transcript-editor revival; disproportionate to wire now on a 0-row feature.)* Build-safe (tsc 0). (see CHANGELOG.md)
 
 Q-22-005  [LOW]  `data-export.ts` uses the raw (non-tenant) `db` client for org-scoped reads  — `src/app/actions/data-export.ts:3,69-98`
   Evidence: Imports `db` (not `withTenant`) and runs `db.transcript.findMany({ where:{ organizationId: orgId } })` etc. The author added a guard so org queries run only when `orgId` is truthy (comment at `data-export.ts:36-39`), avoiding the Prisma `organizationId: undefined` → match-all leak.
-  Impact: Correct today because each `where` pins `organizationId: orgId` from the authed user's own record, but it bypasses the canonical `withTenant` boundary; any future edit that drops a `where` filter would leak cross-tenant data with no RLS backstop (RLS off, see 04-). Single source of org isolation here is the explicit `orgId` predicate.
-  Status:   documented (not fixed)
+  Impact: Correct today because each `where` pins `organizationId: orgId` from the authed user's own record. *(Corrected 2026-06-22: post-cutover (RLS_ENABLED=true) this file is AUTO-scoped — none of its org models are CONTEXT_FREE, and the per-query extension's `resolveTenant()` self-resolves org from the session even on this `auth()`-only path; so the leak window is bounded to the RLS-off period. Do NOT "fix" by wrapping the parallel `Promise.all` reads in `withTenant` — that serializes 8 independent reads into one tx for zero security gain.)*
+  Status: ✅ ACCEPTED — correct-by-design (2026-06-22, consolidated pass / ch.22-LOW). The explicit `organizationId: orgId` predicate is the live boundary (RLS-off); `resolveTenant()` GUC-scopes it (RLS-on) — already RLS-ready. data-export is a deliberate data-sovereignty carve-out. No code change. (see CHANGELOG.md)
 
 Q-22-006  [LOW]  PDF render duplicates preview layout in a divergent HTML string  — `src/components/transcript/pdfExport.ts:52-868` vs `src/components/transcript/TranscriptPreview.tsx`
   Evidence: Two independent implementations of the same transcript layout (JSX preview vs `generatePrintHTML` string). Drift already visible: empty year cards render GPA/Cr twice in the PDF (`pdfExport.ts:720-731`, both rendered as the literal `0.0` rather than via `formatGPA`/`formatCredits`). The PDF ships `.credits-by-subject`/`.subject-credit-item`/`.summary-divider` CSS (`pdfExport.ts:312-332`) that is never emitted in the HTML body (grep: classes appear only in the `<style>` block) — dead CSS — even though `calculateAcademicSummary` computes `creditsBySubject`; neither preview nor PDF body renders it.
-  Impact: Maintenance hazard and "what you see is not what you print" drift between on-screen preview and exported PDF.
-  Status:   documented (not fixed)
+  Impact: Maintenance hazard and "what you see is not what you print" drift between on-screen preview and exported PDF. *(Sharpened 2026-06-22: the empty-year card is the DEFAULT render — the grid is always 4 fixed cards [9,10,11,12] and generated transcripts start grade-less (Q-22-002) — so the drift was reachable in normal use, not an edge case.)*
+  Status: ✅ RESOLVED — cheap fixes; full merge accepted-by-design (2026-06-22, consolidated pass / ch.22-LOW). Fixed the reachable empty-card bits: the literal `0.0` → `formatGPA(0)`/`formatCredits(0)` (was `0.0` vs the `0.00` everywhere else), removed the empty card's duplicate GPA/Cr body line (now renders once in the header, matching the preview), and deleted the 3 dead CSS blocks (`.summary-divider`/`.credits-by-subject`/`.subject-credit-item`, never emitted). The full preview↔PDF layout MERGE stays **accepted-by-design** (two genuine render targets — JSX vs print-HTML; a big refactor disproportionate for a LOW). CI green. (see CHANGELOG.md)
 
 Q-22-007  [INFO]  ✅ RESOLVED 2026-06-19 — removed socialSecurityNumber from TranscriptData + the preview/PDF render branches (see CHANGELOG.md). SSN can be rendered on the transcript / included in exports  — `src/components/transcript/types.ts:113`, `TranscriptPreview.tsx:53-55`, `pdfExport.ts:645-650`
   Evidence: `StudentInfo.socialSecurityNumber` is rendered in preview and PDF when present; no builder field sets it, but stored JSON containing an SSN would be printed and also dumped by `exportUserData` (transcript JSON included verbatim).
@@ -104,4 +104,4 @@ Q-22-007  [INFO]  ✅ RESOLVED 2026-06-19 — removed socialSecurityNumber from 
 Q-22-008  [LOW]  `Transcript.isOfficial` column is never written or read by app code  — `prisma/schema.prisma:131`, `src/server/actions/transcript.ts:155-171`
   Evidence: The `Transcript` model has `isOfficial Boolean @default(false)` (`schema.prisma:131`), but `saveTranscript`'s `create`/`update` payloads only set `studentId`/`organizationId`/`name`/`data` and never touch `isOfficial`; grep for `isOfficial` across `src/` returns no matches. Meanwhile the rendered header is hardcoded "OFFICIAL HIGH SCHOOL TRANSCRIPT" (`TranscriptPreview.tsx:41`, `pdfExport.ts:615`).
   Impact: Schema↔code drift — the "official" distinction exists in the DB but is unreachable; every transcript prints as "OFFICIAL" regardless. No tenancy risk, just dead schema surface.
-  Status:   documented (not fixed)
+  Status: ✅ ACCEPTED — correct-by-design (2026-06-22, consolidated pass / ch.22-LOW). An aspirational orphaned schema column (same profile as Q-18-005's `letterGrade`): removing it is a deferred migration (off the table this pass) and wiring an official/draft toggle is a multi-target FEATURE (builder UI + persistence + conditional render in BOTH the preview + the ~800-line PDF HTML — ties into Q-22-006). Accepted as schema-drift + §5 roadmap; no code/schema change. (see CHANGELOG.md)

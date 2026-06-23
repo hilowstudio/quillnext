@@ -15,6 +15,7 @@
  */
 
 import { stripGutenbergBoilerplate } from "./text-processing";
+import { normalize, authorLastName, BROWSER_UA, scoreTitleAuthor } from "./matching";
 
 /** Shape of the subset of the Gutendex response we rely on. */
 interface GutendexAuthor {
@@ -33,34 +34,9 @@ interface GutendexResponse {
 
 const GUTENDEX_URL = "https://gutendex.com/books";
 
-// A real desktop UA: gutenberg.org / mirrors sometimes 403 a default fetch/node UA.
-const BROWSER_UA =
-  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
-
-/** Normalize a string for fuzzy comparison: lowercase, strip punctuation, collapse whitespace. */
-function normalize(s: string): string {
-  return s
-    .toLowerCase()
-    .replace(/[^a-z0-9\s]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-/**
- * Extract a comparable "last name" token set from an author string. Gutendex returns "Last, First"
- * (e.g. "Melville, Herman"), while metadata authors are usually "Herman Melville". We compare the
- * surname (the part before the first comma, or the last whitespace token) which is the most stable
- * across orderings.
- */
-function authorLastName(name: string): string {
-  const n = name.trim();
-  if (!n) return "";
-  if (n.includes(",")) {
-    return normalize(n.split(",")[0]);
-  }
-  const parts = normalize(n).split(" ").filter(Boolean);
-  return parts.length ? parts[parts.length - 1] : "";
-}
+// `normalize`, `authorLastName`, `BROWSER_UA`, and the title/author scoring come from the shared
+// ./matching module (the same helpers the other adapters use) so a fix to the matcher reaches every
+// source. The Gutendex-specific edition ranking (UTF-8 text + download_count) lives in findOnGutenberg.
 
 /** Pull the best plain-text URL out of a Gutendex `formats` map. */
 function pickPlainTextUrl(formats: unknown): string | null {
@@ -91,51 +67,23 @@ function hasUtf8Text(formats: unknown): boolean {
 }
 
 /**
- * Decide whether a Gutendex result is a genuine match for the requested book.
- *
- * Title: require normalized-title CONTAINMENT in either direction (the catalog title often carries
- * a subtitle, e.g. "Moby Dick; Or, The Whale"), with a minimum length so a 1-2 char overlap can't
- * pass. Author (when we have one): require the surname to appear among the result's authors.
- *
- * Returns a numeric score (higher = better) or null when it's not a real match.
+ * Decide whether a Gutendex result is a genuine match for the requested book, delegating to the
+ * shared `scoreTitleAuthor` matcher: normalized-title CONTAINMENT in either direction (the catalog
+ * title often carries a subtitle, e.g. "Moby Dick; Or, The Whale"), with a 3-char minimum so a 1-2
+ * char overlap can't pass, and — when an author was supplied — the surname must appear among the
+ * result's authors. Pulls the title + author-name strings out of the Gutendex shape first. Returns a
+ * numeric score (higher = better) or null when it's not a real match.
  */
 function scoreMatch(
   book: GutendexBook,
   wantTitle: string,
   wantAuthorLast: string | null,
 ): number | null {
-  const titleRaw = typeof book.title === "string" ? book.title : "";
-  const normResultTitle = normalize(titleRaw);
-  if (!normResultTitle) return null;
-
-  const titleContained =
-    (normResultTitle.includes(wantTitle) || wantTitle.includes(normResultTitle)) &&
-    Math.min(normResultTitle.length, wantTitle.length) >= 3;
-  if (!titleContained) return null;
-
-  // Author check (only when the caller supplied an author).
-  let authorScore = 0;
-  if (wantAuthorLast) {
-    const authors = Array.isArray(book.authors) ? (book.authors as GutendexAuthor[]) : [];
-    const lastNames = authors
-      .map((a) => (a && typeof a.name === "string" ? authorLastName(a.name) : ""))
-      .filter(Boolean);
-    const authorMatches = lastNames.some(
-      (ln) => ln === wantAuthorLast || ln.includes(wantAuthorLast) || wantAuthorLast.includes(ln),
-    );
-    if (!authorMatches) {
-      // Author was requested but none matched → reject to avoid a wrong-author same-title work.
-      return null;
-    }
-    authorScore = 1;
-  }
-
-  // Score: exact normalized-title equality beats a subtitle-containment; author match adds a point.
-  const exactTitle = normResultTitle === wantTitle ? 2 : 0;
-  // Shorter catalog titles (closer to the bare title) rank above sprawling collection titles.
-  const lengthPenalty = -Math.abs(normResultTitle.length - wantTitle.length) / 100;
-
-  return exactTitle + authorScore + lengthPenalty;
+  const candidateTitle = typeof book.title === "string" ? book.title : "";
+  const candidateAuthors = (Array.isArray(book.authors) ? (book.authors as GutendexAuthor[]) : [])
+    .map((a) => (a && typeof a.name === "string" ? a.name : ""))
+    .filter(Boolean);
+  return scoreTitleAuthor(candidateTitle, candidateAuthors, wantTitle, wantAuthorLast);
 }
 
 /**

@@ -83,7 +83,7 @@ Q-11-004  [LOW]  ✅ RESOLVED 2026-06-20 (Session 21) — removed unused `Scales
 
 Q-11-005  [LOW]  ✅ REMOVED 2026-06-20 (Session 21) — `git rm src/lib/types/tools.ts` (owner-approved). `src/lib/types/tools.ts` is entirely dead code — `src/lib/types/tools.ts:12-79`
   Evidence: Grep for `GeneratorConfigSchema|AvailableToolsSchema|OmniGeneratorToolSchema|GeneratorInputSchema|AvailableTools|OmniGeneratorTool` finds matches only inside the file itself; no import statements anywhere. The chat route passes no `tools` to `streamText` (route.ts:88-92).
-  Impact: ~80 lines of unused Zod schemas/types presented as "tool definitions" that no feature consumes — drift risk and reader confusion (note: `getAvailableTools` in `server/queries/curriculum.ts:9` is a *different*, unrelated symbol).
+  Impact: ~80 lines of unused Zod schemas/types presented as "tool definitions" that no feature consumes — drift risk and reader confusion (note: `getAvailableTools` in `server/queries/curriculum.ts:9` was a *different*, unrelated symbol — that whole module was REMOVED 2026-06-22, Q-19-003).
   Status: ✅ REMOVED 2026-06-20 — file deleted; zero importers confirmed (static/dynamic/barrel/config/test), no npm dep orphaned (`zod` used repo-wide), no env vars. The KEEP/"wire-it" case collapses (the live generator pipeline uses its own schemas; wiring this would be net-new feature code; git preserves it if ever needed). (see CHANGELOG.md)
 
 Q-11-006  [INFO]  ✅ RESOLVED 2026-06-19 — chat route uses toUIMessageStreamResponse; ThinklingChat uses sendMessage({text}); @ts-ignore/as-any removed (see CHANGELOG.md). Multiple `@ts-ignore`/`as any` around AI-SDK usage signal version-fragility — `src/app/api/chat/route.ts:96`, `src/components/thinkling/ThinklingChat.tsx:40,85,89`

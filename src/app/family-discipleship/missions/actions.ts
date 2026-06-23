@@ -3,8 +3,17 @@
 
 import fs from 'fs/promises';
 import path from 'path';
+import { auth } from '@/auth';
 import { fetchUnreachedOfTheDay } from '@/lib/joshua-project';
 import { db } from '@/server/db';
+
+// Q-20-001: these read GLOBAL reference content (no org filter needed), but require a session so the
+// actions are self-gating (defense-in-depth on top of the proxy, per src/proxy.ts's "backstop NOT a
+// replacement"), closing the unauthenticated-invocation / JP-quota surface.
+async function requireSession() {
+    const session = await auth();
+    if (!session?.user) throw new Error("Unauthorized");
+}
 
 // --- Types ---
 
@@ -31,6 +40,7 @@ export interface CountyData {
 // --- Actions ---
 
 export async function getUnreachedOfTheDayAction() {
+    await requireSession();
     return await fetchUnreachedOfTheDay();
 }
 
@@ -40,6 +50,7 @@ export async function getUnreachedOfTheDayAction() {
  */
 export async function getOperationWorldStats(): Promise<OperationWorldStats | null> {
     try {
+        await requireSession();
         const filePath = path.join(process.cwd(), 'src', 'server', 'data', 'mission-stats.json');
         const fileContent = await fs.readFile(filePath, 'utf-8');
         const data = JSON.parse(fileContent);
@@ -57,6 +68,7 @@ export async function getOperationWorldStats(): Promise<OperationWorldStats | nu
  */
 export async function getCountiesForState(stateName: string): Promise<CountyData[]> {
     try {
+        await requireSession();
         const rows = await db.county.findMany({
             where: { state: stateName },
             orderBy: { county: 'asc' },
@@ -75,6 +87,7 @@ export async function getCountiesForState(stateName: string): Promise<CountyData
  */
 export async function getAllStates(): Promise<string[]> {
     try {
+        await requireSession();
         const rows = await db.county.findMany({
             distinct: ['state'],
             select: { state: true },

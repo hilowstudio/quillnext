@@ -31,7 +31,7 @@
 | `src/components/dashboard/MyLearningCard.tsx` | Parent-as-learner self-enroll card (ParentDashboard). |
 | `src/components/dashboard/ParentDashboard.tsx` | Parent home dashboard view. |
 | `src/components/dashboard/StudentDashboard.tsx` | Student home dashboard view (avatar, courses, assignments). |
-| `src/app/student/dashboard/page.tsx` | ORPHANED schedule-viewer route (see Q-16-001). |
+| `src/app/student/dashboard/page.tsx` | UNFINISHED single-student daily-schedule view — fully built but not yet linked from any live nav (see Q-16-001). |
 | `src/server/queries/students.ts` | Cached student profile queries + objective/book selects. |
 | `src/server/queries/dashboard.ts` | `getStudentDashboardData`, `getParentDashboardData`. |
 | `src/server/queries/learner-filters.ts` | `excludeParentLearners` shared where-fragment — drops parent-as-learner rows (My-Learning self-enrollments) from student rosters/counts (Q-05-006). |
@@ -45,8 +45,8 @@ This area is the learner (a.k.a. "student") lifecycle and the two home dashboard
 
 ## 3. Architecture & key files
 - **List → detail → assessment** is the primary spine:
-  - `/students` (`page.tsx`) fetches via an inline `cacheQuery(getOrganizationStudents)` (`page.tsx:11-61`) and renders `StudentCard` per learner.
-  - `/students/[id]` (`page.tsx`) calls the central `getStudentProfileData(id, organizationId)` (`students.ts:324`) and lays out cards under `<Suspense>`. Most data is already resolved server-side and passed as props, so the Suspense boundaries here gate only the synchronous render, not real async work (the child components are not themselves async).
+  - `/students` (`page.tsx`) fetches via an inline `cacheQuery(getOrganizationStudents)` (`page.tsx:13-27`) — which selects through the shared `studentCardSelect` (Q-16-003) — and renders `StudentCard` per learner.
+  - `/students/[id]` (`page.tsx`) calls the central `getStudentProfileData(id, organizationId)` (`students.ts:373`) and lays out cards under `<Suspense>`. Most data is already resolved server-side and passed as props, so the Suspense boundaries here gate only the synchronous render, not real async work (the child components are not themselves async).
   - `/students/[id]/assessment` renders `DynamicAssessmentWizard`, a thin `next/dynamic` ssr:false wrapper over `AssessmentWizard`.
 - **Create path**: `/students/new` → `DynamicCreateStudentForm` → `CreateStudentForm` (`useZodForm(studentSchema)`) which embeds `SupportProfileWizard`. Submit POSTs JSON to `/api/students` (route.ts).
 - **Dynamic wrappers are NOT duplicate implementations.** `DynamicCreateStudentForm`/`DynamicAssessmentWizard` (`*.tsx:6-7`) only lazy-import the real components; the real `CreateStudentForm`/`AssessmentWizard` are imported *only* by those wrappers. There is exactly one implementation of each; no DEAD duplicate exists (see Q-16-006 — the chapter brief's "two variants" are wrapper+impl, not rival impls).
@@ -57,24 +57,23 @@ This area is the learner (a.k.a. "student") lifecycle and the two home dashboard
 
 **Create student** (`CreateStudentForm.tsx:49` → `api/students/route.ts:11`):
 1. Client builds payload (birthdate → ISO date string) and `fetch("POST /api/students")` (`CreateStudentForm.tsx:53-60`).
-2. Route auths (`route.ts:12`), resolves `getCurrentUserOrg()` (`:18`). **Self-heal:** if no org, creates an `Organization` (type `PARENT_INSTRUCTOR`) + back-links user (`:21-37`).
-3. `studentSchema.parse({...body, birthdate:new Date()})` (`:42`).
-4. `db.learner.create` with name/grade/sex/support fields (`:48-62`); then `db.learnerProfile.create` empty (`:65-69`).
-5. Creates a `STUDENT` `Profile` (id `profile-learner-<id>`, `ids.ts:7`) and back-links `learner.profileId` inside one `withTenant` tx (`:74-89`).
-6. `revalidatePath("/students")` (`:94`), returns `{ student }`; client routes to `/students/{id}` (`CreateStudentForm.tsx:69`).
+2. Route auths (`route.ts:12`), resolves `getCurrentUserOrg()` (`:18`). **Self-heal:** if no org, creates an `Organization` (type `PARENT_INSTRUCTOR`) + back-links user (`:25-41`) — these bootstrap writes stay on the raw `db` client by necessity (the org INSERT must run under the null org context the relaxed `organizations` RLS policy permits; `User` is CONTEXT_FREE).
+3. `studentSchema.parse({...body, birthdate:new Date()})` (`:46`).
+4. All org-scoped learner writes run in **one** `withTenant({organizationId,userId:null})` tx (`:56-92`, Q-16-002 ✅ Session 32 — RLS-ready + atomic): `learner.create` with name/grade/sex/support fields (`:58`), empty `learnerProfile.create` (`:74`), the `STUDENT` `Profile` create (id `profile-learner-<id>`, `ids.ts:7`) (`:81`) + `learner.profileId` back-link (`:89`). The created learner is returned from the closure as `student` (`:91`).
+5. `revalidatePath("/students")` (`:100`), returns `{ student }` (`:102`); client routes to `/students/{id}` (`CreateStudentForm.tsx:69`).
 
-**Assessment step** (`AssessmentWizard.tsx:205` → `api/students/[id]/assessment/route.ts:13`):
+**Assessment step** (`AssessmentWizard.tsx:205` → `api/students/[id]/assessment/route.ts:26`):
 1. Per step ("personality"|"learning"|"interests"), client POSTs `{step, answers}` (`AssessmentWizard.tsx:216`).
-2. Route auths (`route.ts:18`), loads learner by id (`:30`), then enforces `student.organizationId === org` (`:39-42`).
-3. Switches on `step` → calls `generateStudentProfile`/`generateLearningStyleProfile`/`generateInterestProfile` (`server/ai/personality.ts:94/123/148`) with answers + studentName (`:49-66`).
-4. `db.learnerProfile.upsert({ where:{studentId}, ... })` stamping the per-step JSON + `completedAt` (`:70-77`).
+2. Route auths (`route.ts:30`), Zod-validates the body against the per-step `assessmentSchema` discriminated union (`:20-24`; 400 on failure `:39-42` — Q-16-007), loads learner by id (`:48`), then enforces `student.organizationId === org` (`:56-59`).
+3. Switches on `step` → calls `generateStudentProfile`/`generateLearningStyleProfile`/`generateInterestProfile` (`server/ai/personality.ts:94/123/148`) with answers + studentName (`:71-87`).
+4. `db.learnerProfile.upsert({ where:{studentId}, ... })` stamping the per-step JSON + `completedAt` (`:91-98`).
 5. Client advances step + toast; on "interests" → success card linking back to `/students/{id}` (`AssessmentWizard.tsx:232-236`).
 
-**Student profile page** (`[id]/page.tsx:52`): `getStudentProfileData` → `getStudentById` (tenant tx, then `organizationId` re-check `students.ts:191`) → parallel `getStudentMasterContext` / `getStudentObjectives` / `getRelevantBooks` (`students.ts:340-344`) → `serializeMasterContext` (`[id]/page.tsx:60`) → cards.
+**Student profile page** (`[id]/page.tsx:52`): `getStudentProfileData` → `getStudentById` (tenant tx, then `organizationId` re-check `students.ts:239`) → parallel `getStudentMasterContext` / `getStudentObjectives` / `getRelevantBooks` (`students.ts:390-392`) → `serializeMasterContext` (`[id]/page.tsx:60`) → cards.
 
 **Student dashboard** (`app/page.tsx` STUDENT branch → `StudentDashboard.tsx`): server passes `student`; client `useEffect` calls `getStudentAssignments(student.id)` (`StudentDashboard.tsx:30`) which (after `assertStudentInOrg`, `student.ts:17`) loads `resourceAssignment` + `courseStudent` (`student.ts:19-85`). Avatar edits go through `saveStudentAvatarConfig` (`student.ts:90`).
 
-**Orphaned schedule route** (`app/student/dashboard/page.tsx`): auth+org → lists learners (tenant tx, `:27-30`) → `getStudentDailySchedule(currentStudentId, date)` (`scheduling.ts:226`) → `DailyScheduleList`, which toggles via `toggleItemStatus` (`scheduling.ts:273`).
+**Unfinished daily-schedule view** (`app/student/dashboard/page.tsx` — built but not yet linked, Q-16-001): auth+org → lists learners (tenant tx, `:28-31`) → `getStudentDailySchedule(currentStudentId, date)` (`scheduling.ts:226`) → `DailyScheduleList`, which toggles via `toggleItemStatus` (`scheduling.ts:273`).
 
 **Delete** (`StudentCard.tsx:38` → `student-actions.ts:10`): `deleteStudentSchema.parse`, auth, `assertParentProfile()`, org-ownership check (`:32-34`), `db.learner.delete` (cascade), `revalidatePath("/students")`.
 
@@ -103,21 +102,21 @@ This area is the learner (a.k.a. "student") lifecycle and the two home dashboard
 | `CreateStudentForm` | DONE | wired via DynamicCreateStudentForm wrapper (`new/page.tsx:27`). |
 | `DynamicAssessmentWizard` | DONE | `DynamicAssessmentWizard.tsx:6`; imported by assessment page. |
 | `DynamicCreateStudentForm` | DONE | `DynamicCreateStudentForm.tsx:6`; imported by new page. |
-| `StudentCard` | DONE | rendered `students/page.tsx:108`. |
+| `StudentCard` | DONE | rendered `students/page.tsx:74`; prop typed `StudentCardData` (Q-16-003). |
 | `SupportProfileWizard` | DONE | embedded `CreateStudentForm.tsx:190`. |
 | `MyLearningCard` | DONE | rendered `ParentDashboard.tsx:99`. |
 | `ParentDashboard` | DONE | rendered `app/page.tsx:45`. |
 | `StudentDashboard` | DONE (KID branch STUB) | rendered `app/page.tsx:30,39`; KID branch falls through `StudentDashboard.tsx:39-41`. |
-| `DailyScheduleList` | DONE (only on orphaned route) | rendered `student/dashboard/page.tsx:84`. |
-| `/student/dashboard` page | DEAD (orphaned) | `student/dashboard/page.tsx`; only inbound link is self-referential `:57` (see Q-16-001). |
+| `DailyScheduleList` | DONE (only on the unfinished daily-schedule route) | rendered `student/dashboard/page.tsx:85`. |
+| `/student/dashboard` page | UNFINISHED (built, not yet linked) | `student/dashboard/page.tsx`; fully functional but the only inbound link is self-referential `:58` (see Q-16-001). |
 | `getStudentDashboardData` | DONE | `dashboard.ts:5`; called `app/page.tsx:29,38`. |
 | `getParentDashboardData` | DONE | `dashboard.ts:35`; called `app/page.tsx:42`. |
-| `getStudentById` | DONE | `students.ts:179`; used by getStudentProfileData `:326`. |
-| `getStudentProfileData` | DONE | `students.ts:324`; called `[id]/page.tsx:52`. |
-| `getStudentObjectives` | DONE | `students.ts:257`; called `:342`. Uses raw `db` with NO org predicate (Q-16-008). |
-| `getRelevantBooks` | DONE | `students.ts:290`; called `:343`. |
-| `getStudentMasterContext` | DONE | `students.ts:244`; called `:341`. |
-| `listStudentsNeedingAssessment` | DONE | `students.ts:211`; called `select-profile/page.tsx:33`. |
+| `getStudentById` | DONE | `students.ts:227`; used by getStudentProfileData `:375`. |
+| `getStudentProfileData` | DONE | `students.ts:373`; called `[id]/page.tsx:52`. |
+| `getStudentObjectives` | DONE | `students.ts:306`; called `:391`. Uses raw `db` with NO org predicate (Q-16-008). |
+| `getRelevantBooks` | DONE | `students.ts:339`; called `:392`. |
+| `getStudentMasterContext` | DONE | `students.ts:293`; called `:390`. |
+| `listStudentsNeedingAssessment` | DONE | `students.ts:259`; called `select-profile/page.tsx:33`. |
 | `studentSchema` | DONE | `schemas/students.ts:7`; used by form + API. |
 
 ## 6. Integration points
@@ -127,42 +126,42 @@ This area is the learner (a.k.a. "student") lifecycle and the two home dashboard
 - **External APIs:** AI generators in `server/ai/personality.ts` (Gemini/OpenAI via Vercel AI SDK) invoked from the assessment route.
 - **Inngest jobs:** none in these files.
 - **Env vars:** none read directly here.
-- **Tenancy:** most reads use `withTenant(..., { organizationId, userId: null })` with an explicit `organizationId` predicate (`page.tsx:13`, `students.ts:180/218/299`, `dashboard.ts:9/41`); the raw-`db` paths (`assessment/route.ts:30`, `student.ts:9`, `student-actions.ts:24`, `assessment-actions.ts:20/32`) defend with explicit post-fetch org-ownership checks instead. Exceptions flagged in Findings: the create-student writes bypass the tenant tx (Q-16-002) and `getStudentObjectives` queries the raw `db` with NO org predicate at all (Q-16-008). RLS is OFF (`server/db.ts:9`) so these app-layer predicates are the only boundary. See 04-security-auth-tenancy.md.
+- **Tenancy:** most reads use `withTenant(..., { organizationId, userId: null })` with an explicit `organizationId` predicate (`page.tsx:15`, `students.ts:228/267/348`, `dashboard.ts:9/41`); the raw-`db` paths (`assessment/route.ts:48`, `student.ts:9`, `student-actions.ts:24`, `assessment-actions.ts:20/32`) defend with explicit post-fetch org-ownership checks instead. The create-student org-scoped writes (`learner`/`learnerProfile`/`profile` create + the back-link) now run in one `withTenant` tx (`route.ts:56-92`, Q-16-002 ✅ resolved Session 32); only the self-heal org-create/user-update stay raw by necessity (bootstrap under the relaxed null-context org INSERT policy / CONTEXT_FREE `User`). Exception still flagged in Findings: `getStudentObjectives` queries the raw `db` with NO org predicate at all (Q-16-008). RLS is OFF (`server/db.ts:9`) so these app-layer predicates are the only boundary. See 04-security-auth-tenancy.md.
 - **Student-roster filter (Q-05-006, owned by ch.05; resolved 2026-06-19):** org-wide learner list/count queries (`students.ts:listStudentsNeedingAssessment`, `dashboard.ts:getParentDashboardData`, and 10 more across chapters) spread the shared `excludeParentLearners` fragment (`learner-filters.ts`) to drop parent-as-learner rows (My-Learning self-enrollments). `data-export.ts` (data-sovereignty) and `getMyLearning` (the parent's own view) are deliberately NOT filtered.
 
 ## 7. Findings
 
-Q-16-001  [LOW]  `/student/dashboard` is an orphaned (effectively dead) route  — `src/app/student/dashboard/page.tsx`
-  Evidence: repo-wide grep for `student/dashboard` returns only the self-referential student-selector link at `page.tsx:57`; no nav, home page, or other component links to it. `DailyScheduleList` is used only here.
-  Impact: Dead/unreachable surface (only reachable by manually typing the URL); maintenance/confusion risk — the live student home is `StudentDashboard` via `/`, a different component.
-  Status: documented (not fixed)
+Q-16-001  [LOW]  `/student/dashboard` is an UNFINISHED (built-but-unlinked) daily-schedule view  — `src/app/student/dashboard/page.tsx`
+  Evidence: repo-wide grep for `student/dashboard` returns only the self-referential student-selector link at `page.tsx:58`; no nav, home page, or other component links to it. It is a complete, working single-student daily-checklist page (auth+org gated; reads `getStudentDailySchedule`, toggles via `DailyScheduleList`→`toggleItemStatus`). `DailyScheduleList` is used only here.
+  Impact: Currently only reachable by typing the URL. NOT superseded — it is a different surface from the live `StudentDashboard` (courses/assignments via `/`) and the parent-facing WEEKLY `/planner`; there is no live per-student DAILY checklist elsewhere.
+  Status: ⏳ OPEN — re-verified 2026-06-22 (Session 31); re-documented from "orphaned/dead" to **unfinished feature** (owner: keep the built daily view; wire an inbound link later — roadmapped in 24 §5). Stays tracked-OPEN at LOW (deferred ≠ closed). Because the route is kept, its cascade-only dependencies (`getStudentDailySchedule`/`toggleItemStatus`, ch.21; INFO Q-21-010) remain live — no ch.21 change. (see CHANGELOG.md round 34)
 
 Q-16-002  [MED]  Create-student API path bypasses tenant transaction for the main writes  — `src/app/api/students/route.ts:23,33,48,65`
   Evidence: org self-heal (`db.organization.create` `:23`, `db.user.update` `:33`), `db.learner.create` (`:48`), and `db.learnerProfile.create` (`:65`) all use the raw `db` client. Only the trailing profile-link step uses `withTenant` (`:75-89`). The learner `create` sets `organization.connect`, so the row is correctly scoped, but the writes do not run under the tenant GUC tx the rest of the codebase relies on.
   Impact: Inconsistent with the RLS-ready pattern; if RLS is ever enabled (`server/db.ts:9`), these raw-`db` writes would not be tenant-stamped. Functionally correct today only because RLS is inert and org is connected explicitly.
-  Status: documented (not fixed)
+  Status: ✅ RESOLVED 2026-06-22 (Session 32). No live vuln (RLS off; org connected explicitly) — pure RLS-readiness, same family as the Session-20 `withTenant` wraps; true grade LOW, carried MED on tenancy-cluster convention → fix-and-close (re-grade moot). The `learner.create` + `learnerProfile.create` were folded into the existing trailing `withTenant({organizationId,userId:null})` block, so all four org-scoped learner writes (learner → learnerProfile → STUDENT profile → profileId back-link) now run in ONE tenant-stamped, atomic tx (`route.ts:56-92`); the created learner is returned from the closure so the response/`student.id` redirect is unchanged. The self-heal `db.organization.create`/`db.user.update` (`:25-41`) deliberately stay on the raw client: the org INSERT must run under null org context (the relaxed `organizations` RLS policy `id = app.current_org() OR app.current_org() IS NULL`; you cannot stamp a GUC for an org that doesn't exist yet) and `User` is CONTEXT_FREE. A 1-skeptic adversarial pass found zero regressions (the fold strictly eliminates the prior orphaned-row window). Advances Workstream B (the per-query org-filter audit gating the Q-001 RLS cutover). (see CHANGELOG.md round 35)
 
 Q-16-003  [MED]  `/students` list cards passed as `student as any`; payload type discarded  — `src/app/students/page.tsx:108`; `src/components/students/StudentCard.tsx:26`
   Evidence: the inline `getOrganizationStudents` select differs from `studentSelect` in `server/queries/students.ts`, and `StudentCard` declares `student: any` (`StudentCard.tsx:26`) with a `// Using any` comment. The list page also duplicates a near-identical select instead of reusing `studentSelect`.
   Impact: No compile-time guarantee the card's accessed fields (`learnerProfile`, `courseEnrollments`, `avatarConfig`) match the query; silent runtime breakage if either side drifts. Duplicated select = drift risk with the canonical query module.
-  Status: documented (not fixed)
+  Status: ✅ RESOLVED 2026-06-22 (Session 32). Type-DX only (no runtime/security impact; single consumer) — true grade LOW, carried MED → fix-and-close. Added a dedicated, leaner `studentCardSelect` (`satisfies Prisma.LearnerSelect`) + `export type StudentCardData = Prisma.LearnerGetPayload<…>` to the canonical `server/queries/students.ts` (NOT a reuse of `studentSelect`, which is a superset that would over-fetch activityProgress/courseProgress/personalizedResources/strand for a grid). `page.tsx` now selects through `studentCardSelect` (`:17`) and renders `StudentCard` without the cast (`:74`); `StudentCard` types its prop `student: StudentCardData` via `import type` (the house pattern — 5 `_components` already do this), dropping `student: any`. `cacheQuery` preserves the generic so the `as any` drops cleanly. −2 lint warnings (653→651). A 1-skeptic adversarial pass verified every field access stays safe under the precise type (`avatarConfig`→`getStudentAvatarUrl(config?: any)`; nullables only optional-chained/coalesced; `firstName[0]` non-null). (see CHANGELOG.md round 35)
 
 Q-16-004  [LOW]  StudentDashboard reads `assignment.notes` AND `assignment.resourceId`, neither of which the action selects  — `src/components/dashboard/StudentDashboard.tsx:157,166`; `src/app/actions/student.ts:19-60`
   Evidence: the card conditionally renders `assignment.notes` (`StudentDashboard.tsx:157-161`) and builds the "Open Resource" link as `/living-library/resource/${assignment.resourceId}` (`StudentDashboard.tsx:166`), but `getStudentAssignments` selects only id/studentId/createdAt/status/dueDate/completedAt/courseId/activityId + nested `resource`/`course`/`activity` (`student.ts:19-56`) — neither `notes` nor a top-level `resourceId` is selected (the resource id lives at `assignment.resource.id`).
   Impact: The notes block is permanently dead UI (always undefined); the "Open Resource" link resolves to `/living-library/resource/undefined` whenever there are assignments. Schema↔code drift / broken link, verified-OFF only because most users have zero direct assignments.
-  Status: documented (not fixed)
+  Status: ✅ RESOLVED 2026-06-22 (Session 31). Split into two claims: (1) the broken "Open Resource" link fixed by reading the already-selected nested `assignment.resource.id` (StudentDashboard.tsx:161); (2) the `notes` block was deleted — `ResourceAssignment.notes` has NO producer (the live `assignResourceToStudent` never writes it, `assignments.ts:43-49`), so the never-rendering block was removed rather than wiring a `select` for an unpopulated column. (see CHANGELOG.md round 34)
 
 Q-16-005  [LOW]  ParentDashboard "Daily Liturgy" is hardcoded placeholder content  — `src/components/dashboard/ParentDashboard.tsx:52-61`
   Evidence: the Daily Liturgy card renders a fixed "Psalm 23: The Shepherd" string with no data source; not driven by any query or prop.
   Impact: Looks live but is static; misleads users/maintainers into thinking discipleship content is wired on the dashboard.
-  Status: documented (not fixed)
+  Status: ✅ RESOLVED 2026-06-22 (Session 31). Wired the card to the seeded `Devotional` table (read-only DB count: 732 rows, Spurgeon "Morning & Evening", `time` am/pm): new `getTodayDevotional()` (`dashboard.ts`, bare-`db` global read like `family-discipleship/devotionals/page.tsx`) → `todayDevotional` prop (`app/page.tsx`) → ParentDashboard renders today's morning reference + a prose excerpt (`ParentDashboard.tsx:52-60`), falling back to the old static text only if no row matches. Honest dynamic content using existing seeded data. (see CHANGELOG.md round 34)
 
 Q-16-007  [LOW]  Assessment generation has no input validation / loose `any` payloads  — `src/app/api/students/[id]/assessment/route.ts:25,46`
   Evidence: `const { step, answers } = body` with no Zod schema; `answers` (`:25`) is passed straight to AI generators, and `updateData` is typed `any` (`:46`). Only `step` is validated by the if/else (`:49-66`).
   Impact: Unvalidated/untyped client input reaches AI calls and the DB JSON columns; malformed `answers` produce garbage profiles rather than a 400. Consistency gap vs the create path which uses `studentSchema`.
-  Status: documented (not fixed)
+  Status: ✅ RESOLVED 2026-06-22 (Session 31). Added a per-step `assessmentSchema` discriminated union (`route.ts:20-24`) parsed via `safeParse` → 400 BEFORE the paid AI call; typed `updateData` with `Prisma.InputJsonValue` and replaced the 3 `profile as any` casts (dropped 4 explicit `any`s). Validation is permissive on VALUES (interests sends a nested object — `z.record(z.string(), z.unknown())` accepts it; overrode the adversary's "discriminated union needed because a single record rejects interests" — false) but precise on SHAPE per step (personality/learning `Record<string,string>` matching the generators' contracts, interests `Record<string,unknown>`), so no unchecked answer casts. Authenticated self-only route → no privilege boundary; value is fail-fast + repo Zod-at-boundary consistency. (see CHANGELOG.md round 34)
 
-Q-16-008  [INFO]  `getStudentObjectives` queries the raw `db` client with no organizationId predicate  — `src/server/queries/students.ts:262-279`
-  Evidence: unlike its sibling selects, `getStudentObjectives` calls `db.objective.findMany` (raw client, not `withTenant`) with a `where` that filters only by `subtopic.topic.strand.courses.some.id IN courseIds` (`students.ts:263-275`) — no `organizationId` and no tenant tx. Scoping is indirect: `courseIds` originate from the student's tenant-scoped enrollments (`students.ts:333`).
+Q-16-008  [INFO]  `getStudentObjectives` queries the raw `db` client with no organizationId predicate  — `src/server/queries/students.ts:311-328`
+  Evidence: unlike its sibling selects, `getStudentObjectives` calls `db.objective.findMany` (raw client, not `withTenant`) with a `where` that filters only by `subtopic.topic.strand.courses.some.id IN courseIds` (`students.ts:313-324`) — no `organizationId` and no tenant tx. Scoping is indirect: `courseIds` originate from the student's tenant-scoped enrollments (`students.ts:382`). (Line cites refreshed Session 32 after the `studentCardSelect` insert shifted students.ts +47.)
   Impact: Low — objectives live on the shared/global curriculum spine (not org-owned), so there is no cross-tenant leak today; but if RLS is enabled this raw-`db` read runs without tenant GUCs and the query is the lone reader here with neither `withTenant` nor an explicit org predicate. Documented for completeness against the §6 tenancy claim.
   Status: documented (not fixed)

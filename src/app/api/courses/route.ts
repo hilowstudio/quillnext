@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { getCurrentUserOrg } from "@/lib/auth-helpers";
+import { assertParentProfile } from "@/server/profiles/guards";
+import { createCourseApiSchema } from "@/lib/schemas/courses";
 export const dynamic = "force-dynamic";
 
 import { db } from "@/server/db";
@@ -11,16 +13,28 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  // Creating a course (and minting global Subject/Strand taxonomy via `new:`) is a parent-only
+  // action (defense-in-depth: the proxy does NOT gate /api routes, so a STUDENT-profile session
+  // on the shared family login could POST here).
+  try {
+    await assertParentProfile();
+  } catch {
+    return NextResponse.json({ error: "This action requires a parent profile." }, { status: 403 });
+  }
+
   const { organizationId, userId } = await getCurrentUserOrg();
   if (!organizationId) {
     return NextResponse.json({ error: "User has no organization" }, { status: 400 });
   }
 
-  const data = await request.json();
-
-  if (!data.subjectId) {
-    return NextResponse.json({ error: "Subject ID required" }, { status: 400 });
+  const parsed = createCourseApiSchema.safeParse(await request.json());
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: "Invalid course data", details: parsed.error.flatten() },
+      { status: 400 },
+    );
   }
+  const data = parsed.data;
 
   // Handle Subject
   let subjectId = data.subjectId;
