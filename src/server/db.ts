@@ -12,7 +12,13 @@ const RLS_ENABLED = ["true", "1", "yes", "on"].includes(
 
 const createBaseClient = () => {
   const adapter = new PrismaPg({
-    connectionString: process.env.DATABASE_URL,
+    // Accept BOTH our manual name (DATABASE_URL) and the POOLED names the Vercel↔Supabase
+    // integration injects (POSTGRES_URL / POSTGRES_PRISMA_URL) — same database, different variable
+    // names. `||` so a blank value falls through. Set DATABASE_URL to override the integration.
+    connectionString:
+      process.env.DATABASE_URL ||
+      process.env.POSTGRES_URL ||
+      process.env.POSTGRES_PRISMA_URL,
     ssl: { rejectUnauthorized: false },
   });
   return new PrismaClient({
