@@ -1,7 +1,7 @@
 import { PrismaClient, Prisma } from "@/generated/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { getRlsContext, setRlsContext, type RlsContext } from "./rls-context";
-import { withoutSslParams } from "@/lib/db-url";
+import { withoutSslParams, withRole } from "@/lib/db-url";
 
 // When true, the app connects as the non-bypass `app_user` role and the data layer stamps
 // the per-request tenant GUCs that the RLS policies read. OFF by default so the DB-side RLS
@@ -22,9 +22,26 @@ const DB_CONNECTION: { source: string; url: string | undefined } = (() => {
   return { source: "NONE", url: undefined };
 })();
 
+// When RLS is enabled the app must connect as the non-bypass `app_user` role. Rather than override
+// DATABASE_URL with a hand-built string (which loses the integration's exact pooler host + routing
+// params and is easy to get wrong), DERIVE the connection from the SAME known-good URL above by
+// swapping only the role + password. APP_USER_PASSWORD supplies the password. If RLS is on but the
+// password is missing, fall back to the (bypass) URL and warn — fail safe, not silently mis-scoped.
+const RUNTIME_URL: string | undefined = (() => {
+  if (!RLS_ENABLED) return DB_CONNECTION.url;
+  const pw = process.env.APP_USER_PASSWORD;
+  if (!pw) {
+    console.warn(
+      "[rls] RLS_ENABLED is set but APP_USER_PASSWORD is missing — connecting as the bypass role; RLS will NOT be enforced.",
+    );
+    return DB_CONNECTION.url;
+  }
+  return withRole(DB_CONNECTION.url, "app_user", pw);
+})();
+
 const createBaseClient = () => {
   const adapter = new PrismaPg({
-    connectionString: withoutSslParams(DB_CONNECTION.url),
+    connectionString: withoutSslParams(RUNTIME_URL),
     ssl: { rejectUnauthorized: false },
   });
   return new PrismaClient({
