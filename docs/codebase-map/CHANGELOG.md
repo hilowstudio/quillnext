@@ -3394,3 +3394,105 @@ Matthew-Henry `.HTM` commentary prose ("as any man…") + a README; eslint never
 ### Reconcile (§4 partition)
 - **no-explicit-any 273 → 234** (38 casts + 1 `: any[]` annotation). **Total warnings 518 → 479.** No rule locked — `no-explicit-any` stays warn until it reaches 0. **Headline unchanged: 0 CRITICAL · 0 HIGH · 0 MED · 1 LOW (Q-01-004).** Updated ch.01 §7, ch.24 §7, 00-INDEX + the as-any-burndown-approach / findings-resolution-progress memories.
 - **~71 casts remain** — bucket 2: master-context nested-select 6, component-props 8; bucket 3: Json reads ~16 / writes ~12 / Inngest 7; bucket 4: Zod resolvers 6, webkitSpeech 2, misc ~13, generate-resource ~5. Resume via the `as-any-burndown-approach` memory: one wave at a time, one commit per wave, nothing pushed. **no-unused-vars (234) is the FINAL pass, after the as-any/structural churn.**
+
+---
+
+## 2026-06-24 — Q-01-004 `as any` cast burn-down (waves 3–13, IN PROGRESS)
+
+Continuation of the burn-down above, same discipline (no-op invariant · 5-bucket triage · honesty
+ranking · one wave/commit · nothing pushed · CI green each wave: tsc 0 / eslint 0 errors / vitest
+**218/218**). **no-explicit-any 234 → 176** (−58); total warnings 479 → 421. **Headline unchanged:
+0 CRITICAL · 0 HIGH · 0 MED · 1 LOW (Q-01-004).**
+
+### Wave 3 — `bfc5f82` — master-context nested-select (gratuitous, bucket 1; 6 casts)
+- `src/lib/context/master-context.ts`: removed `(obj as any).subtopic…`, `const obj = objective as any`
+  (×2), `(resource.resourceKind as any).label`, `const room = classroom as any`. Modern Prisma 7 infers
+  the `findUnique`/`findMany` payload from the `satisfies Prisma.*Select`-typed selects. Schema-checked
+  the two bucket-5 candidates (`Resource.resourceKind`, the classroom dates) are **non-nullable** — no
+  null hidden by the `any`. Typing `room` also dropped a `holidays.map((h: any))`.
+
+### Wave 4 — `c9827ee` — component-prop boundary casts (bucket 1 + 2; 5 casts)
+- `living-library/videos/page.tsx` ×2: **gratuitous** (VideosClient's hand-written `Video`/`Subject`
+  props already match the DAL payloads).
+- `TranscriptBuilder.tsx` ×3: the grading-Scale Select handler — narrowed `val` ONCE via a defensible
+  `as GradingScaleType` (the SelectItems are exactly that union), killing `scale: val as any`,
+  `} as any`, and `getGradingScaleLegend(val as any)`.
+
+### Wave 5 — `e908235` — LearnerProfile Json reads via Zod-at-boundary (bucket 3; 9 casts)
+- New `src/lib/students/learner-profile.ts`: lenient READ schemas (all fields optional, enum-ish fields
+  as plain `string`) + `parsePersonalityData`/`parseLearningStyleData`/`parseInterestsData` (`safeParse`
+  → `null`). Columns written by the strict `generateObject` schemas in `server/ai/personality.ts`; reads
+  must tolerate older rows + never throw into a render. Applied at master-context `:514-516` + the
+  `/students/[id]` page → the 3 cards (props typed `…Data | null`). StudentHeader / PersonalizationContextCard
+  needed no cast (truthiness only). **Sanctioned boundary behavior change:** corrupt/wrong-typed stored
+  data now degrades to the existing "not completed" state instead of rendering garbage (never a throw).
+
+### Wave 6 — `6b59053` — remaining Json reads (bucket 1 + 3; 6 casts) + **a surfaced bug**
+- `blueprint/page.tsx` ×4 **gratuitous** (`progress.data.holidays` already typed `Holiday[]` — the query
+  `include`s holidays).
+- `curriculum-actions.ts` `getBookChapters` ×2 → per-entry `safeParse` of the heterogeneous TOC.
+- **⚠️ contagion surfaced a real bug** (the burn-down working as intended): honest typing lit up TS2345
+  in the cast-free `courses/[id]/blocks/new/page.tsx:129` — `getBookChapters` could return `id: undefined`
+  (extraction-shaped TOC rows have only `title`), feeding `undefined` option values → `bookChapterId:
+  undefined` on submit. **Handled** (not masked): `id` now falls back to the resolved `label`. This is a
+  **behavior change** for extraction TOCs (submitted id goes undefined → the chapter title); owner reviewed.
+
+### Wave 7 — `d151f08` — Inngest onFailure event payloads (gratuitous, bucket 1; 7 casts)
+- `extract-video`/`extract-book`/`process-document`/`compile-curriculum`/`ingest-textbooks`/
+  `ingest-book-sections`/`ingest-book-fulltext`: `(event as any)?.data?.event?.data as {Shape}` →
+  `event.data?.event?.data`. The client uses typed `EventSchemas` (`inngest/types.ts`), so the SDK already
+  types the failure event's nested original payload as each function's trigger data. Removed the
+  hand-written inline shapes (drift risk) + 2 now-unused `eslint-disable` directives.
+
+### Wave 8 — `b2f06f3` — Inngest Json-column writes (gratuitous, bucket 1; 9 casts)
+- `extract-video` (keyPoints/chapters/extractedKeyPoints), `extract-book` (tableOfContents ×2/sources),
+  `ingest-book-sections` (keyPoints/charactersPresent/vocabulary): Prisma 7's `InputJsonValue` accepts the
+  typed `string[]` + structured arrays directly (verified tsc 0 with every cast removed). +3 unused
+  `eslint-disable` removed.
+
+### Wave 9 — `f1c0afb` — `toJsonInput()` helper + transcript writes (bucket 3 friction; 2 casts)
+- New `src/lib/prisma-json.ts` `toJsonInput()` — per the owner's decision framework for the Prisma
+  closed-interface → Json friction: (1) `TranscriptData` is **non-null** (so not the `?? Prisma.JsonNull`
+  case); (2) **verified JSON-safe** (every nested "date" is typed `string`; no Date/Map/class); (3) → the
+  single named helper with the **narrow two-step** `value as Prisma.InputJsonObject as Prisma.InputJsonValue`
+  (NOT `as unknown as`, which discards the tripwire; the direct `as InputJsonValue` is rejected TS2352).
+  `saveTranscript`'s 2 `data: data as any` → `toJsonInput(data)`. Centralizes the one documented double-cast
+  at an auditable chokepoint.
+
+### Wave 10 — `f760bee` — server→client prop pass-throughs (bucket 1 + 2; 5 casts)
+- **Gratuitous (4):** devotionals / church / creation-station / dashboard `events`. **Drift fixed (1):**
+  dashboard `items` — the DAL returns `courseBlock`/`activity` as `… | null` but `ScheduleItem` declared
+  them `?` (`… | undefined`); aligned the type to the DAL (`| null`; runtime already null).
+
+### Wave 11 — `7c358ac` — scheduling `distributeCourse` cluster (bucket 1 + 4; 3 casts)
+- One contagion knot rooted at `) as any` on the course query; removing it retyped `course.blocks` and the
+  `createMany` array. The only real friction left — `status: 'PENDING'` widening vs the `ScheduleItemStatus`
+  enum — pinned with `as const`.
+
+### Wave 12 — `6e8760f` — webkitSpeech Window typing (bucket 4; 4 casts)
+- New `src/types/speech-recognition.d.ts`: global `Window` augmentation for `SpeechRecognition` /
+  `webkitSpeechRecognition` (not in this project's TS DOM lib — TS2339). `InteractiveCatechism` +
+  `PracticeMode` drop `(window as any)`; PracticeMode's `onresult` `event: any` then inferred.
+  **Superseded by wave 13.**
+
+### Wave 13 — `7c8c102` — adopt `@types/dom-speech-recognition` (bucket 4; owner-approved dep)
+- Replaced the bespoke Web Speech typings with the DefinitelyTyped package (types-only devDependency, zero
+  runtime/bundle, auto-wired; `skipLibCheck` keeps it conflict-safe). **Deletes more than it adds:** removed
+  wave-12's `.d.ts` + InteractiveCatechism's ~25 lines of local `CatechismSpeechRecognition*` types + the
+  `as CatechismSpeechRecognitionAPI` cast; both consumers now use the real `SpeechRecognition` (and
+  PracticeMode's `useRef<any>` → typed).
+
+### Reconcile (§4 partition)
+- **no-explicit-any 234 → 176** (−58). Total warnings 479 → 421. **Headline unchanged: 0/0/0/1 LOW.**
+  New artifacts: `src/lib/students/learner-profile.ts`, `src/lib/prisma-json.ts` (`toJsonInput`),
+  `@types/dom-speech-recognition` devDep. (`src/types/speech-recognition.d.ts` created wave 12, deleted
+  wave 13.) Two real dispositions beyond pure no-ops: the wave-6 `getBookChapters` bug (handled, behavior
+  change) and the wave-5 boundary degradation (sanctioned). Updated ch.01 §7, ch.24 §7, 00-INDEX + the
+  as-any-burndown-approach / findings-resolution-progress memories.
+- **~24 casts remain — all bucket-4 escape-hatch territory:** generate-resource-core ~5 (AI-SDK `tool()`,
+  Prisma nested-`where`, generic verify/revise over `jsonContent`, the `content` Json write — now eligible
+  for `toJsonInput`); `zodResolver(...) as any` ×5 (RHF/zod resolver friction); generation-guards
+  `model`/`schema` ×2; `auth.ts` `PrismaAdapter(db as any)`; onboarding `setValue`/DayPicker (schedule-step
+  ×2, environment-step ×2); course-actions `kind`; the grading `attempt as any` cluster ×2 (`:66` query +
+  `:86`, entangled). Several may legitimately STAY as documented friction (`@ts-expect-error` or accepted).
+  **no-unused-vars (now ~176-era count) remains the FINAL pass, after the as-any/structural churn.**
