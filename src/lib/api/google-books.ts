@@ -1,3 +1,5 @@
+import { z } from "zod";
+
 const GOOGLE_BOOKS_API_BASE = "https://www.googleapis.com/books/v1/volumes";
 
 export interface BookMetadata {
@@ -13,25 +15,27 @@ export interface BookMetadata {
     language?: string;
 }
 
-// Minimal shape of the Google Books volumes API response we read (not schema-validated upstream,
-// so every field is optional and the code guards/defaults each).
-interface GoogleBooksVolume {
-    volumeInfo?: {
-        title?: string;
-        authors?: string[];
-        description?: string;
-        publisher?: string;
-        publishedDate?: string;
-        pageCount?: number;
-        imageLinks?: { thumbnail?: string };
-        industryIdentifiers?: { type?: string; identifier?: string }[];
-        categories?: string[];
-        language?: string;
-    };
-}
-interface GoogleBooksResponse {
-    items?: GoogleBooksVolume[];
-}
+// Validated at the Google Books trust boundary (response.json()). Fields are optional (the upstream
+// JSON isn't guaranteed); the code guards/defaults each. A wrong-typed payload fails at the parse
+// below — inside the try, so the search degrades to [] — rather than flowing on as an unchecked lie.
+const googleBooksVolumeSchema = z.object({
+    volumeInfo: z.object({
+        title: z.string().optional(),
+        authors: z.array(z.string()).optional(),
+        description: z.string().optional(),
+        publisher: z.string().optional(),
+        publishedDate: z.string().optional(),
+        pageCount: z.number().optional(),
+        imageLinks: z.object({ thumbnail: z.string().optional() }).optional(),
+        industryIdentifiers: z.array(z.object({ type: z.string().optional(), identifier: z.string().optional() })).optional(),
+        categories: z.array(z.string()).optional(),
+        language: z.string().optional(),
+    }).optional(),
+});
+const googleBooksResponseSchema = z.object({
+    items: z.array(googleBooksVolumeSchema).optional(),
+});
+type GoogleBooksVolume = z.infer<typeof googleBooksVolumeSchema>;
 
 export async function searchGoogleBooks(query: string, apiKey?: string): Promise<BookMetadata[]> {
     const url = new URL(GOOGLE_BOOKS_API_BASE);
@@ -47,7 +51,7 @@ export async function searchGoogleBooks(query: string, apiKey?: string): Promise
             console.error("Google Books API error:", res.statusText);
             return [];
         }
-        const data: GoogleBooksResponse = await res.json();
+        const data = googleBooksResponseSchema.parse(await res.json());
 
         if (!data.items) return [];
 

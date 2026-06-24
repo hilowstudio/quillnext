@@ -1,17 +1,20 @@
 import { BookMetadata } from "./google-books";
+import { z } from "zod";
 
 const OPEN_LIBRARY_BASE = "https://openlibrary.org";
 
-// Minimal shape of the OpenLibrary "books" API entries we read (not schema-validated upstream).
-interface OpenLibraryBook {
-    title?: string;
-    authors?: { name: string }[];
-    publishers?: { name?: string }[];
-    publish_date?: string;
-    number_of_pages?: number;
-    cover?: { medium?: string; large?: string };
-    excerpts?: { text?: string }[];
-}
+// Validated at the OpenLibrary trust boundary (response.json()). A wrong-typed payload fails at the
+// parse below — inside the try, so the lookup degrades to null — instead of flowing on unchecked.
+const openLibraryBookSchema = z.object({
+    title: z.string().optional(),
+    authors: z.array(z.object({ name: z.string() })).optional(),
+    publishers: z.array(z.object({ name: z.string().optional() })).optional(),
+    publish_date: z.string().optional(),
+    number_of_pages: z.number().optional(),
+    cover: z.object({ medium: z.string().optional(), large: z.string().optional() }).optional(),
+    excerpts: z.array(z.object({ text: z.string().optional() })).optional(),
+});
+const openLibraryResponseSchema = z.record(z.string(), openLibraryBookSchema);
 
 export async function lookupOpenLibraryByIsbn(isbn: string): Promise<BookMetadata | null> {
     // OpenLibrary API: https://openlibrary.org/api/books?bibkeys=ISBN:xxx&format=json&jscmd=data
@@ -24,7 +27,7 @@ export async function lookupOpenLibraryByIsbn(isbn: string): Promise<BookMetadat
         const res = await fetch(url.toString());
         if (!res.ok) return null;
 
-        const data: Record<string, OpenLibraryBook | undefined> = await res.json();
+        const data = openLibraryResponseSchema.parse(await res.json());
         const key = `ISBN:${isbn}`;
         const bookData = data[key];
 

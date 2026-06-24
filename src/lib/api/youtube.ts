@@ -1,4 +1,6 @@
 
+import { z } from "zod";
+
 const YOUTUBE_API_BASE = "https://www.googleapis.com/youtube/v3";
 
 export interface YouTubeVideo {
@@ -21,19 +23,21 @@ export interface YouTubePlaylist {
     videos: YouTubeVideo[];
 }
 
-// Minimal shape of the YouTube playlistItems API entries we read (not schema-validated upstream;
-// thumbnails / channel title can be absent, so they're defaulted at the boundary below).
-interface YouTubePlaylistItem {
-    snippet: {
-        resourceId: { videoId: string };
-        title: string;
-        description: string;
-        thumbnails?: { high?: { url: string }; medium?: { url: string } };
-        videoOwnerChannelTitle?: string;
-        publishedAt: string;
-        position: number;
-    };
-}
+// Validated at the YouTube trust boundary (response.json()). Fields are lenient because
+// private/deleted entries (filtered out below by title) carry partial snippets — a strict schema
+// would reject a whole playlist that contains one; the map defaults each missing field.
+const youTubePlaylistItemSchema = z.object({
+    snippet: z.object({
+        resourceId: z.object({ videoId: z.string().optional() }).optional(),
+        title: z.string().optional(),
+        description: z.string().optional(),
+        thumbnails: z.object({ high: z.object({ url: z.string() }).optional(), medium: z.object({ url: z.string() }).optional() }).optional(),
+        videoOwnerChannelTitle: z.string().optional(),
+        publishedAt: z.string().optional(),
+        position: z.number().optional(),
+    }),
+});
+const youTubePlaylistItemsResponseSchema = z.object({ items: z.array(youTubePlaylistItemSchema) });
 
 export async function fetchPlaylistData(playlistUrlOrId: string, apiKey?: string): Promise<YouTubePlaylist | null> {
     if (!apiKey) {
@@ -75,16 +79,16 @@ export async function fetchPlaylistData(playlistUrlOrId: string, apiKey?: string
         const itemsRes = await fetch(itemsUrl.toString());
         if (!itemsRes.ok) throw new Error(`Items fetch failed: ${itemsRes.statusText}`);
 
-        const itemsData: { items: YouTubePlaylistItem[] } = await itemsRes.json();
+        const itemsData = youTubePlaylistItemsResponseSchema.parse(await itemsRes.json());
 
         const videos: YouTubeVideo[] = itemsData.items.map((item) => ({
-            id: item.snippet.resourceId.videoId,
-            title: item.snippet.title,
-            description: item.snippet.description,
+            id: item.snippet.resourceId?.videoId ?? "",
+            title: item.snippet.title ?? "",
+            description: item.snippet.description ?? "",
             thumbnailUrl: item.snippet.thumbnails?.high?.url || item.snippet.thumbnails?.medium?.url || "",
             channelTitle: item.snippet.videoOwnerChannelTitle || "",
-            publishedAt: item.snippet.publishedAt,
-            position: item.snippet.position
+            publishedAt: item.snippet.publishedAt ?? "",
+            position: item.snippet.position ?? 0
         })).filter((v) => v.title !== "Private video" && v.title !== "Deleted video");
 
         return {

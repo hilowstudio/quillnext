@@ -15,21 +15,30 @@ import { bookName } from "@/lib/bible-books";
 
 // --- Types ---
 
-interface ESVPassageResponse {
-    query: string;
-    canonical: string;
-    parsed: Array<[number, number]>;
-    passage_meta: Array<{
-        canonical: string;
-        chapter_start: [number, number];
-        chapter_end: [number, number];
-        prev_chapter: [number, number] | null;
-        next_chapter: [number, number] | null;
-        prev_verse: number | null;
-        next_verse: number | null;
-    }>;
-    passages: string[];
-}
+// Validated at the ESV trust boundary (response.json()). passages + canonical are what callers
+// depend on, so they're required; the rest are lenient so a benign API variation doesn't reject a
+// real response. A genuinely malformed payload fails here instead of flowing on as an unchecked lie.
+const esvPassageResponseSchema = z.object({
+    query: z.string().optional(),
+    canonical: z.string(),
+    parsed: z.array(z.array(z.number())).optional(),
+    passage_meta: z
+        .array(
+            z.object({
+                canonical: z.string().optional(),
+                chapter_start: z.array(z.number()).optional(),
+                chapter_end: z.array(z.number()).optional(),
+                prev_chapter: z.array(z.number()).nullable().optional(),
+                next_chapter: z.array(z.number()).nullable().optional(),
+                prev_verse: z.number().nullable().optional(),
+                next_verse: z.number().nullable().optional(),
+            }),
+        )
+        .optional()
+        .default([]),
+    passages: z.array(z.string()),
+});
+type ESVPassageResponse = z.infer<typeof esvPassageResponseSchema>;
 
 export interface CommentarySectionData {
     sectionIndex: number;
@@ -68,7 +77,7 @@ function isValidReference(reference: string): boolean {
 /**
  * Makes an authenticated request to the ESV API.
  */
-async function fetchFromESV<T = unknown>(endpoint: string, params: Record<string, string>): Promise<T> {
+async function fetchFromESV(endpoint: string, params: Record<string, string>): Promise<ESVPassageResponse> {
     if (!ESV_API_KEY) {
         throw new StandardError(
             ERROR_CODES.SYSTEM.CONFIGURATION_ERROR,
@@ -92,7 +101,7 @@ async function fetchFromESV<T = unknown>(endpoint: string, params: Record<string
             throw new Error(`ESV API error: ${response.status} ${response.statusText}`);
         }
 
-        return await response.json();
+        return esvPassageResponseSchema.parse(await response.json());
     } catch (error) {
         console.error("ESV Fetch Error:", error);
         throw new StandardError(
@@ -125,7 +134,7 @@ export async function getBiblePassage(rawData: unknown) {
         throw new StandardError(ERROR_CODES.VALIDATION.INVALID_INPUT, "Invalid reference", 400);
     }
 
-    const responseData: ESVPassageResponse = await fetchFromESV("html", {
+    const responseData = await fetchFromESV("html", {
         q: data.reference,
         "include-footnotes": "false",
         "include-verse-numbers": "true",
@@ -217,7 +226,7 @@ export async function getBibleText(rawData: unknown) {
         throw new StandardError(ERROR_CODES.VALIDATION.INVALID_INPUT, "Invalid reference", 400);
     }
 
-    const responseData: ESVPassageResponse = await fetchFromESV("text", {
+    const responseData = await fetchFromESV("text", {
         q: data.reference,
         "include-headings": "false",
         "include-verse-numbers": "false",
