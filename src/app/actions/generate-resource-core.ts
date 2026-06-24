@@ -3,12 +3,13 @@ import { getPlaylistDetails } from "@/app/actions/youtube-actions";
 import { models } from "@/lib/ai/config";
 import { generateText, tool } from "ai";
 import { PHILOSOPHY_PROMPTS } from "@/lib/constants/educational-philosophies";
-import { EducationalPhilosophy } from "@/generated/client";
+import { EducationalPhilosophy, Prisma } from "@/generated/client";
 import { PromptBuilder } from "@/lib/ai/prompt-builder";
 import { z } from "zod";
 import { generateNanoBananaImage } from "@/lib/services/image-generation";
 import { generateObject } from "ai";
 import { QuizSchema, WorksheetSchema } from "@/lib/ai/schemas";
+import { toJsonInput } from "@/lib/prisma-json";
 import {
     QUOTE_GROUNDING_RULE,
     QUOTE_GROUNDING_RULE_WITH_SOURCE,
@@ -75,7 +76,7 @@ interface LoadedSpineNode {
 async function loadSpineNode(level: string, id: string): Promise<LoadedSpineNode | null> {
     const OBJ_CAP = 40;
     // Descendant objectives by level (an objective is its own only "descendant").
-    const where =
+    const where: Prisma.ObjectiveWhereInput | null =
         level === "OBJECTIVE"
             ? { id }
             : level === "SUBTOPIC"
@@ -90,7 +91,7 @@ async function loadSpineNode(level: string, id: string): Promise<LoadedSpineNode
     if (!where) return null;
 
     const objectives = await db.objective.findMany({
-        where: where as any,
+        where,
         select: { text: true, code: true },
         take: OBJ_CAP,
         orderBy: { code: "asc" },
@@ -695,7 +696,7 @@ export async function generateResourceCore(params: GenerateResourceCoreParams) {
     const prompt = builder.build();
 
     let textContent = "";
-    let jsonContent = null;
+    let jsonContent: z.infer<typeof QuizSchema> | z.infer<typeof WorksheetSchema> | null = null;
     let storageType: "MARKDOWN" | "JSON" = "MARKDOWN";
 
     if (kind.contentType === "QUIZ") {
@@ -727,17 +728,17 @@ export async function generateResourceCore(params: GenerateResourceCoreParams) {
             tools: {
                 generate_image: tool({
                     description: "Generates an image (Nano Banana) based on a prompt. Use this to create visual aids like diagrams, charts, or illustrations.",
-                    parameters: z.object({
+                    inputSchema: z.object({
                         prompt: z.string().describe("The detailed description of the image to generate."),
                         aspectRatio: z.enum(["1:1", "16:9", "4:3"]).optional().default("1:1"),
                     }),
-                    execute: async (args: any) => {
+                    execute: async (args) => {
                         const { prompt, aspectRatio } = args;
-                        const base64 = await generateNanoBananaImage(prompt, aspectRatio as "1:1" | "16:9" | "4:3");
+                        const base64 = await generateNanoBananaImage(prompt, aspectRatio);
                         if (!base64) return "Failed to generate image.";
                         return `![Generated Image](data:image/png;base64,${base64})`;
                     },
-                } as any),
+                }),
             },
             // maxSteps: 3, // Removed temporarily due to type definition mismatch
         });
@@ -750,9 +751,10 @@ export async function generateResourceCore(params: GenerateResourceCoreParams) {
     // fix contradictions vs. the canonical facts, ungrounded verbatim quotes, and
     // garbled questions. They never throw; on error the original draft is kept.
     if (kind.contentType === "QUIZ") {
-        jsonContent = await verifyAndReviseObject(jsonContent as any, QuizSchema, factsBlock, models.pro3, allowedQuoteSource, antiEchoSource);
+        // In this branch jsonContent is the QuizSchema object set above (contentType === "QUIZ" gated both writes).
+        jsonContent = await verifyAndReviseObject(jsonContent as z.infer<typeof QuizSchema>, QuizSchema, factsBlock, models.pro3, allowedQuoteSource, antiEchoSource);
     } else if (kind.contentType === "WORKSHEET") {
-        jsonContent = await verifyAndReviseObject(jsonContent as any, WorksheetSchema, factsBlock, models.pro3, allowedQuoteSource, antiEchoSource);
+        jsonContent = await verifyAndReviseObject(jsonContent as z.infer<typeof WorksheetSchema>, WorksheetSchema, factsBlock, models.pro3, allowedQuoteSource, antiEchoSource);
     } else {
         // Markdown verification uses the fast/cheap flash model.
         textContent = await verifyAndReviseMarkdown(textContent, factsBlock, models.flash, allowedQuoteSource, antiEchoSource);
@@ -768,7 +770,7 @@ export async function generateResourceCore(params: GenerateResourceCoreParams) {
                 title: `${kind.label}: ${sourceTitle.substring(0, 100)}`, // Truncate title
                 description: `AI Generated from ${sourceType.toLowerCase()}: ${sourceTitle.substring(0, 100)}`,
                 storageType: storageType,
-                content: storageType === "JSON" ? (jsonContent as any) : { markdown: textContent },
+                content: jsonContent ? toJsonInput(jsonContent) : { markdown: textContent },
                 generatedFromBookId: bookId,
                 generatedFromVideoId: videoId,
                 generationContext: genContext,
