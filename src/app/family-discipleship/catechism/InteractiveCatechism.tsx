@@ -7,31 +7,6 @@ import { Badge } from "@/components/ui/badge";
 
 import { getStudentCatechismProgress, updateStudentCatechismProgress, markQuestionAsMastered } from "@/app/actions/student-catechism";
 
-interface CatechismSpeechRecognitionAPI {
-    continuous: boolean;
-    interimResults: boolean;
-    lang: string;
-    onresult: ((event: CatechismSpeechRecognitionEvent) => void) | null;
-    onerror: ((event: CatechismSpeechRecognitionErrorEvent) => void) | null;
-    onend: (() => void) | null;
-    start: () => void;
-    stop: () => void;
-}
-
-interface CatechismSpeechRecognitionEvent {
-    results: {
-        [key: number]: {
-            [key: number]: {
-                transcript: string;
-            };
-        };
-    };
-}
-
-interface CatechismSpeechRecognitionErrorEvent {
-    error: string;
-}
-
 interface ProofTextItemProps {
     citationNumber: string;
     references: string[];
@@ -101,7 +76,7 @@ const InteractiveCatechism = ({ catechismData, title, studentId, catechismId }: 
     const [mode, setMode] = useState<'speech' | 'typing'>('speech');
     const [currentAttempts, setCurrentAttempts] = useState(0);
 
-    const recognitionRef = useRef<CatechismSpeechRecognitionAPI | null>(null);
+    const recognitionRef = useRef<SpeechRecognition | null>(null);
     const synthRef = useRef<SpeechSynthesis | null>(null);
 
     const flattenCatechismData = (data: CatechismQuestion[]): CatechismQuestion[] => {
@@ -186,19 +161,19 @@ const InteractiveCatechism = ({ catechismData, title, studentId, catechismId }: 
         if (typeof window !== 'undefined' && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
             const SpeechRecognitionConstructor = window.SpeechRecognition || window.webkitSpeechRecognition;
             if (SpeechRecognitionConstructor) {
-                recognitionRef.current = new SpeechRecognitionConstructor() as CatechismSpeechRecognitionAPI;
+                recognitionRef.current = new SpeechRecognitionConstructor();
                 if (recognitionRef.current) {
                     recognitionRef.current.continuous = false;
                     recognitionRef.current.interimResults = false;
                     recognitionRef.current.lang = 'en-US';
 
-                    recognitionRef.current.onresult = (event: CatechismSpeechRecognitionEvent) => {
+                    recognitionRef.current.onresult = (event) => {
                         const transcript = event.results[0][0].transcript;
                         setUserAnswer(transcript);
                         setIsListening(false);
                     };
 
-                    recognitionRef.current.onerror = (event: CatechismSpeechRecognitionErrorEvent) => {
+                    recognitionRef.current.onerror = (event) => {
                         console.error('Speech recognition error:', event.error);
                         setIsListening(false);
                     };

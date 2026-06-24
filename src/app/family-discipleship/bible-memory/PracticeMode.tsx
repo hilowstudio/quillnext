@@ -106,7 +106,7 @@ export default function PracticeMode({ verse, onComplete, onExit, initialStep = 
     const [verseText, setVerseText] = useState<string | null>(verse.text || null);
     const [isTextLoading, setIsTextLoading] = useState(false);
 
-    const recognitionRef = useRef<any>(null);
+    const recognitionRef = useRef<SpeechRecognition | null>(null);
 
     // --- Lazy Load Text if Missing ---
     useEffect(() => {
