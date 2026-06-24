@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import type { BibleMemory } from "@/generated/client";
+import type { BibleMemory, BibleMemoryFolder } from "@/generated/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -14,11 +14,15 @@ import { addVerseToUser, createFolder, deleteFolder, renameFolder, moveVerseToFo
 import PracticeMode from './PracticeMode';
 import { toast } from 'sonner';
 
+// A folder may arrive with its verse count loaded (page query) or without it (just-created via
+// createFolder), so _count is optional; the cards render `_count?.verses || 0`.
+type MemoryFolder = BibleMemoryFolder & { _count?: { verses: number } };
+
 interface BibleMemoryDashboardProps {
     initialUserVerses: BibleMemory[];
-    libraryVerses: any[];
+    libraryVerses: BibleMemory[];
     studentId: string; // Current user context
-    folders: any[];
+    folders: MemoryFolder[];
 }
 
 export default function BibleMemoryDashboard({ initialUserVerses, libraryVerses, studentId, folders: initialFolders }: BibleMemoryDashboardProps) {
@@ -26,7 +30,7 @@ export default function BibleMemoryDashboard({ initialUserVerses, libraryVerses,
     const [folders, setFolders] = useState(initialFolders);
     const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null); // null = All Verses
 
-    const [practicingVerse, setPracticingVerse] = useState<any | null>(null);
+    const [practicingVerse, setPracticingVerse] = useState<BibleMemory | null>(null);
     const [practiceMode, setPracticeMode] = useState<'standard' | 'refresh'>('standard');
 
     const [isAddVerseOpen, setIsAddVerseOpen] = useState(false);
@@ -175,7 +179,7 @@ export default function BibleMemoryDashboard({ initialUserVerses, libraryVerses,
         }
     };
 
-    const handleAddLibraryVerse = async (verse: any) => {
+    const handleAddLibraryVerse = async (verse: BibleMemory) => {
         setIsAddVerseOpen(false);
         const res = await addVerseToUser({
             studentId,
