@@ -116,12 +116,9 @@ export const ingestBookSections = inngest.createFunction(
                             title: s.title,
                             kind: "CHAPTER",
                             summary: s.summary,
-                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                            keyPoints: s.keyPoints as any,
-                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                            charactersPresent: s.charactersPresent as any,
-                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                            vocabulary: s.vocabulary as any,
+                            keyPoints: s.keyPoints,
+                            charactersPresent: s.charactersPresent,
+                            vocabulary: s.vocabulary,
                             factsSource: "TEXT",
                         })),
                     });
