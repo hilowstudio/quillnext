@@ -26,7 +26,7 @@ export default function TermsPage() {
           <div className="qc-prose font-body text-qc-charcoal space-y-3 text-sm leading-relaxed">
             <p>
               <strong>Your data belongs to you.</strong> Everything you create in
-              QuillNext — courses, journals, transcripts — is yours. You can
+              Quill &amp; Compass — courses, journals, transcripts — is yours. You can
               export it at any time and delete your account whenever you want.
             </p>
             <p>
@@ -52,7 +52,7 @@ export default function TermsPage() {
         <article className="qc-prose font-body text-qc-charcoal space-y-6 text-sm leading-relaxed">
           <h2 className="font-display text-2xl">1. Acceptance of Terms</h2>
           <p>
-            By creating an account or using QuillNext (&ldquo;the
+            By creating an account or using Quill &amp; Compass (&ldquo;the
             Service&rdquo;), operated by Quill &amp; Compass
             (&ldquo;we&rdquo;, &ldquo;us&rdquo;), you agree to these Terms of
             Service. If you do not agree, do not use the Service.
@@ -60,9 +60,9 @@ export default function TermsPage() {
 
           <h2 className="font-display text-2xl">2. Description of Service</h2>
           <p>
-            QuillNext is a web-based curriculum management and family
+            Quill &amp; Compass is a web-based curriculum management and family
             discipleship platform for homeschool families. The Service requires
-            an active internet connection for all features. QuillNext uses AI
+            an active internet connection for all features. Quill &amp; Compass uses AI
             (Google Gemini) to generate personalized educational content.
           </p>
 
@@ -76,7 +76,7 @@ export default function TermsPage() {
 
           <h2 className="font-display text-2xl">4. Your Content &amp; Data Rights</h2>
           <p>
-            You own all content you create within QuillNext. We do not claim
+            You own all content you create within Quill &amp; Compass. We do not claim
             ownership of your courses, journals, transcripts, or any other
             user-generated content. You grant us a limited license to store,
             display, and process your content solely to provide the Service.
@@ -129,7 +129,7 @@ export default function TermsPage() {
 
           <h2 className="font-display text-2xl">8. Service Discontinuation</h2>
           <p>
-            If we decide to shut down QuillNext, we commit to:
+            If we decide to shut down Quill &amp; Compass, we commit to:
           </p>
           <ul className="list-disc pl-6 space-y-1">
             <li>
@@ -150,7 +150,7 @@ export default function TermsPage() {
 
           <h2 className="font-display text-2xl">9. Limitation of Liability</h2>
           <p>
-            QuillNext is provided &ldquo;as is&rdquo; without warranties of
+            Quill &amp; Compass is provided &ldquo;as is&rdquo; without warranties of
             any kind. We are not liable for any damages arising from your use
             of the Service, including but not limited to loss of data, errors
             in AI-generated content, or service interruptions. Our total
@@ -160,7 +160,7 @@ export default function TermsPage() {
 
           <h2 className="font-display text-2xl">10. Cancellation</h2>
           <p>
-            You may stop using QuillNext at any time. You can delete your
+            You may stop using Quill &amp; Compass at any time. You can delete your
             account from Account Settings &rarr; Data &amp; Privacy. There are
             no cancellation fees, penalties, or retention requirements. Upon
             deletion, all your data is permanently destroyed within 30 days.
@@ -195,7 +195,7 @@ export default function TermsPage() {
             href="/"
             className="font-body text-sm text-qc-primary hover:underline"
           >
-            &larr; Back to QuillNext
+            &larr; Back to Quill &amp; Compass
           </Link>
         </footer>
       </div>

@@ -12,7 +12,7 @@ interface GlobalShellProps {
 }
 
 /** Routes that render their OWN full-screen shell (no app sidebar). */
-const CHROMELESS_PREFIXES = ["/select-profile"];
+const CHROMELESS_PREFIXES = ["/select-profile", "/waitlist"];
 
 export function GlobalShell({ children, user, activeProfile }: GlobalShellProps) {
     const pathname = usePathname();

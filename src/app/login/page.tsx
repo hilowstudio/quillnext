@@ -47,7 +47,7 @@ export default function LoginPage() {
             </div>
             <div className="relative flex justify-center text-xs uppercase">
               <span className="bg-white px-2 font-body text-qc-text-muted">
-                New to QuillNext?
+                New to Quill &amp; Compass?
               </span>
             </div>
           </div>
@@ -58,7 +58,7 @@ export default function LoginPage() {
             </Link>
           </Button>
           <p className="text-center text-xs font-body text-qc-text-muted/70">
-            QuillNext requires an internet connection for all features.
+            Quill &amp; Compass requires an internet connection for all features.
           </p>
           <p className="text-center text-xs font-body text-qc-text-muted">
             By continuing, you agree to our{" "}

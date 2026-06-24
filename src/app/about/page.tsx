@@ -24,7 +24,7 @@ export default function AboutPage() {
           <section className="space-y-3">
             <h2 className="font-display text-2xl">What We Build</h2>
             <p>
-              QuillNext is a curriculum management and family discipleship
+              Quill &amp; Compass is a curriculum management and family discipleship
               platform for homeschool families. It uses AI to generate
               personalized educational content — lessons, quizzes, worksheets,
               and more — aligned with your family&apos;s values, your
@@ -32,7 +32,7 @@ export default function AboutPage() {
             </p>
             <p>
               We believe educational software should serve the family, not
-              extract attention from it. QuillNext is designed to help you plan,
+              extract attention from it. Quill &amp; Compass is designed to help you plan,
               generate, and manage curriculum so you can spend more time
               teaching and less time preparing.
             </p>
@@ -41,10 +41,10 @@ export default function AboutPage() {
           {/* ── Funding & Monetization (HON-13, HON-14, GOV-08) ── */}
           <section className="space-y-3">
             <h2 className="font-display text-2xl">
-              How QuillNext Is Funded
+              How Quill &amp; Compass Is Funded
             </h2>
             <p>
-              QuillNext is <strong>bootstrapped and self-funded</strong> by its
+              Quill &amp; Compass is <strong>bootstrapped and self-funded</strong> by its
               creator. There are no venture capital investors, no advertising
               partners, and no data monetization arrangements. No one with
               interests in advertising, data brokerage, or attention-extraction
@@ -139,7 +139,7 @@ export default function AboutPage() {
               urgent and addressed within 24 hours.
             </p>
             <p>
-              The current version of QuillNext receives continuous security
+              The current version of Quill &amp; Compass receives continuous security
               updates and bug fixes. If a version is deprecated, we will
               provide at least 90 days notice and ensure data export remains
               available.
@@ -152,7 +152,7 @@ export default function AboutPage() {
             href="/"
             className="font-body text-sm text-qc-primary hover:underline"
           >
-            &larr; Back to QuillNext
+            &larr; Back to Quill &amp; Compass
           </Link>
         </footer>
       </div>

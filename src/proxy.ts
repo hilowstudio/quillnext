@@ -27,6 +27,7 @@ const PUBLIC_ROUTES = new Set([
   "/terms",
   "/about",
   "/changelog",
+  "/waitlist",
 ]);
 
 function isPublicRoute(pathname: string): boolean {
@@ -91,7 +92,8 @@ export async function proxy(req: NextRequest) {
 }
 
 // Don't run Proxy on API routes, Next internals, the static `/assets/*` tree (e.g. the login
-// page's logo — otherwise the guard would redirect it to /login), or favicon.
+// page's logo — otherwise the guard would redirect it to /login), favicon, or the PWA web
+// manifest (must stay publicly fetchable so "Add to Home Screen" works while logged out).
 export const config = {
-  matcher: ["/((?!api|_next/static|_next/image|assets|favicon.ico).*)"],
+  matcher: ["/((?!api|_next/static|_next/image|assets|favicon.ico|manifest.webmanifest).*)"],
 };

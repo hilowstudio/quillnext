@@ -26,7 +26,7 @@ export default function SignupPage() {
             Create Your Account
           </CardTitle>
           <CardDescription className="font-body">
-            Get started with QuillNext and transform your curriculum planning
+            Get started with Quill &amp; Compass and transform your curriculum planning
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -60,7 +60,7 @@ export default function SignupPage() {
             </Link>
           </Button>
           <p className="text-center text-xs font-body text-qc-text-muted/70">
-            QuillNext requires an internet connection for all features.
+            Quill &amp; Compass requires an internet connection for all features.
           </p>
           <p className="text-center text-xs font-body text-qc-text-muted">
             By creating an account, you agree to our{" "}

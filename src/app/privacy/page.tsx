@@ -39,7 +39,7 @@ export default function PrivacyPage() {
               educational preferences are sent to Google Gemini AI so it can
               generate personalized curriculum content for your family. We do not
               use your data for advertising, profiling, or any purpose beyond
-              running QuillNext.
+              running Quill &amp; Compass.
             </p>
             <p>
               <strong>Who can see it:</strong> Your data is private to your
@@ -76,7 +76,7 @@ export default function PrivacyPage() {
 
           <h3 className="font-display text-lg">1.2 User-Generated Content</h3>
           <p>
-            You create and store the following content within QuillNext:
+            You create and store the following content within Quill &amp; Compass:
           </p>
           <ul className="list-disc pl-6 space-y-1">
             <li>Student profiles (name, birthdate, grade, learning needs)</li>
@@ -121,7 +121,7 @@ export default function PrivacyPage() {
           <h2 className="font-display text-2xl">2. How We Use Your Data</h2>
           <p>We use your data exclusively to:</p>
           <ul className="list-disc pl-6 space-y-1">
-            <li>Provide and operate the QuillNext platform</li>
+            <li>Provide and operate the Quill &amp; Compass platform</li>
             <li>Generate personalized curriculum content via AI</li>
             <li>Monitor student safety in chat interactions</li>
             <li>Store and display your educational content and records</li>
@@ -135,7 +135,7 @@ export default function PrivacyPage() {
             3. Third-Party Services
           </h2>
           <p>
-            We use the following third-party services to operate QuillNext. Each
+            We use the following third-party services to operate Quill &amp; Compass. Each
             service receives only the data necessary for its function:
           </p>
           <div className="overflow-x-auto">
@@ -243,7 +243,7 @@ export default function PrivacyPage() {
 
           <h2 className="font-display text-2xl">6. Children&apos;s Privacy</h2>
           <p>
-            QuillNext is designed for use by parents and educators managing
+            Quill &amp; Compass is designed for use by parents and educators managing
             education for their children. Student accounts are created and
             managed by parents. We do not knowingly collect personal information
             directly from children under 13 without parental consent. All student
@@ -284,7 +284,7 @@ export default function PrivacyPage() {
             href="/"
             className="font-body text-sm text-qc-primary hover:underline"
           >
-            &larr; Back to QuillNext
+            &larr; Back to Quill &amp; Compass
           </Link>
         </footer>
       </div>

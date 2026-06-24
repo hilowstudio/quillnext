@@ -4,7 +4,7 @@ import Link from "next/link";
 import { DynamicCreateStudentForm } from "@/components/students/DynamicCreateStudentForm";
 
 export const metadata = {
-  title: "New Student | QuillNext",
+  title: "New Student | Quill & Compass",
 };
 
 

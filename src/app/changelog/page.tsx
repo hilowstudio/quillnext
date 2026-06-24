@@ -12,7 +12,7 @@ export default function ChangelogPage() {
         <header className="text-center space-y-2">
           <h1 className="font-display text-4xl text-qc-charcoal">Changelog</h1>
           <p className="font-body text-sm text-qc-text-muted">
-            What&apos;s new, changed, and fixed in QuillNext
+            What&apos;s new, changed, and fixed in Quill &amp; Compass
           </p>
         </header>
 
@@ -66,7 +66,7 @@ export default function ChangelogPage() {
             href="/"
             className="font-body text-sm text-qc-primary hover:underline"
           >
-            &larr; Back to QuillNext
+            &larr; Back to Quill &amp; Compass
           </Link>
         </footer>
       </div>

@@ -20,8 +20,25 @@ const cormorantGaramond = Cormorant_Garamond({
 });
 
 export const metadata: Metadata = {
-  title: "QuillNext",
-  description: "Curriculum generation platform",
+  title: "Quill & Compass",
+  description:
+    "Calm, grounded homeschooling: AI curriculum, a living library, and family discipleship in one place.",
+  icons: {
+    icon: [
+      { url: "/assets/branding/icons/favicon-16.png", sizes: "16x16", type: "image/png" },
+      { url: "/assets/branding/icons/favicon-32.png", sizes: "32x32", type: "image/png" },
+      { url: "/assets/branding/icons/favicon-48.png", sizes: "48x48", type: "image/png" },
+    ],
+    apple: [
+      { url: "/assets/branding/icons/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
+    ],
+    shortcut: ["/assets/branding/icons/favicon-32.png"],
+  },
+  appleWebApp: {
+    capable: true,
+    title: "Quill & Compass",
+    statusBarStyle: "default",
+  },
 };
 
 import { auth } from "@/auth";

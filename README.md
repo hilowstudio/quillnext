@@ -1,4 +1,4 @@
-# Quill & Compass (QuillNext)
+# Quill & Compass
 
 An AI-assisted homeschool platform: curriculum generation, a living resource library,
 planning/scheduling, grading, transcripts, and family discipleship — built for a single

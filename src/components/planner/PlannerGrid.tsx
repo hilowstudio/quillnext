@@ -10,8 +10,15 @@ import { useState } from "react";
 import { Plus } from "@phosphor-icons/react";
 import { ResourcePicker } from "../courses/ResourcePicker";
 import { addAdHocEvent } from "@/server/actions/scheduling";
+import type { getWeeklySchedule } from "@/server/actions/scheduling";
 
-function DraggableItem({ item }: { item: any }) {
+// Server→client payload shapes, derived from the query the planner page passes in.
+type WeeklySchedule = Awaited<ReturnType<typeof getWeeklySchedule>>;
+type ScheduleStudent = WeeklySchedule["students"][number];
+type ScheduleItem = WeeklySchedule["items"][number];
+type ScheduleEvent = WeeklySchedule["events"][number];
+
+function DraggableItem({ item }: { item: ScheduleItem }) {
     const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
         id: item.id,
     });
@@ -75,9 +82,9 @@ export function PlannerGrid({
     organizationId
 }: {
     startDate: Date,
-    students: any[],
-    items: any[],
-    events: any[],
+    students: ScheduleStudent[],
+    items: ScheduleItem[],
+    events: ScheduleEvent[],
     organizationId: string
 }) {
     const router = useRouter();

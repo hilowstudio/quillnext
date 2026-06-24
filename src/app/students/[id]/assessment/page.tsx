@@ -2,7 +2,7 @@
 import { DynamicAssessmentWizard } from "@/components/students/DynamicAssessmentWizard";
 
 export const metadata = {
-  title: "Assessment | QuillNext",
+  title: "Assessment | Quill & Compass",
 };
 
 export default async function AssessmentWizardPage({
