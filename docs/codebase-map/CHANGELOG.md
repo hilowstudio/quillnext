@@ -3364,3 +3364,33 @@ set-state-in-effect: BibleAudioPlayer (bible-memory + bible-study), ThinklingCha
 - **Warnings 548 → 518** (−30). **Locked 3 more rules** (error-boundaries, set-state-in-effect, exhaustive-deps) → **11 rules now error-locked.**
 - **Q-01-004 stays OPEN** [LOW] — remaining at warn: `no-explicit-any` 273, `no-unused-vars` 234 (Tier C, owner-paused), `@next/next/no-img-element` 11 (by design). **Headline unchanged: 0 CRITICAL · 0 HIGH · 0 MED · 1 LOW (Q-01-004).** Updated ch.01 §7, ch.24 §7, 00-INDEX, progress memory.
 - ⚠️ **UI smoke-test owed** (untested in CI): TopicSelector cascading dropdowns (restructured) + the transcripts error path (error.tsx + Try Again).
+
+---
+
+## 2026-06-23 (later still) — Q-01-004 `as any` cast burn-down (waves 1–2b, IN PROGRESS)
+
+A targeted burn-down of `as any` **casts** (a subset of `no-explicit-any`, which stays at warn) done BEFORE the
+no-unused-vars pass — per the owner: `any` is contagious (disables checking in cast-free files via flow), and
+no-unused-vars needs honest types to tell used from unused. Verification = the **no-op invariant**: a correct
+cast removal is a pure compile-time no-op → tsc green + behavior identical = correct; if behavior moves, the
+cast hid a live bug (surfaced) or a throw/assertion was introduced (no benign third case). Full discipline +
+5-bucket triage live in the `as-any-burndown-approach` agent memory. **CI green each wave (tsc 0 / eslint 0
+errors / vitest 218/218); committed locally, NOT pushed.**
+
+Scope note: of 356 raw `as any` repo matches, only ~109 are real casts in `.ts/.tsx` — the rest are
+Matthew-Henry `.HTM` commentary prose ("as any man…") + a README; eslint never lints those.
+
+### Wave 1 — `264bef4` — gratuitous (bucket 1, 28 casts)
+- `educational-philosophies.ts` ×17: `(EducationalPhilosophy as any).X` → `.X` (the Prisma enum is a runtime const object — the cast suppressed nothing).
+- `scheduling.ts` ×10 + `transcripts/page.tsx` ×1: `(tx as any).model` → `tx.model` (`Prisma.TransactionClient` exposes every delegate; StudentScheduleItem/CustomEvent/Learner all exist in the schema).
+
+### Wave 2a — `9f3f93c` — honest typing (bucket 2, 3 casts)
+- New `src/types/next-auth.d.ts`: module augmentation for the custom session/JWT fields (`organizationId` on Session.user + User; id + organizationId on JWT via `@auth/core/jwt`, where Auth.js v5 defines JWT) → removes the 2 `organizationId` casts in `auth.ts`. organizationId is touched only there → nil contagion; fields optional → exact runtime no-op.
+- `TopicSelector`: `setMode(v as any)` → `setMode(v as "SPINE"|"FREE"|"STANDARD")` — a precise narrow (Radix Tabs only emits its 3 registered trigger values).
+
+### Wave 2b — `939b8db` — honest typing (bucket 2, 7 casts)
+- `BibleMemoryDashboard`: typed `initialUserVerses: BibleMemory[]` (getUserVerses returns exactly that; addVerseToUser returns `{verse: BibleMemory}`), removing 7 verse-field casts (folderId/currentStep in filter/map + the res.verse folderId writes). Also drops one `: any[]` annotation. No contagion (the page already passes typed data).
+
+### Reconcile (§4 partition)
+- **no-explicit-any 273 → 234** (38 casts + 1 `: any[]` annotation). **Total warnings 518 → 479.** No rule locked — `no-explicit-any` stays warn until it reaches 0. **Headline unchanged: 0 CRITICAL · 0 HIGH · 0 MED · 1 LOW (Q-01-004).** Updated ch.01 §7, ch.24 §7, 00-INDEX + the as-any-burndown-approach / findings-resolution-progress memories.
+- **~71 casts remain** — bucket 2: master-context nested-select 6, component-props 8; bucket 3: Json reads ~16 / writes ~12 / Inngest 7; bucket 4: Zod resolvers 6, webkitSpeech 2, misc ~13, generate-resource ~5. Resume via the `as-any-burndown-approach` memory: one wave at a time, one commit per wave, nothing pushed. **no-unused-vars (234) is the FINAL pass, after the as-any/structural churn.**
