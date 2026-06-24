@@ -1,7 +1,8 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import type { InterestsData } from "@/lib/students/learner-profile";
 
 interface InterestsPassionsProps {
-    interestsData: any;
+    interestsData: InterestsData | null;
 }
 
 export function InterestsPassions({ interestsData }: InterestsPassionsProps) {
@@ -34,7 +35,7 @@ export function InterestsPassions({ interestsData }: InterestsPassionsProps) {
                                 </p>
                                 {interestsData.specificEntities && interestsData.specificEntities.length > 0 ? (
                                     <div className="grid grid-cols-2 gap-2">
-                                        {interestsData.specificEntities.map((entity: any, idx: number) => (
+                                        {interestsData.specificEntities.map((entity, idx) => (
                                             <div key={idx} className="bg-qc-parchment p-2 rounded-qc-sm border border-qc-border-subtle">
                                                 <p className="text-xs text-qc-text-muted">{entity.category}</p>
                                                 <p className="text-sm font-medium text-qc-charcoal">{entity.favorite}</p>

@@ -8,7 +8,7 @@ interface StudentHeaderProps {
 }
 
 export function StudentHeader({ student }: StudentHeaderProps) {
-    const personalityData = student.learnerProfile?.personalityData as any;
+    const personalityData = student.learnerProfile?.personalityData;
 
     return (
         <div className="mb-8">

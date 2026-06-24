@@ -1,10 +1,11 @@
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import type { PersonalityData } from "@/lib/students/learner-profile";
 
 interface PersonalityProfileProps {
     studentId: string;
-    personalityData: any;
+    personalityData: PersonalityData | null;
 }
 
 export function PersonalityProfile({ studentId, personalityData }: PersonalityProfileProps) {

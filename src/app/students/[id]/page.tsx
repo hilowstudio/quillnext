@@ -3,6 +3,11 @@ import { Suspense } from "react";
 import { auth } from "@/auth";
 import { getCurrentUserOrg } from "@/lib/auth-helpers";
 import { getStudentProfileData } from "@/server/queries/students";
+import {
+  parsePersonalityData,
+  parseLearningStyleData,
+  parseInterestsData,
+} from "@/lib/students/learner-profile";
 import { serializeMasterContext } from "@/lib/context/context-serializer";
 import { StudentDiscipleshipCard } from "@/components/family-discipleship/StudentDiscipleshipCard";
 import { StudentHeader } from "./_components/StudentHeader";
@@ -62,9 +67,9 @@ export default async function StudentProfilePage({
     prioritize: ["student", "academic", "family", "library", "schedule"],
   });
 
-  const personalityData = student.learnerProfile?.personalityData as any;
-  const learningStyleData = student.learnerProfile?.learningStyleData as any;
-  const interestsData = student.learnerProfile?.interestsData as any;
+  const personalityData = parsePersonalityData(student.learnerProfile?.personalityData);
+  const learningStyleData = parseLearningStyleData(student.learnerProfile?.learningStyleData);
+  const interestsData = parseInterestsData(student.learnerProfile?.interestsData);
 
   return (
     <div className="container mx-auto max-w-6xl px-4 py-8">

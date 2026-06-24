@@ -1,5 +1,10 @@
 import { db, withTenant } from "@/server/db";
 import { Prisma } from "@/generated/client";
+import {
+  parsePersonalityData,
+  parseLearningStyleData,
+  parseInterestsData,
+} from "@/lib/students/learner-profile";
 
 // -----------------------------------------------------------------------
 // Master Context System
@@ -511,9 +516,9 @@ export async function getStudentContext(
     },
     profile: student.learnerProfile
       ? {
-        personalityData: (student.learnerProfile.personalityData as any) || null,
-        learningStyleData: (student.learnerProfile.learningStyleData as any) || null,
-        interestsData: (student.learnerProfile.interestsData as any) || null,
+        personalityData: parsePersonalityData(student.learnerProfile.personalityData),
+        learningStyleData: parseLearningStyleData(student.learnerProfile.learningStyleData),
+        interestsData: parseInterestsData(student.learnerProfile.interestsData),
       }
       : null,
     enrolledCourses: student.courseEnrollments.map((ce) => ({

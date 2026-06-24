@@ -10,8 +10,8 @@ interface PersonalizationContextCardProps {
 // name collision with the org-level src/components/context/ContextCompleteness.tsx (different props
 // and a different 5-pillar scoring algorithm). This is the student-scoped 4-item heuristic score.
 export function PersonalizationContextCard({ student, relevantBooks }: PersonalizationContextCardProps) {
-    const personalityData = student.learnerProfile?.personalityData as any;
-    const learningStyleData = student.learnerProfile?.learningStyleData as any;
+    const personalityData = student.learnerProfile?.personalityData;
+    const learningStyleData = student.learnerProfile?.learningStyleData;
 
     const contextCompleteness = {
         profile: !!personalityData,

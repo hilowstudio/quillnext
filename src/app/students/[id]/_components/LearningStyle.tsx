@@ -1,7 +1,8 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import type { LearningStyleData } from "@/lib/students/learner-profile";
 
 interface LearningStyleProps {
-    learningStyleData: any;
+    learningStyleData: LearningStyleData | null;
 }
 
 export function LearningStyle({ learningStyleData }: LearningStyleProps) {
