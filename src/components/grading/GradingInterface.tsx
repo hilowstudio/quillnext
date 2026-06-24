@@ -8,9 +8,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { generateItemFeedback, generateOverallFeedback } from "@/app/actions/grading-actions";
+import type { GradingAttempt } from "./grading-types";
 
 interface GradingInterfaceProps {
-  attempt: any;
+  attempt: GradingAttempt;
 }
 
 export function GradingInterface({
@@ -26,15 +27,15 @@ export function GradingInterface({
 
   const handleScoreChange = (itemId: string, value: string) => {
     const numValue = parseFloat(value) || 0;
-    const maxPoints = Number(attempt.assessment.items.find((i: any) => i.id === itemId)?.points || 0);
+    const maxPoints = Number(attempt.assessment.items.find((i) => i.id === itemId)?.points || 0);
     setScores({ ...scores, [itemId]: Math.min(numValue, maxPoints) });
   };
 
   const handleGenerateFeedback = async (itemId: string, responseId: string) => {
     setIsGeneratingFeedback(itemId);
     try {
-      const item = attempt.assessment.items.find((i: any) => i.id === itemId);
-      const response = attempt.itemResponses.find((r: any) => r.id === responseId);
+      const item = attempt.assessment.items.find((i) => i.id === itemId);
+      const response = attempt.itemResponses.find((r) => r.id === responseId);
 
       if (!item || !response) return;
 
@@ -59,7 +60,7 @@ export function GradingInterface({
     try {
       const totalScore = Object.values(scores).reduce((sum, score) => sum + score, 0);
       const maxScore = attempt.assessment.items.reduce(
-        (sum: number, item: any) => sum + Number(item.points || 0),
+        (sum, item) => sum + Number(item.points || 0),
         0,
       );
 
@@ -125,8 +126,8 @@ export function GradingInterface({
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          {attempt.assessment.items.map((item: any) => {
-            const response = attempt.itemResponses.find((r: any) => r.itemId === item.id);
+          {attempt.assessment.items.map((item) => {
+            const response = attempt.itemResponses.find((r) => r.itemId === item.id);
             const currentScore = scores[item.id] ?? Number(response?.pointsEarned || 0);
             const currentFeedback = feedback[item.id] || response?.feedback || "";
 
