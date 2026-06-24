@@ -21,11 +21,10 @@ export default async function VideosPage() {
     getLibrarySubjects(),
   ]);
 
-  // Type assertion needed at Server/Client boundary
   return (
     <VideosClient
-      initialVideos={videos as any}
-      initialSubjects={subjects as any}
+      initialVideos={videos}
+      initialSubjects={subjects}
     />
   );
 }

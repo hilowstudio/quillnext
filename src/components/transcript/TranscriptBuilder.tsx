@@ -26,7 +26,7 @@ import { toast } from "sonner";
 import { TranscriptPreview } from "./TranscriptPreview";
 import { CourseEntrySection } from "./CourseEntrySection";
 import { ActivitiesSection } from "./ActivitiesSection";
-import type { TranscriptData } from "./types";
+import type { TranscriptData, GradingScaleType } from "./types";
 import { exportToPDF } from "./pdfExport";
 import { saveTranscript } from "@/server/actions/transcript";
 import { getGradingScaleLegend } from "./utils";
@@ -278,14 +278,18 @@ export function TranscriptBuilder({ initialData, studentId }: TranscriptBuilderP
                                                                 <Label className="text-qc-text-muted">Grading Scale</Label>
                                                                 <Select
                                                                     value={transcript.gradingSettings?.scale || '10-point'}
-                                                                    onValueChange={(val) => updateTranscript({
-                                                                        gradingSettings: {
-                                                                            scale: val as any,
-                                                                            weighted: transcript.gradingSettings?.weighted ?? true,
-                                                                            showNarratives: transcript.gradingSettings?.showNarratives
-                                                                        } as any,
-                                                                        gradingScale: getGradingScaleLegend(val as any)
-                                                                    })}
+                                                                    onValueChange={(val) => {
+                                                                        // The SelectItem values below are exactly GradingScaleType
+                                                                        const scale = val as GradingScaleType;
+                                                                        updateTranscript({
+                                                                            gradingSettings: {
+                                                                                scale,
+                                                                                weighted: transcript.gradingSettings?.weighted ?? true,
+                                                                                showNarratives: transcript.gradingSettings?.showNarratives
+                                                                            },
+                                                                            gradingScale: getGradingScaleLegend(scale)
+                                                                        });
+                                                                    }}
                                                                 >
                                                                     <SelectTrigger className="h-10 border-qc-border-subtle focus:border-[#563963] focus:ring-[#563963]/10">
                                                                         <SelectValue />
