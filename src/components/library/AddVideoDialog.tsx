@@ -137,7 +137,7 @@ export function AddVideoDialog() {
                 <DialogHeader>
                     <DialogTitle>Add YouTube Video</DialogTitle>
                     <DialogDescription>
-                        Enter a YouTube URL. We'll pull the transcript (falling back to Gemini 3 Pro
+                        Enter a YouTube URL. We&apos;ll pull the transcript (falling back to Gemini 3 Pro
                         to watch it), extract a summary, key points, and chapters, and generate
                         embeddings for the Living Library.
                     </DialogDescription>

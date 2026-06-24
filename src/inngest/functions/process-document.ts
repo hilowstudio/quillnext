@@ -2,13 +2,12 @@ import { revalidateTag } from "next/cache";
 import { inngest } from "@/inngest/client";
 import { getStorageBucket } from "@/lib/firebase-admin";
 import { withTenant } from "@/server/db";
-// @ts-ignore
 import PDFParser from "pdf2json";
 
 // Helper to parse PDF buffer
 async function parsePdfBuffer(buffer: Buffer): Promise<string> {
     return new Promise((resolve, reject) => {
-        // @ts-ignore
+        // @ts-expect-error pdf2json's bundled types reject this (context, needRawText) constructor overload
         const pdfParser = new PDFParser(null, 1); // 1 = text only
 
         pdfParser.on("pdfParser_dataError", (errData: any) => {

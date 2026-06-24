@@ -348,7 +348,7 @@ export default async function BlueprintPage() {
                     <li>Student-specific learning materials and recommendations</li>
                   )}
                   {studentsWithProfilesCount === 0 && studentsCount > 0 && (
-                    <li>AI that adapts to each student's learning style and preferences</li>
+                    <li>AI that adapts to each student&apos;s learning style and preferences</li>
                   )}
                   {booksCount === 0 && (
                     <li>Content generation from your library resources</li>

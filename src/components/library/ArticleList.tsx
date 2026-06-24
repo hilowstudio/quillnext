@@ -45,7 +45,6 @@ export function ArticleList({ articles, setArticles }: ArticleListProps) {
                 setUrl("");
                 toast.success("Article added successfully!");
             } else {
-                // @ts-ignore
                 toast.error(result.error || "Failed to add article");
             }
         } catch (error) {
@@ -131,7 +130,7 @@ function ArticleCard({ article }: { article: any }) {
                 router.refresh();
             } else {
                 // ...
-                // @ts-ignore
+                // @ts-expect-error result is {success:true} (action throws on failure); 'error' not on type — defensive UI branch
                 toast.error(result.error || "Failed to delete article");
             }
         } catch (error) {
@@ -176,7 +175,7 @@ function ArticleCard({ article }: { article: any }) {
                             <AlertDialogHeader>
                                 <AlertDialogTitle>Delete Article?</AlertDialogTitle>
                                 <AlertDialogDescription>
-                                    Are you sure you want to delete "{article.title}"? This action cannot be undone.
+                                    Are you sure you want to delete &quot;{article.title}&quot;? This action cannot be undone.
                                 </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>

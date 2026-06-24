@@ -56,7 +56,7 @@ export function SpecForm({ onSubmit, isLoading, initialContext }: SpecFormProps)
                     Curriculum Compiler
                 </CardTitle>
                 <CardDescription>
-                    Define your constraints and specs. We'll engineer the rest.
+                    Define your constraints and specs. We&apos;ll engineer the rest.
                 </CardDescription>
             </CardHeader>
             <CardContent>

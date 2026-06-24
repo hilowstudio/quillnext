@@ -70,7 +70,7 @@ function BookCard({ book }: { book: any }) {
                 toast.success("Book deleted successfully");
                 router.refresh();
             } else {
-                // @ts-ignore
+                // @ts-expect-error result is {success:true} (action throws on failure); 'error' not on type — defensive UI branch
                 toast.error(result.error || "Failed to delete book");
             }
         } catch (error) {
@@ -134,7 +134,7 @@ function BookCard({ book }: { book: any }) {
                                 <AlertDialogHeader>
                                     <AlertDialogTitle>Delete Book?</AlertDialogTitle>
                                     <AlertDialogDescription>
-                                        Are you sure you want to delete "{book.title}"? This action cannot be undone.
+                                        Are you sure you want to delete &quot;{book.title}&quot;? This action cannot be undone.
                                     </AlertDialogDescription>
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>

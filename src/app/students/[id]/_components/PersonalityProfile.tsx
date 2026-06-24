@@ -58,7 +58,7 @@ export function PersonalityProfile({ studentId, personalityData }: PersonalityPr
                                 </p>
                                 <div className="bg-qc-warm-stone rounded-qc-md p-3">
                                     <p className="font-body text-sm text-qc-charcoal italic">
-                                        "{personalityData.toneInstructions}"
+                                        &quot;{personalityData.toneInstructions}&quot;
                                     </p>
                                 </div>
                             </div>

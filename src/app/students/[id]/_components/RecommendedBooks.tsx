@@ -18,7 +18,7 @@ export function RecommendedBooks({ studentId, books }: RecommendedBooksProps) {
             <CardHeader>
                 <CardTitle className="font-display text-xl">Recommended Books</CardTitle>
                 <CardDescription>
-                    Books from your library relevant to this student's courses
+                    Books from your library relevant to this student&apos;s courses
                 </CardDescription>
             </CardHeader>
             <CardContent>

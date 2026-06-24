@@ -89,7 +89,6 @@ async function loadSpineNode(level: string, id: string): Promise<LoadedSpineNode
                     : null;
     if (!where) return null;
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const objectives = await db.objective.findMany({
         where: where as any,
         select: { text: true, code: true },

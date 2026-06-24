@@ -12,25 +12,30 @@ const eslintConfig = [
       "node_modules/**",
       "prisma/migrations/**",
       "next-env.d.ts",
+      ".claude/worktrees/**", // ephemeral Workflow git worktrees — git-excluded; never lint
     ],
   },
   ...coreWebVitals,
   ...typescript,
   {
-    // Rules currently violated pervasively across the fast-built codebase are
-    // downgraded to warnings so CI can adopt lint now without a mass refactor
-    // (they stay visible to burn down over time). Every OTHER error-level rule
-    // remains enforced, so NEW violations of them fail CI.
+    // Lint-debt ratchet (Q-01-004). Pervasively-violated rules were downgraded to "warn" so CI
+    // could adopt lint without a mass refactor, then burned down rule-by-rule. Each is promoted to
+    // "error" once it reaches 0 via genuine, behavior-preserving fixes, so new violations fail CI.
+    // The rest stay "warn" (visible, non-blocking) until they reach 0. Every other rule is enforced.
     rules: {
+      // Locked — burned down to 0 and ratcheted to "error":
+      "@typescript-eslint/ban-ts-comment": "error",
+      "@typescript-eslint/no-empty-object-type": "error",
+      "@typescript-eslint/no-require-imports": "error",
+      "@typescript-eslint/no-wrapper-object-types": "error",
+      "prefer-const": "error",
+      "jsx-a11y/alt-text": "error",
+      "import/no-anonymous-default-export": "error",
+      "react/no-unescaped-entities": "error",
+      // Still burning down — kept at "warn" until they reach 0:
       "@typescript-eslint/no-explicit-any": "warn",
-      "@typescript-eslint/ban-ts-comment": "warn",
-      "@typescript-eslint/no-wrapper-object-types": "warn",
-      "@typescript-eslint/no-require-imports": "warn",
-      "@typescript-eslint/no-empty-object-type": "warn",
-      "react/no-unescaped-entities": "warn",
       "react-hooks/error-boundaries": "warn",
       "react-hooks/set-state-in-effect": "warn",
-      "prefer-const": "warn",
     },
   },
 ];

@@ -124,7 +124,7 @@ export default async function GradingPage({
               <CardHeader>
                 <CardTitle className="font-display text-lg">Student Context</CardTitle>
                 <CardDescription>
-                  Feedback will be personalized using this student's profile
+                  Feedback will be personalized using this student&apos;s profile
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">

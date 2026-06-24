@@ -15,7 +15,9 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    let { organizationId, userId } = await getCurrentUserOrg();
+    const userOrg = await getCurrentUserOrg();
+    const userId = userOrg.userId;
+    let organizationId = userOrg.organizationId;
 
     // Self-healing: Ensure user has an organization. These bootstrap writes stay on the raw `db`
     // client by necessity: the org INSERT must run under the null org context the relaxed

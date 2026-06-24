@@ -92,7 +92,7 @@ export function ComboboxWithCreate({
                                         onClick={handleCreate}
                                     >
                                         <Plus className="h-4 w-4" />
-                                        {createText} "{inputValue}"
+                                        {createText} &quot;{inputValue}&quot;
                                     </Button>
                                 </div>
                             ) : (

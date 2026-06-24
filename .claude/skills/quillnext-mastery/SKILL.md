@@ -302,6 +302,13 @@ push**, no schema/migration changes without explicit approval (batch + defer), k
      that tsc+tests miss — move it into a non-component (camelCase) helper the component awaits; run lint.
    - **The warning baseline can jump from the owner's intervening commit, not your change** — lint your
      touched files directly (0 new warnings) and note the shift; the 0-ERRORS gate is the real bar.
+   - **`eslint .` silently lints leftover Workflow git-worktrees under `.claude/worktrees/`** — these are
+     git-excluded (`.git/info/exclude`) so they're NOT in CI, but locally a stale `wf_*` worktree is a full
+     repo copy → it **DOUBLES every warning/error count** and makes a freshly-locked rule "error" on the
+     worktree's stale code (a phantom regression). Smell: counts look ~2× and `-f json` shows paths under
+     `.claude/worktrees/`. Fix: ensure the eslint `ignores` covers `.claude/worktrees/**` (mirrors the git
+     exclude). `git worktree list` to find it; it's the owner's call to `git worktree remove` (don't delete a
+     worktree you didn't create — it may hold a prior session's commit). Found during the Q-01-004 burndown.
 6. **Update ALL affected docs to current** (the next session's source of truth):
    - chapter §7 entries → `✅ RESOLVED` / `✅ REMOVED` (delete entry) / `⏳ DEFERRED` / `🔻 re-graded` /
      `✅ ACCEPTED`, each with a one-line note + `(see CHANGELOG.md)`; keep original evidence for history.

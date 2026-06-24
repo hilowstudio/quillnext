@@ -77,7 +77,6 @@ export default function BibleStudyClient() {
             const t = setTimeout(() => { el!.style.backgroundColor = prev; }, 2800);
             return () => clearTimeout(t);
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [activeTab, commentaryData]);
 
     const fetchData = async (searchQuery: string) => {
@@ -295,7 +294,7 @@ export default function BibleStudyClient() {
                                                                 </div>
                                                             </div>
                                                             <p className="text-xs text-muted-foreground italic">
-                                                                AI-generated summary of Matthew Henry's commentary on these verses.
+                                                                AI-generated summary of Matthew Henry&apos;s commentary on these verses.
                                                             </p>
                                                         </div>
                                                     ) : (

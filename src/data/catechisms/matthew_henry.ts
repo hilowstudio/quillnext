@@ -1,4 +1,4 @@
-export default [
+const matthewHenryCatechism = [
   {
     "number": "1",
     "question": "What is the chief end of man?",
@@ -14519,3 +14519,4 @@ export default [
     ]
   }
 ];
+export default matthewHenryCatechism;

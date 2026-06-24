@@ -154,7 +154,7 @@ export function ContextCompleteness({
                   <Info size={18} className="text-qc-text-muted hover:text-qc-primary transition-colors" />
                 </TooltipTrigger>
                 <TooltipContent className="max-w-xs p-4">
-                  <p className="text-sm">These 5 pillars inform every lesson plan, ensuring it fits your family's unique style.</p>
+                  <p className="text-sm">These 5 pillars inform every lesson plan, ensuring it fits your family&apos;s unique style.</p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>

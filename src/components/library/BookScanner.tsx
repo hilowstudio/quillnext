@@ -400,7 +400,7 @@ export function BookScanner({ organizationId }: BookScannerProps) {
                   <Input type="file" accept="image/*" capture="environment" className="hidden" id="scan-upload" onChange={handleImageSelect} />
                   <label htmlFor="scan-upload" className="cursor-pointer flex flex-col items-center">
                     {imagePreview ? (
-                      <img src={imagePreview} className="max-h-64 object-contain rounded-md mb-4" />
+                      <img src={imagePreview} alt="Book cover preview" className="max-h-64 object-contain rounded-md mb-4" />
                     ) : (
                       <Camera className="w-12 h-12 text-qc-text-muted mb-2" />
                     )}

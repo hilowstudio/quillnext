@@ -103,7 +103,7 @@ export default function MissionsClient({ stats }: MissionsClientProps) {
                             ))}
                             {countries.length === 0 && (
                                 <div className="col-span-full text-center py-10 text-muted-foreground">
-                                    No countries found matching "{search}"
+                                    No countries found matching &quot;{search}&quot;
                                 </div>
                             )}
                         </div>

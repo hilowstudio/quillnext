@@ -10,10 +10,10 @@ import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 
 type DevotionalEntry = {
-    id: String;
-    time: String;
-    keyverse: String;
-    body: String;
+    id: string;
+    time: string;
+    keyverse: string;
+    body: string;
 };
 
 interface DevotionalDisplayProps {
@@ -65,7 +65,7 @@ export function DevotionalDisplay({ devotionals, date }: DevotionalDisplayProps)
 }
 
 function DevotionalCard({ entry, timeLabel, icon }: { entry: any, timeLabel: string, icon: React.ReactNode }) {
-    const formatKeyVerse = (raw: String) => {
+    const formatKeyVerse = (raw: string) => {
         let text = raw.toString();
         let reference = "";
 
@@ -98,7 +98,7 @@ function DevotionalCard({ entry, timeLabel, icon }: { entry: any, timeLabel: str
 
     const { text: verseText, reference: verseRef } = formatKeyVerse(entry.keyverse);
 
-    const cleanBodyText = (text: String) => {
+    const cleanBodyText = (text: string) => {
         const lines = text.toString().split('\n');
         // We want to remove the initial "header" section.
         // Heuristic:

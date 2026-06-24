@@ -69,10 +69,10 @@ export function StudentDashboard({ student, viewMode = "STANDARD" }: StudentDash
                     </div>
                     <div>
                         <h1 className="font-display text-4xl font-bold text-qc-charcoal text-balance">
-                            {student.preferredName || student.firstName}'s Dashboard
+                            {student.preferredName || student.firstName}&apos;s Dashboard
                         </h1>
                         <p className="font-body text-lg text-qc-text-muted qc-prose">
-                            Let's see what we're learning today!
+                            Let&apos;s see what we&apos;re learning today!
                         </p>
                     </div>
                 </div>
@@ -94,7 +94,7 @@ export function StudentDashboard({ student, viewMode = "STANDARD" }: StudentDash
                         {data.courseEnrollments.length === 0 ? (
                             <Card>
                                 <CardContent className="py-8 text-center text-qc-text-muted">
-                                    <p>You haven't been enrolled in any courses yet.</p>
+                                    <p>You haven&apos;t been enrolled in any courses yet.</p>
                                 </CardContent>
                             </Card>
                         ) : (

@@ -253,7 +253,7 @@ export function AssessmentWizard({ studentId }: AssessmentWizardProps) {
                     Student Inkling Profile Setup
                 </CardTitle>
                 <CardDescription className="text-lg max-w-xl mx-auto mt-2">
-                    We need to "calibrate" Inkling to match this student's specific needs.
+                    We need to &quot;calibrate&quot; Inkling to match this student&apos;s specific needs.
                     This process takes about 3 minutes.
                 </CardDescription>
             </CardHeader>
@@ -390,7 +390,7 @@ export function AssessmentWizard({ studentId }: AssessmentWizardProps) {
             <CardContent className="space-y-8">
                 {/* World Selection */}
                 <div className="space-y-3">
-                    <Label className="text-base font-semibold">Which "worlds" do they enjoy?</Label>
+                    <Label className="text-base font-semibold">Which &quot;worlds&quot; do they enjoy?</Label>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         {INTEREST_WORLDS.map((world) => (
                             <div key={world} className="flex items-center space-x-2">
@@ -504,7 +504,7 @@ export function AssessmentWizard({ studentId }: AssessmentWizardProps) {
                 </div>
                 <h2 className="text-3xl font-display text-qc-charcoal text-balance">Profile Calibration Complete!</h2>
                 <p className="text-qc-text-muted qc-prose">
-                    We have configured Inkling to match this student's learning style.
+                    We have configured Inkling to match this student&apos;s learning style.
                 </p>
                 <div className="pt-4">
                     <Button asChild size="lg" className="w-full">

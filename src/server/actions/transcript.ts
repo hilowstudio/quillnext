@@ -82,7 +82,7 @@ export async function generateTranscriptData(studentId: string): Promise<Transcr
 
     // Map courses
     const transcriptCourses: TranscriptCourse[] = student.courseEnrollments.map(enrollment => {
-        let level = gradeLevel;
+        const level = gradeLevel;
 
         return {
             id: `course-${enrollment.courseId}`,

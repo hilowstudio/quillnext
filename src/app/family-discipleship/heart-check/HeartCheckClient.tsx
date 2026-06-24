@@ -46,10 +46,6 @@ interface Emotion {
     content: EmotionContent;
 }
 
-interface HeartCheckClientProps {
-    // Add any future props here (e.g. user profile if we fetched it server-side)
-}
-
 // Emotion data with helping words and full content
 const emotions: Emotion[] = [
     {
@@ -482,7 +478,7 @@ const EmotionCard = memo<EmotionCardProps>(({ emotion, index, onSelect }) => {
 });
 EmotionCard.displayName = 'EmotionCard';
 
-export default function HeartCheckClient({ }: HeartCheckClientProps) {
+export default function HeartCheckClient() {
     const [selectedEmotion, setSelectedEmotion] = useState<Emotion | null>(null);
     // Render Selection View
     if (!selectedEmotion) {
@@ -646,7 +642,7 @@ export default function HeartCheckClient({ }: HeartCheckClientProps) {
                         <ul className="space-y-3">
                             {selectedEmotion.content.prayerPrompts.map((p, i) => (
                                 <li key={i} className="bg-qc-parchment/50 p-3 rounded-lg border border-qc-border-subtle italic text-qc-charcoal relative">
-                                    <span className="absolute left-2 top-2 text-2xl text-qc-primary opacity-20">"</span>
+                                    <span className="absolute left-2 top-2 text-2xl text-qc-primary opacity-20">&quot;</span>
                                     <div className="pl-4 prose prose-stone max-w-none">
                                         <ReactMarkdown
                                             remarkPlugins={[remarkGfm, remarkBreaks]}

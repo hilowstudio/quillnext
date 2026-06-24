@@ -141,7 +141,7 @@ function RefineBundleDialog({ bundleId }: { bundleId: string }) {
                 <DialogHeader>
                     <DialogTitle>Report Defect & Refine</DialogTitle>
                     <DialogDescription>
-                        The Curriculum Compiler uses a "Patch" workflow. Describe the defect (e.g., "Reading level too high" or "Font is too small") and we will re-compile a new version that attempts to fix it while respecting the original specs.
+                        The Curriculum Compiler uses a &quot;Patch&quot; workflow. Describe the defect (e.g., &quot;Reading level too high&quot; or &quot;Font is too small&quot;) and we will re-compile a new version that attempts to fix it while respecting the original specs.
                     </DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-4 py-4">

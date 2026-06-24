@@ -39,7 +39,7 @@ export function GeneratedResourceCard({ resource }: GeneratedResourceCardProps) 
                 toast.success("Resource deleted successfully");
                 router.refresh();
             } else {
-                // @ts-ignore
+                // @ts-expect-error result is {success:true} (action throws on failure); 'error' not on type — defensive UI branch
                 toast.error(result.error || "Failed to delete resource");
             }
         } catch (error) {
@@ -83,7 +83,7 @@ export function GeneratedResourceCard({ resource }: GeneratedResourceCardProps) 
                                 <AlertDialogHeader>
                                     <AlertDialogTitle>Delete Resource?</AlertDialogTitle>
                                     <AlertDialogDescription>
-                                        Are you sure you want to delete "{resource.title}"? This action cannot be undone.
+                                        Are you sure you want to delete &quot;{resource.title}&quot;? This action cannot be undone.
                                     </AlertDialogDescription>
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>

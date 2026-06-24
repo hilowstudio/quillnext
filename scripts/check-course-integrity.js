@@ -1,5 +1,5 @@
 
-const { PrismaClient } = require('../src/generated/client');
+import { PrismaClient } from '../src/generated/client';
 const prisma = new PrismaClient();
 
 async function main() {

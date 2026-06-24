@@ -165,7 +165,6 @@ export default function NewCourseBlockPage() {
           parentBlockId: data.parentBlockId || undefined,
           topicId: data.topicId?.startsWith("new:") ? undefined : data.topicId || undefined, // Todo: Handle custom topic creation backend side
           subtopicId: data.subtopicId?.startsWith("new:") ? undefined : data.subtopicId || undefined,
-          // @ts-ignore - Schema might not have these yet, but we sent them
           bookId: selectedBookId || undefined,
           bookChapterId: selectedChapterId || undefined,
         }),

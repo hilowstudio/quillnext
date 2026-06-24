@@ -48,7 +48,7 @@ export function ParentDashboard({
                 <Card className="lg:col-span-2 border-l-4 border-l-qc-primary shadow-md bg-gradient-to-br from-white to-qc-parchment">
                     <CardHeader className="pb-3">
                         <CardTitle className="font-display text-xl text-qc-primary">Daily Liturgy</CardTitle>
-                        <CardDescription>Today's family discipleship focus</CardDescription>
+                        <CardDescription>Today&apos;s family discipleship focus</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <div className="p-4 bg-qc-parchment rounded-lg border border-qc-border-subtle flex items-start justify-between">

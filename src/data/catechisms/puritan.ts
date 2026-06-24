@@ -1,4 +1,4 @@
-export default [
+const puritanCatechism = [
   {
     "number": 1,
     "question": "What is the chief end of man?",
@@ -1205,3 +1205,4 @@ export default [
     }
   }
 ];
+export default puritanCatechism;

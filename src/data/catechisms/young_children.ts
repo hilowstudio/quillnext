@@ -1,4 +1,4 @@
-export default [
+const youngChildrenCatechism = [
   {
     "number": 1,
     "question": "Who made you?",
@@ -870,3 +870,4 @@ export default [
     "proofTexts": {}
   }
 ];
+export default youngChildrenCatechism;

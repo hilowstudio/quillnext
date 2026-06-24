@@ -104,7 +104,7 @@ function CourseCard({ course }: { course: any }) {
                             <AlertDialogHeader>
                                 <AlertDialogTitle>Delete Course?</AlertDialogTitle>
                                 <AlertDialogDescription>
-                                    Are you sure you want to delete "{course.title}"? This action cannot be undone.
+                                    Are you sure you want to delete &quot;{course.title}&quot;? This action cannot be undone.
                                 </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>

@@ -155,7 +155,7 @@ function DocumentCard({ doc }: { doc: any }) {
                 router.refresh();
             } else {
                 // ...
-                // @ts-ignore
+                // @ts-expect-error result is {success:true} (action throws on failure); 'error' not on type — defensive UI branch
                 toast.error(result.error || "Failed to delete document");
             }
         } catch (error) {
@@ -193,7 +193,7 @@ function DocumentCard({ doc }: { doc: any }) {
                             <AlertDialogHeader>
                                 <AlertDialogTitle>Delete Document?</AlertDialogTitle>
                                 <AlertDialogDescription>
-                                    Are you sure you want to delete "{doc.fileName}"? This action cannot be undone.
+                                    Are you sure you want to delete &quot;{doc.fileName}&quot;? This action cannot be undone.
                                 </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>

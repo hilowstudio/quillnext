@@ -1,4 +1,4 @@
-export default [
+const heidelbergCatechism = [
   {
     "number": 1,
     "question": "What is your only comfort in life and death?",
@@ -2626,3 +2626,4 @@ export default [
     }
   }
 ];
+export default heidelbergCatechism;

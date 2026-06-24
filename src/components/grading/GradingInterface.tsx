@@ -208,7 +208,7 @@ export function GradingInterface({
             <div>
               <CardTitle className="font-display text-xl">Overall Feedback</CardTitle>
               <CardDescription>
-                Inkling-generated personalized feedback using student's profile
+                Inkling-generated personalized feedback using student&apos;s profile
               </CardDescription>
             </div>
             <Button
@@ -229,8 +229,8 @@ export function GradingInterface({
             </div>
           ) : (
             <p className="font-body text-sm text-qc-text-muted text-center py-4">
-              Click "Generate Overall Feedback" to create personalized feedback using the
-              student's learning profile.
+              Click &quot;Generate Overall Feedback&quot; to create personalized feedback using the
+              student&apos;s learning profile.
             </p>
           )}
         </CardContent>

@@ -55,7 +55,7 @@ export function LearningStyle({ learningStyleData }: LearningStyleProps) {
                                 </p>
                                 <div className="bg-qc-warm-stone rounded-qc-md p-3">
                                     <p className="font-body text-sm text-qc-charcoal italic">
-                                        "{learningStyleData.formatInstructions}"
+                                        &quot;{learningStyleData.formatInstructions}&quot;
                                     </p>
                                 </div>
                             </div>

@@ -167,7 +167,6 @@ export function ScheduleStep({
     selected: { backgroundColor: '#D9A441', color: '#ffffff' } // Gold/White (Hardcoded for safety)
   };
 
-  // @ts-ignore - DayButtonProps type might be missing in some v9 builds
   const CustomDayButton = (props: any) => {
     const { day, modifiers, ...buttonProps } = props;
     const holiday = isHoliday(day.date);

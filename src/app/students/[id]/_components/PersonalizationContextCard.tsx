@@ -32,7 +32,7 @@ export function PersonalizationContextCard({ student, relevantBooks }: Personali
                 <div className="flex items-center justify-between">
                     <div>
                         <CardTitle className="font-display text-xl">Personalization Context</CardTitle>
-                        <CardDescription>How complete is this student's profile?</CardDescription>
+                        <CardDescription>How complete is this student&apos;s profile?</CardDescription>
                     </div>
                     <div className="text-right">
                         <div className="font-display text-3xl font-bold text-qc-primary">

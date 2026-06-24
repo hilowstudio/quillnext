@@ -326,7 +326,7 @@ export default function BibleMemoryDashboard({ initialUserVerses, libraryVerses,
                                     value={customRef}
                                     onChange={(e) => setCustomRef(e.target.value)}
                                 />
-                                <p className="text-xs text-muted-foreground">We'll automatically fetch the text for you.</p>
+                                <p className="text-xs text-muted-foreground">We&apos;ll automatically fetch the text for you.</p>
                             </div>
                             <Button className="w-full" onClick={handleAddCustomVerse} disabled={!customRef}>
                                 Add Verse

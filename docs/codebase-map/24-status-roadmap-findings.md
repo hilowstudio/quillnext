@@ -879,7 +879,7 @@ none; open MED = none; open LOW = **Q-01-004** only (lint warn-ratchet, owner-ac
 > closed Q-13-009 (✅ accepted), leaving **8**. (HIGH/MED reconcile fine via their own lists; this is the one grade whose
 > running tally was prose-only.)
 > **Open LOW set (authoritative, 5 — Q-011/Q-013/Q-23-003 closed 2026-06-23):**
-> 1. **Q-01-004** (ch.01) — lint rules downgraded to warnings; owner-accepted deliberate adoption ratchet → **kept-OPEN (owner)**.
+> 1. **Q-01-004** (ch.01) — lint rules downgraded to warnings; owner-accepted deliberate adoption ratchet → **kept-OPEN (owner)**. *(Burndown pass 1, 2026-06-23: baseline corrected for a stale `.claude/worktrees/` lint-pollution; 637→548 warnings; **8 rules locked warn→error**; Tier-C subset [react-hooks/*, no-unused-vars 234, no-explicit-any 273] remains — see CHANGELOG.)*
 > 2. **Q-09-005** (ch.09) — the unbuilt source-specific context-injection half of source-anchored generation → **kept-OPEN (unfinished feature)**.
 > 3. **Q-10-010** (ch.10) — unverified caller-supplied lineage-id *write* on `generate-tool.tsx` (no cross-org *read* leak) → 🔻 re-graded MED→LOW, **⏳ deferred** with the Q-001 RLS-cutover audit.
 > 4. ~~**Q-011**~~ ✅ **RESOLVED 2026-06-23** (ch.02 — migration 0016 renamed `organization_id`→`account_id` on transcripts + curriculum_specs + recreated the coupled RLS policies).

@@ -102,7 +102,7 @@ async function main() {
     const operations: (() => Promise<any>)[] = [];
 
     let processedCount = 0;
-    let skippedCount = 0;
+    const skippedCount = 0;
 
     for (const [subjectKey, strandsData] of Object.entries(contentTypes)) {
       // Resolve Subject

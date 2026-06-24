@@ -1,4 +1,4 @@
-export default [
+const baptistCatechism = [
   {
     "number": 1,
     "question": "Who is the First and Chiefest Being?",
@@ -1719,3 +1719,4 @@ export default [
     }
   }
 ];
+export default baptistCatechism;

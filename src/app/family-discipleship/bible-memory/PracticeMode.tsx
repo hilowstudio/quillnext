@@ -401,7 +401,7 @@ export default function PracticeMode({ verse, onComplete, onExit, initialStep = 
                                 <div className="min-h-[2rem] text-sm text-qc-text-muted font-medium space-y-1">
                                     {userInput ? (
                                         <>
-                                            <p className="italic">"{userInput}"</p>
+                                            <p className="italic">&quot;{userInput}&quot;</p>
                                             <p className="text-xs text-muted-foreground">Accuracy: {accuracy}%</p>
                                         </>
                                     ) : "..."}

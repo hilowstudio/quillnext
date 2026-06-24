@@ -1,4 +1,4 @@
-export default [
+const wlcCatechism = [
   {
     "number": 1,
     "question": "What is the chief and highest end of man?",
@@ -6309,3 +6309,4 @@ export default [
     }
   }
 ];
+export default wlcCatechism;

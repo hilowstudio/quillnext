@@ -3294,3 +3294,45 @@ dialog (`CourseBuilder.tsx`), so the chokepoint was the shared `GeneratorForm`.
 - **LOW 2 → 1:** Q-09-005 ✅ resolved; only **Q-01-004** (lint warn-ratchet, owner-accepted) remains.
 - **New open headline: 0 CRITICAL · 0 HIGH · 0 MED · 1 LOW (Q-01-004).** The findings backlog is now a single
   owner-accepted LOW. Reconciles across 00-INDEX, ch.24 §7, ch.09 §7, ch.10 §5/§7.
+
+---
+
+## 2026-06-23 (later still) — Q-01-004 lint-debt burndown, pass 1 (Tier A + Tier B + no-unescaped-entities)
+
+Owner-triggered burndown of the lint warn-ratchet (Q-01-004), **smallest-count-first, SAFE-only**. Prime
+directive: a *safer* codebase, not a lower count — any warning whose fix would risk behavior or weaken
+type-safety is LEFT. **CI green throughout: `tsc --noEmit` 0 · `eslint .` 0 errors · `vitest` 218/218.
+`prisma/migrations/` untouched. Nothing pushed.**
+
+### Round 0 — baseline correction (eslint was double-counting)
+- **Discovery:** `eslint .` was also scanning a stale leftover **Workflow git-worktree** at
+  `.claude/worktrees/wf_a91d8eb3-ad4-1` (branch `worktree-wf_a91d8eb3-ad4-1` @ `58d532e`), so **every warning
+  counted twice**. The worktree is git-excluded (`.git/info/exclude`) → **not in CI**, so this was a
+  local-measurement artifact — but it would also make a locked rule "error" on the worktree's stale copy.
+- **Fix:** added `".claude/worktrees/**"` to the eslint `ignores` (mirrors the git exclude; zero behavior
+  impact). **True baseline: 637 warnings / 0 errors.**
+- **Surfaced, NOT actioned (not ours to delete):** the stale worktree itself; owner may
+  `git worktree remove .claude/worktrees/wf_a91d8eb3-ad4-1`.
+
+### Rules burned to 0 and LOCKED warn→error (genuine, behavior-preserving fixes only)
+- **`jsx-a11y/alt-text`** 1→0: added `alt="Book cover preview"` to the camera-preview `<img>` (`BookScanner.tsx:403`). (Next-default → explicit `"error"`.)
+- **`@typescript-eslint/no-empty-object-type`** 3→0: `input.tsx`/`label.tsx` empty `interface … extends …{}` → `type … = …` alias (no external consumers/augmentation); removed the empty placeholder `HeartCheckClientProps` interface + simplified the no-props signature (`HeartCheckClient.tsx`).
+- **`@typescript-eslint/no-wrapper-object-types`** 6→0: `String`→`string` on `DevotionalEntry` fields + 2 helper params (`DevotionalDisplay.tsx`).
+- **`import/no-anonymous-default-export`** 7→0: named the default-exported array in all 7 catechism data files (`const <name>Catechism = […]; export default <name>Catechism;`) — data byte-identical. (Next-default → explicit `"error"`.) **NOTE:** future `src/data/**` files written as `export default [...]` now fail CI — flag if a scoped exception is preferred.
+- **`@typescript-eslint/ban-ts-comment`** 10→0: converted real suppressions to `@ts-expect-error` + description (rule-allowed) and **deleted dead directives** (tsc TS2578 adjudicated which were unused). Kept (real): 5× `result.error` toast handlers (`deleteResource` returns `{success:true}` & throws → `error` not on type) + the `pdf2json` PDFParser ctor (typed sig rejects the args). Deleted (suppressed nothing): page-body excess-prop, ArticleList **add** path, DayButton, and the `pdf2json` **import** (pdf2json ships types).
+- **`@typescript-eslint/no-require-imports`** 2→0: `check-course-integrity.js` `require`→static `import`; `test-db.ts` `require`→**`await import()`** (dynamic import does NOT hoist → preserves the deliberate db-load-order trace) + `export {}` module marker.
+- **`prefer-const`** 4→0: `let`→`const` for `mastered` (push-mutated, never reassigned), `level` (transcript map), `skippedCount` (seed); split the mixed `let {organizationId,userId}` destructure in `api/students/route.ts` so `userId` is `const` (organizationId still reassigned → stays `let`).
+- **`react/no-unescaped-entities`** 54→0 (ratchet-9): replaced raw `'`/`"` in JSX **text nodes** with `&apos;`/`&quot;` (renders identically) across 27 files — each edit anchored on `>`/text boundaries so adjacent `className="…"` attribute quotes were never touched (the misplaced-bracket trap). Done first, per the owner's explicit "be careful, knock these out first" directive; tsc re-parsed clean after.
+- **unused `eslint-disable` directives** (reported as ruleId `null`) 2→0: removed a misplaced `no-explicit-any` disable (`generate-resource-core.ts` — the real `as any` is one line below, still a Tier-C `no-explicit-any` warning) and a now-complete-deps `exhaustive-deps` disable (`BibleStudyClient.tsx`).
+
+No new `eslint-disable` directives were added. No `as any`/`@ts-ignore`/`@ts-nocheck` introduced.
+
+### Reviewed, intentionally LEFT at warn
+- **`@next/next/no-img-element`** 11: all 11 sources are **remote** (Google Books/OpenLibrary covers, YouTube/video thumbnails, article og:images) or **data/blob URLs** (camera preview, base64 signature) → `next/image` would break (`images.remotePatterns: []` by design; data-URLs unsupported). Stays warn (cannot lock).
+
+### Pending owner sign-off (Tier C — STOPPED here per the burndown rules)
+Not touched; need a plan + sample before edits: **`react-hooks/exhaustive-deps` (5)**, **`react-hooks/set-state-in-effect` (8)**, **`react-hooks/error-boundaries` (17)**, **`@typescript-eslint/no-unused-vars` (234)**, **`@typescript-eslint/no-explicit-any` (273)**.
+
+### Reconcile (§4 partition)
+- **Warnings 637 → 548** (−89). **8 rules locked** warn→error (the 7 above + `react/no-unescaped-entities`).
+- **Q-01-004 stays OPEN** [LOW] — 3 ratchet-9 rules remain at warn (no-explicit-any 273, error-boundaries 17, set-state-in-effect 8), plus no-unused-vars 234 + no-img-element 11 (intentionally left). **Headline unchanged: 0 CRITICAL · 0 HIGH · 0 MED · 1 LOW (Q-01-004).** Updated ch.01 §7, ch.24 §7, 00-INDEX, progress memory + the quillnext-mastery skill (worktree-pollution gate gotcha).

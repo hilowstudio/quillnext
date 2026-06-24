@@ -59,7 +59,7 @@ export async function markQuestionAsMastered(studentId: string, catechismId: str
         where: { studentId_catechismId: { studentId, catechismId } }
     });
 
-    let mastered = (progress?.masteredQuestions as string[]) || [];
+    const mastered = (progress?.masteredQuestions as string[]) || [];
 
     if (!mastered.includes(questionIdentifier)) {
         mastered.push(questionIdentifier);

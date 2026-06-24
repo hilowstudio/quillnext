@@ -40,7 +40,7 @@ export default async function PlannerPage({
             <div className="flex items-center justify-between mb-6">
                 <div>
                     <h1 className="font-display text-3xl font-bold text-qc-charcoal text-balance">Weekly Planner</h1>
-                    <p className="text-qc-text-muted">Manage your family's schedule</p>
+                    <p className="text-qc-text-muted">Manage your family&apos;s schedule</p>
                 </div>
                 <div className="flex items-center gap-4">
                     <div className="flex items-center bg-qc-surface rounded-md border shadow-sm">
