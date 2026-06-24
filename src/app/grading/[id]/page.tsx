@@ -63,7 +63,7 @@ export default async function GradingPage({
       }),
     undefined,
     { organizationId, userId: null },
-  )) as any;
+  ));
 
   if (!attempt || !attempt.assessment?.course || attempt.assessment.course.organizationId !== organizationId) {
     redirect("/grading");
@@ -83,6 +83,11 @@ export default async function GradingPage({
   });
 
   // Get student's personality profile for personalized feedback
+  // NOTE: kept `as any` deliberately — the Student Context card below reads `communicationStyle`
+  // (:~138) and `primaryDrivers` (:~142/148), which are NOT fields of the PersonalityProfile schema
+  // (src/server/ai/personality.ts) — stale names that are always undefined at runtime. parsePersonalityData()
+  // would (correctly) reject them. Pending an owner decision on what that card should display (wire to real
+  // fields vs. remove), this read stays untyped. See the as-any burndown notes (wave 14).
   const personalityData = attempt.student.learnerProfile?.personalityData as any;
 
   return (
