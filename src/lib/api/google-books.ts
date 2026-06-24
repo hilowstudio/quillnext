@@ -13,6 +13,26 @@ export interface BookMetadata {
     language?: string;
 }
 
+// Minimal shape of the Google Books volumes API response we read (not schema-validated upstream,
+// so every field is optional and the code guards/defaults each).
+interface GoogleBooksVolume {
+    volumeInfo?: {
+        title?: string;
+        authors?: string[];
+        description?: string;
+        publisher?: string;
+        publishedDate?: string;
+        pageCount?: number;
+        imageLinks?: { thumbnail?: string };
+        industryIdentifiers?: { type?: string; identifier?: string }[];
+        categories?: string[];
+        language?: string;
+    };
+}
+interface GoogleBooksResponse {
+    items?: GoogleBooksVolume[];
+}
+
 export async function searchGoogleBooks(query: string, apiKey?: string): Promise<BookMetadata[]> {
     const url = new URL(GOOGLE_BOOKS_API_BASE);
     url.searchParams.append("q", query);
@@ -27,18 +47,18 @@ export async function searchGoogleBooks(query: string, apiKey?: string): Promise
             console.error("Google Books API error:", res.statusText);
             return [];
         }
-        const data = await res.json();
+        const data: GoogleBooksResponse = await res.json();
 
         if (!data.items) return [];
 
         // Guard the trust boundary: skip items with no title so BookMetadata.title is never
         // runtime-undefined (the upstream JSON is not schema-validated).
         return data.items
-            .filter((item: any) => item?.volumeInfo?.title)
-            .map((item: any) => {
+            .filter((item): item is GoogleBooksVolume & { volumeInfo: { title: string } } => !!item?.volumeInfo?.title)
+            .map((item) => {
             const info = item.volumeInfo;
-            const isbn = info.industryIdentifiers?.find((id: any) => id.type === "ISBN_13")?.identifier ||
-                info.industryIdentifiers?.find((id: any) => id.type === "ISBN_10")?.identifier;
+            const isbn = info.industryIdentifiers?.find((id) => id.type === "ISBN_13")?.identifier ||
+                info.industryIdentifiers?.find((id) => id.type === "ISBN_10")?.identifier;
 
             return {
                 title: info.title,

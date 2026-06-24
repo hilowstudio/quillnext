@@ -21,6 +21,20 @@ export interface YouTubePlaylist {
     videos: YouTubeVideo[];
 }
 
+// Minimal shape of the YouTube playlistItems API entries we read (not schema-validated upstream;
+// thumbnails / channel title can be absent, so they're defaulted at the boundary below).
+interface YouTubePlaylistItem {
+    snippet: {
+        resourceId: { videoId: string };
+        title: string;
+        description: string;
+        thumbnails?: { high?: { url: string }; medium?: { url: string } };
+        videoOwnerChannelTitle?: string;
+        publishedAt: string;
+        position: number;
+    };
+}
+
 export async function fetchPlaylistData(playlistUrlOrId: string, apiKey?: string): Promise<YouTubePlaylist | null> {
     if (!apiKey) {
         // Prefer server-side env var if not passed
@@ -61,17 +75,17 @@ export async function fetchPlaylistData(playlistUrlOrId: string, apiKey?: string
         const itemsRes = await fetch(itemsUrl.toString());
         if (!itemsRes.ok) throw new Error(`Items fetch failed: ${itemsRes.statusText}`);
 
-        const itemsData = await itemsRes.json();
+        const itemsData: { items: YouTubePlaylistItem[] } = await itemsRes.json();
 
-        const videos: YouTubeVideo[] = itemsData.items.map((item: any) => ({
+        const videos: YouTubeVideo[] = itemsData.items.map((item) => ({
             id: item.snippet.resourceId.videoId,
             title: item.snippet.title,
             description: item.snippet.description,
-            thumbnailUrl: item.snippet.thumbnails?.high?.url || item.snippet.thumbnails?.medium?.url,
-            channelTitle: item.snippet.videoOwnerChannelTitle,
+            thumbnailUrl: item.snippet.thumbnails?.high?.url || item.snippet.thumbnails?.medium?.url || "",
+            channelTitle: item.snippet.videoOwnerChannelTitle || "",
             publishedAt: item.snippet.publishedAt,
             position: item.snippet.position
-        })).filter((v: YouTubeVideo) => v.title !== "Private video" && v.title !== "Deleted video");
+        })).filter((v) => v.title !== "Private video" && v.title !== "Deleted video");
 
         return {
             id: playlistId,

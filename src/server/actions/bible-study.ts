@@ -68,7 +68,7 @@ function isValidReference(reference: string): boolean {
 /**
  * Makes an authenticated request to the ESV API.
  */
-async function fetchFromESV(endpoint: string, params: Record<string, string>): Promise<any> {
+async function fetchFromESV<T = unknown>(endpoint: string, params: Record<string, string>): Promise<T> {
     if (!ESV_API_KEY) {
         throw new StandardError(
             ERROR_CODES.SYSTEM.CONFIGURATION_ERROR,

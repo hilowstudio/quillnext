@@ -26,10 +26,10 @@ export const ERROR_CODES = {
 export class StandardError extends Error {
     code: string;
     statusCode: number;
-    details: any;
+    details: unknown;
     category: string;
 
-    constructor(code: string, message: string, statusCode: number = 500, details: any = null, category: string = 'SYSTEM') {
+    constructor(code: string, message: string, statusCode: number = 500, details: unknown = null, category: string = 'SYSTEM') {
         super(message);
         this.name = 'StandardError';
         this.code = code;
@@ -39,7 +39,7 @@ export class StandardError extends Error {
     }
 }
 
-export function createSuccessResponse(data: any, message: string | null = null, meta: any = null, requestId: string | null = null) {
+export function createSuccessResponse<T>(data: T, message: string | null = null, meta: unknown = null, requestId: string | null = null) {
     return {
         success: true,
         data,

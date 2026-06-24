@@ -6,7 +6,7 @@ import { unstable_cache } from "next/cache";
 /**
  * Wrapper for Next.js unstable_cache. Use this for arbitrary async operations.
  */
-export function cacheQuery<T, Args extends any[]>(
+export function cacheQuery<T, Args extends unknown[]>(
   fn: (...args: Args) => Promise<T>,
   keyParts: string[],
   options: { revalidate?: number; tags?: string[] } = {}

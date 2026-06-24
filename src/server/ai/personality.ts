@@ -146,7 +146,7 @@ Determine their cognitive preferences, input/output modes, and formatting needs.
  * GENERATE INTEREST PROFILE
  */
 export async function generateInterestProfile(
-  answers: Record<string, any>, // Allow complex objects for specific entities
+  answers: Record<string, unknown>, // Allow complex objects for specific entities
   studentName: string,
 ): Promise<InterestProfile> {
   const { object } = await generateObject({

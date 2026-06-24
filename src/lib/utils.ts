@@ -5,9 +5,9 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-export function getStudentAvatarUrl(seed: string, config?: any) {
+export function getStudentAvatarUrl(seed: string, config?: unknown) {
   const baseUrl = `https://api.dicebear.com/9.x/lorelei/svg?seed=${encodeURIComponent(seed)}`;
-  if (!config) return baseUrl;
+  if (!config || typeof config !== "object") return baseUrl;
 
   // Add config params to URL
   const params = new URLSearchParams();

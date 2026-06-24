@@ -1,4 +1,5 @@
 import { auth } from "@/auth";
+import type { Session } from "next-auth";
 import { db } from "@/server/db";
 import { setRlsContext } from "@/server/rls-context";
 
@@ -7,7 +8,7 @@ import { setRlsContext } from "@/server/rls-context";
  * Throws if user is not authenticated
  */
 // Allow passing session to avoid re-fetching
-export async function getCurrentUserOrg(existingSession?: any) {
+export async function getCurrentUserOrg(existingSession?: Session | null) {
   const session = existingSession || await auth();
 
   if (!session?.user?.id) {

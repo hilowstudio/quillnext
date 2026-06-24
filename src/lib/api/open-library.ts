@@ -2,6 +2,17 @@ import { BookMetadata } from "./google-books";
 
 const OPEN_LIBRARY_BASE = "https://openlibrary.org";
 
+// Minimal shape of the OpenLibrary "books" API entries we read (not schema-validated upstream).
+interface OpenLibraryBook {
+    title?: string;
+    authors?: { name: string }[];
+    publishers?: { name?: string }[];
+    publish_date?: string;
+    number_of_pages?: number;
+    cover?: { medium?: string; large?: string };
+    excerpts?: { text?: string }[];
+}
+
 export async function lookupOpenLibraryByIsbn(isbn: string): Promise<BookMetadata | null> {
     // OpenLibrary API: https://openlibrary.org/api/books?bibkeys=ISBN:xxx&format=json&jscmd=data
     const url = new URL(`${OPEN_LIBRARY_BASE}/api/books`);
@@ -13,7 +24,7 @@ export async function lookupOpenLibraryByIsbn(isbn: string): Promise<BookMetadat
         const res = await fetch(url.toString());
         if (!res.ok) return null;
 
-        const data = await res.json();
+        const data: Record<string, OpenLibraryBook | undefined> = await res.json();
         const key = `ISBN:${isbn}`;
         const bookData = data[key];
 
@@ -23,7 +34,7 @@ export async function lookupOpenLibraryByIsbn(isbn: string): Promise<BookMetadat
 
         return {
             title: bookData.title,
-            authors: bookData.authors?.map((a: any) => a.name) || [],
+            authors: bookData.authors?.map((a) => a.name) || [],
             publisher: bookData.publishers?.[0]?.name,
             publishedDate: bookData.publish_date,
             pageCount: bookData.number_of_pages,
