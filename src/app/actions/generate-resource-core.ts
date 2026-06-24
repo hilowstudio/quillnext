@@ -1,7 +1,7 @@
 import { db, withTenant } from "@/server/db";
 import { getPlaylistDetails } from "@/app/actions/youtube-actions";
 import { models } from "@/lib/ai/config";
-import { generateText, tool } from "ai";
+import { generateText, tool, stepCountIs } from "ai";
 import { PHILOSOPHY_PROMPTS } from "@/lib/constants/educational-philosophies";
 import { EducationalPhilosophy, Prisma } from "@/generated/client";
 import { PromptBuilder } from "@/lib/ai/prompt-builder";
@@ -740,7 +740,9 @@ export async function generateResourceCore(params: GenerateResourceCoreParams) {
                     },
                 }),
             },
-            // maxSteps: 3, // Removed temporarily due to type definition mismatch
+            // Allow up to 3 steps so the model can call generate_image and then continue writing
+            // with the returned image markdown (AI SDK v5: stopWhen replaces v4's maxSteps).
+            stopWhen: stepCountIs(3),
         });
         textContent = text;
         storageType = "MARKDOWN";

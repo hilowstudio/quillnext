@@ -1,4 +1,4 @@
-import { generateText, generateObject } from "ai";
+import { generateText, generateObject, type LanguageModel } from "ai";
 
 /**
  * Grounded-generation guards (Phase 1 of docs/specs/grounded-generation.md).
@@ -124,7 +124,7 @@ export function buildCanonicalFactsBlock(facts: {
 export async function verifyAndReviseMarkdown(
     draft: string,
     factsBlock: string,
-    model: unknown,
+    model: LanguageModel,
     allowedQuoteSource?: string,
     antiEchoSource?: string,
 ): Promise<string> {
@@ -170,7 +170,7 @@ ${quoteRule}
 
 Do not add commentary, preamble, or explanations. Output ONLY the corrected markdown content.`;
 
-        const { text } = await generateText({ model: model as any, prompt });
+        const { text } = await generateText({ model, prompt });
         const out = (text || "").trim();
         return out ? out : draft;
     } catch (err) {
@@ -189,7 +189,7 @@ export async function verifyAndReviseObject<T>(
     draft: T,
     schema: import("zod").ZodType<T>,
     factsBlock: string,
-    model: unknown,
+    model: LanguageModel,
     allowedQuoteSource?: string,
     antiEchoSource?: string,
 ): Promise<T> {
@@ -237,7 +237,7 @@ ${quoteRule}
 
 Preserve the overall structure, intent, and number of items where possible. Do not add commentary — return only the corrected structured content.`;
 
-        const { object } = await generateObject({ model: model as any, schema: schema as any, prompt });
+        const { object } = await generateObject({ model, schema, prompt });
         return object as T;
     } catch (err) {
         console.error("[generation-guards] verifyAndReviseObject failed — keeping original draft.", err);
