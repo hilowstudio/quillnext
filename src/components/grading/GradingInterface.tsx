@@ -11,12 +11,10 @@ import { generateItemFeedback, generateOverallFeedback } from "@/app/actions/gra
 
 interface GradingInterfaceProps {
   attempt: any;
-  personalityData: any;
 }
 
 export function GradingInterface({
   attempt,
-  personalityData,
 }: GradingInterfaceProps) {
   const router = useRouter();
   const [scores, setScores] = useState<Record<string, number>>({});

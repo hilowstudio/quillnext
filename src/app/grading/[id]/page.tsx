@@ -136,7 +136,6 @@ export default async function GradingPage({
         <div className="lg:col-span-2">
           <GradingInterface
             attempt={attempt}
-            personalityData={personalityData}
           />
         </div>
 
