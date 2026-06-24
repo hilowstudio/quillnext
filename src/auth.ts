@@ -1,7 +1,6 @@
 import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
 import { PrismaAdapter } from "@auth/prisma-adapter";
-import { PrismaClient } from "@/generated/client";
 import { db } from "@/server/db";
 import { authConfig } from "./auth.config";
 
@@ -13,11 +12,12 @@ import { authConfig } from "./auth.config";
  * Combines edge-safe config with database adapter
  */
 const authInstance = NextAuth({
-  // @auth/prisma-adapter is typed against @prisma/client's PrismaClient, which is nominally incompatible
-  // with our custom-output `@/generated/client` PrismaClient — even though `db` is a valid client at runtime
-  // (the adapter only uses standard model delegates). Self-cleans if the two client types ever unify.
-  // @ts-expect-error two-package PrismaClient type mismatch (custom Prisma output vs @auth/prisma-adapter)
-  adapter: PrismaAdapter(db),
+  // @auth/prisma-adapter is typed against @prisma/client's PrismaClient, nominally distinct from our
+  // custom-output `@/generated/client` PrismaClient — but `db` is a valid client at runtime (the adapter
+  // only uses standard model delegates). Cast to the adapter's own expected parameter type rather than a
+  // `@ts-expect-error`: that directive becomes an "unused directive" HARD error in any build where the two
+  // client types happen to resolve as compatible (e.g. a clean Vercel install), which broke the deploy.
+  adapter: PrismaAdapter(db as unknown as Parameters<typeof PrismaAdapter>[0]),
   session: { strategy: "jwt" },
   secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET,
   debug: false,
