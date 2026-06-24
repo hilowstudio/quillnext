@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import type { BibleMemory } from "@/generated/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -14,7 +15,7 @@ import PracticeMode from './PracticeMode';
 import { toast } from 'sonner';
 
 interface BibleMemoryDashboardProps {
-    initialUserVerses: any[];
+    initialUserVerses: BibleMemory[];
     libraryVerses: any[];
     studentId: string; // Current user context
     folders: any[];
@@ -39,11 +40,11 @@ export default function BibleMemoryDashboard({ initialUserVerses, libraryVerses,
 
     // --- Derived State ---
     const filteredVerses = selectedFolderId
-        ? verses.filter(v => (v as any).folderId === selectedFolderId)
-        : verses.filter(v => !(v as any).folderId); // If root (null state), only show unfiled verses
+        ? verses.filter(v => v.folderId === selectedFolderId)
+        : verses.filter(v => !v.folderId); // If root (null state), only show unfiled verses
 
-    const learningVerses = filteredVerses.filter(v => ((v as any).currentStep || 0) < 8);
-    const masteredVerses = filteredVerses.filter(v => ((v as any).currentStep || 0) >= 8);
+    const learningVerses = filteredVerses.filter(v => (v.currentStep || 0) < 8);
+    const masteredVerses = filteredVerses.filter(v => (v.currentStep || 0) >= 8);
 
     // --- DnD Handlers ---
 
@@ -154,7 +155,7 @@ export default function BibleMemoryDashboard({ initialUserVerses, libraryVerses,
             setFolders(folders.filter(f => f.id !== id));
             if (selectedFolderId === id) setSelectedFolderId(null);
             // Update local verses to remove folderId
-            setVerses(verses.map(v => (v as any).folderId === id ? { ...v, folderId: null } : v));
+            setVerses(verses.map(v => v.folderId === id ? { ...v, folderId: null } : v));
             toast.success("Folder deleted");
         } else {
             toast.error("Failed to delete folder");
@@ -185,7 +186,7 @@ export default function BibleMemoryDashboard({ initialUserVerses, libraryVerses,
             // Apply current folder if selected
             if (selectedFolderId) {
                 await moveVerseToFolder(res.verse.id, selectedFolderId);
-                (res.verse as any).folderId = selectedFolderId;
+                res.verse.folderId = selectedFolderId;
             }
             setVerses([res.verse, ...verses]);
             toast.success("Verse added");
@@ -213,7 +214,7 @@ export default function BibleMemoryDashboard({ initialUserVerses, libraryVerses,
         if (res.success && res.verse) {
             if (selectedFolderId) {
                 await moveVerseToFolder(res.verse.id, selectedFolderId);
-                (res.verse as any).folderId = selectedFolderId;
+                res.verse.folderId = selectedFolderId;
             }
             setVerses([res.verse, ...verses]);
             toast.success("Verse added");
