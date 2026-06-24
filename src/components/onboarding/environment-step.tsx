@@ -86,15 +86,17 @@ export function EnvironmentStep({
     },
   });
 
-  const toggleArrayValue = (
-    field: keyof EnvironmentFormData,
-    value: string
-  ) => {
-    const current = (watch(field) as string[]) || [];
+  // Only the array-valued fields are multi-select toggles (faithBackground is a plain string).
+  type ArrayField = {
+    [K in keyof EnvironmentFormData]-?: NonNullable<EnvironmentFormData[K]> extends string[] ? K : never;
+  }[keyof EnvironmentFormData];
+
+  const toggleArrayValue = (field: ArrayField, value: string) => {
+    const current = watch(field) || [];
     if (current.includes(value)) {
-      setValue(field, current.filter((v) => v !== value) as any);
+      setValue(field, current.filter((v) => v !== value));
     } else {
-      setValue(field, [...current, value] as any);
+      setValue(field, [...current, value]);
     }
   };
 

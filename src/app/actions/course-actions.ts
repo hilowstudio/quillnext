@@ -163,7 +163,7 @@ export async function updateBlock(rawData: unknown) {
             where: { id: data.id },
             data: {
                 title: data.title,
-                kind: data.kind as any, // Type cast needed for dynamic kind value
+                kind: data.kind,
             },
         });
     }, undefined, { organizationId, userId: null });

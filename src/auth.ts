@@ -13,7 +13,11 @@ import { authConfig } from "./auth.config";
  * Combines edge-safe config with database adapter
  */
 const authInstance = NextAuth({
-  adapter: PrismaAdapter(db as any),
+  // @auth/prisma-adapter is typed against @prisma/client's PrismaClient, which is nominally incompatible
+  // with our custom-output `@/generated/client` PrismaClient — even though `db` is a valid client at runtime
+  // (the adapter only uses standard model delegates). Self-cleans if the two client types ever unify.
+  // @ts-expect-error two-package PrismaClient type mismatch (custom Prisma output vs @auth/prisma-adapter)
+  adapter: PrismaAdapter(db),
   session: { strategy: "jwt" },
   secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET,
   debug: false,

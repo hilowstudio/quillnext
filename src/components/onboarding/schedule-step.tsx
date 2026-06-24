@@ -14,7 +14,7 @@ import { Plus } from "@/components/icons/plus";
 import { Trash } from "@/components/icons/trash";
 import { cn } from "@/lib/utils";
 import { addYears, differenceInCalendarMonths, isSameDay, eachDayOfInterval, min, max } from "date-fns";
-import { DayPicker } from "react-day-picker";
+import { DayPicker, type DayButtonProps } from "react-day-picker";
 import { isHoliday } from "@/lib/utils/holidays";
 import type { z } from "zod";
 import { motion, AnimatePresence } from "framer-motion";
@@ -167,7 +167,7 @@ export function ScheduleStep({
     selected: { backgroundColor: '#D9A441', color: '#ffffff' } // Gold/White (Hardcoded for safety)
   };
 
-  const CustomDayButton = (props: any) => {
+  const CustomDayButton = (props: DayButtonProps) => {
     const { day, modifiers, ...buttonProps } = props;
     const holiday = isHoliday(day.date);
     return (
@@ -295,7 +295,7 @@ export function ScheduleStep({
           <Label className="text-xl font-display font-medium text-qc-primary">Scheduled Off Days</Label>
           <p className="text-sm text-qc-text-muted mb-4">Select vacation days by clicking on dates. Hold <strong>Shift</strong> and click to select a range.</p>
 
-          <div className="bg-white rounded-lg border border-qc-border-subtle p-4 flex justify-center overflow-x-auto" style={{ "--rdp-accent-color": "var(--color-qc-secondary)" } as any}>
+          <div className="bg-white rounded-lg border border-qc-border-subtle p-4 flex justify-center overflow-x-auto" style={{ "--rdp-accent-color": "var(--color-qc-secondary)" } as React.CSSProperties}>
             <DayPicker
               key={`${startDate.toISOString()}-${endDate.toISOString()}`} // Force re-render when dates change
               defaultMonth={startDate} // Start view at the beginning of the school year
@@ -354,7 +354,7 @@ export function ScheduleStep({
                 day_hidden: "invisible",
               }}
               components={{
-                DayButton: CustomDayButton as any
+                DayButton: CustomDayButton
               }}
               modifiers={modifiers}
               modifiersStyles={modifiersStyles}

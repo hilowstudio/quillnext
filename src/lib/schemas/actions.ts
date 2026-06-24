@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { courseBlockKindSchema } from "./courses";
 
 /**
  * Comprehensive Zod validation schemas for all Server Actions
@@ -53,7 +54,7 @@ export const updateBlockSchema = z.object({
     id: z.string().uuid("Invalid block ID"),
     courseId: z.string().uuid("Invalid course ID"),
     title: z.string().min(1).max(200).optional(),
-    kind: z.string().optional(),
+    kind: courseBlockKindSchema.optional(),
     description: z.string().max(1000).optional(),
 });
 
