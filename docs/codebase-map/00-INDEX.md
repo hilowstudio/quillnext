@@ -77,9 +77,9 @@ owner's legal sign-off; see 24 §5/§7). **2026-06-23
 (+ non-safety Q-10-010 / Q-16-001 [LOW]). **Q-09-005 ✅ resolved 2026-06-23** (generator consolidation onto
 `generateResourceCore`). Open **MED (0)**; open **LOW (1)** = **Q-01-004** only (lint warn-ratchet,
 owner-accepted / kept-open by design; burndown passes 1 + 2 done 2026-06-23 — 11 rules locked warn→error
-(incl. the react-hooks trio), 637→421 warnings; an in-progress `as any` cast burn-down has taken
-no-explicit-any 273→176 (~24 casts left, all bucket-4 escape hatches; waves 1–13, 2026-06-24);
-no-unused-vars 234 is the final pass).
+(incl. the react-hooks trio), 637→397 warnings; the `as any` cast burn-down is COMPLETE
+(waves 1–17, 2026-06-24: no-explicit-any 273→153, **0 casts in src**, + a full AI SDK v4→v5 migration);
+no-unused-vars 234 is the final pass — NOW NEXT).
 See **24 §5/§7** for the roadmap + full register.
 
 ## Excluded from line-by-line reading (documented by shape)

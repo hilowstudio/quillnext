@@ -3496,3 +3496,66 @@ ranking · one wave/commit · nothing pushed · CI green each wave: tsc 0 / esli
   ×2, environment-step ×2); course-actions `kind`; the grading `attempt as any` cluster ×2 (`:66` query +
   `:86`, entangled). Several may legitimately STAY as documented friction (`@ts-expect-error` or accepted).
   **no-unused-vars (now ~176-era count) remains the FINAL pass, after the as-any/structural churn.**
+
+---
+
+## 2026-06-24 (later) — Q-01-004 `as any` cast burn-down COMPLETE (waves 14–17 + AI SDK v4→v5)
+
+Same discipline; CI green each wave (tsc 0 / eslint 0-err / vitest **218/218**), committed locally, NOT
+pushed. **`as any` casts in src: 0** (grep hits are prose/comments). **no-explicit-any 273 → 153** — the
+residual is `: any` ANNOTATIONS + 2 benign generic bounds (`$ZodType<any,any>`), never the cast-burndown's
+target; they feed the FINAL no-unused-vars/structural pass. **Headline unchanged: 0 CRITICAL · 0 HIGH ·
+0 MED · 1 LOW (Q-01-004).**
+
+### Wave 14 — `fc5e55d` + `4629bca` + `11018b2` — grading attempt cluster (+ a surfaced bug)
+- `grading/[id]/page.tsx`: `(assessmentAttempt findUnique) as any` removed (Prisma infers the payload).
+- **⚠️ BUG SURFACED:** typing `personalityData` via `parsePersonalityData` lit up that the "Student Context"
+  card read `communicationStyle`/`primaryDrivers` — fields ABSENT from the PersonalityProfile schema
+  (always undefined). Owner chose (A) wire to ALL real fields → rebuilt the card (Motivational Driver /
+  Feedback Style / Scaffolding / Creativity / Frustration / Work Style / Gamification + Tone Instructions +
+  Suggested System Prompt). **Behavior change** (the card now shows real personalization). Then dropped the
+  redundant `personalityData` prop from `GradingInterface` (verified dead — feedback personalizes
+  server-side via `studentId`→`buildMasterPrompt`, not the prop). ⚠️ UI smoke-test owed.
+
+### Wave 15 — `6060b1a` + `8ae1f0a` — zodResolver cluster (RHF↔zod)
+- 6 `zodResolver(...) as any` across SpecForm / blocks(new,[blockId],activities) / useZodForm. Root: resolvers
+  v5 types `Resolver<z.input, ctx, z.output>` vs the forms' `useForm<z.infer>`. Fixed with the modern RHF
+  three-generic `useForm<z.input, unknown, z.output>` (4 of 5, no suppression); blocks/[blockId] (a `.partial()`
+  PATCH form) typed `Partial<CourseBlockFormData>`. **useZodForm: owner-diagnosed the "no overload" as a
+  CONSTRAINT bug (not a permanent gap)** — `T extends z.ZodTypeAny` gives `_input: unknown` ≠ the overload's
+  required `FieldValues`; fixed by `T extends z.core.$ZodType<any, any>` + 3-generic on useForm AND UseFormProps.
+  No suppression. Verified (coerce-schema probe): onSubmit gets z.output, defaultValues wants z.input (the old
+  single-generic had silently mistyped defaultValues as the post-transform shape).
+
+### Wave 16 — `24b56e0` — generate-resource-core (+ an AI-SDK v4/v5 bug) → triggered the full migration
+- `where as any` → `Prisma.ObjectiveWhereInput`; `jsonContent` typed (was `let x = null` evolving-any) with
+  runtime-guaranteed `as z.infer<Schema>` narrows; `content` Json write → `toJsonInput`.
+- **⚠️ BUG SURFACED:** the `generate_image` `tool()` cast hid that the code used the **v4 `parameters` key on
+  AI SDK v5.0.202** (which wants `inputSchema`) → the tool had no runtime schema. Fixed → `execute` args infer.
+
+### AI SDK v4→v5 migration `31999dc` — owner-requested full audit (all 19 ai-sdk files)
+- Packages all v5-era. Most usage already v5 (the chat route's `streamText`→`toUIMessageStreamResponse` under
+  Q-11-006). v4 remnants were only the suppressed spots: the `generate_image` tool (`parameters`→`inputSchema`,
+  wave 16); generation-guards `model: unknown`→`LanguageModel` (drops `model as any` ×2 + `schema as any`);
+  restored the disabled `// maxSteps: 3` as v5 `stopWhen: stepCountIs(3)`. **Behavior change:** the image tool
+  is now functional + multi-step (markdown resources can embed AI images). NOT issues: every `maxTokens` is our
+  `serializeMasterContext` budget (not the AI-SDK option v5 renamed to `maxOutputTokens`); `providerMetadata`
+  is correct v5. ⚠️ AI smoke-test owed (markdown resource generation).
+
+### Wave 17 — `46ba043` — final one-offs (0 casts remain)
+- CSS-var → `as React.CSSProperties`; DayButton → react-day-picker v9 `DayButtonProps` (typed, was `props: any`);
+  environment-step `setValue` → a derived `ArrayField` key type; course-actions `kind` → validate the
+  `courseBlockKindSchema` enum at the boundary (loose `z.string()` → enum; **minor behavior change:** invalid
+  kind fails fast in Zod, not the DB); `auth.ts PrismaAdapter(db as any)` → documented `@ts-expect-error`
+  (genuine two-package PrismaClient friction — @auth/prisma-adapter's `@prisma/client` type vs our custom
+  `@/generated/client`; single-site, self-cleaning, passes ban-ts-comment via allow-with-description).
+
+### Reconcile (§4 partition) + new artifacts
+- `src/lib/students/learner-profile.ts` (Zod read-helpers, wave 5), `src/lib/prisma-json.ts` `toJsonInput`
+  (owner's narrow two-step, wave 9), corrected `useZodForm` (wave 15), `@types/dom-speech-recognition` devDep
+  (wave 13). Four real bugs the `any` was eating, now fixed: getBookChapters undefined-id (wave 6), grading
+  phantom-field card (wave 14), AI-SDK v4/v5 image tool (wave 16) — plus the generation-guards `model: unknown`.
+- **Owed:** (1) smoke-tests — grading personality card, AI-SDK image tool (markdown gen), onboarding off-days
+  DayPicker; (2) the FINAL **no-unused-vars** pass — the residual 153 no-explicit-any are `: any` annotations
+  to type structurally + the dead vars the honest types now orphan (e.g. the `auth.ts` PrismaClient import, the
+  schedule-step `modifiers` rest-exclusion, GradingInterface `attempt: any`). Nothing pushed.
