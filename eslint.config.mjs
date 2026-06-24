@@ -32,10 +32,11 @@ const eslintConfig = [
       "jsx-a11y/alt-text": "error",
       "import/no-anonymous-default-export": "error",
       "react/no-unescaped-entities": "error",
+      "react-hooks/error-boundaries": "error",
+      "react-hooks/set-state-in-effect": "error",
+      "react-hooks/exhaustive-deps": "error",
       // Still burning down — kept at "warn" until they reach 0:
       "@typescript-eslint/no-explicit-any": "warn",
-      "react-hooks/error-boundaries": "warn",
-      "react-hooks/set-state-in-effect": "warn",
     },
   },
 ];

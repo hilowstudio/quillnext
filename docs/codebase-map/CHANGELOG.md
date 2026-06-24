@@ -3336,3 +3336,31 @@ Not touched; need a plan + sample before edits: **`react-hooks/exhaustive-deps` 
 ### Reconcile (§4 partition)
 - **Warnings 637 → 548** (−89). **8 rules locked** warn→error (the 7 above + `react/no-unescaped-entities`).
 - **Q-01-004 stays OPEN** [LOW] — 3 ratchet-9 rules remain at warn (no-explicit-any 273, error-boundaries 17, set-state-in-effect 8), plus no-unused-vars 234 + no-img-element 11 (intentionally left). **Headline unchanged: 0 CRITICAL · 0 HIGH · 0 MED · 1 LOW (Q-01-004).** Updated ch.01 §7, ch.24 §7, 00-INDEX, progress memory + the quillnext-mastery skill (worktree-pollution gate gotcha).
+
+---
+
+## 2026-06-23 (later still) — Q-01-004 lint-debt burndown, pass 2 (react-hooks rules)
+
+Per the owner's React-Compiler-era briefing + sequence (**error-boundaries → set-state-in-effect → exhaustive-deps**), with per-occurrence diagnosis (the autofix is the trap; each violation is also a component opting out of compilation). **CI green: tsc 0 · eslint 0 errors (548 → 518) · vitest 218/218.**
+
+### react-hooks/error-boundaries 17 → 0 — LOCKED
+Both sites were async Server Components with `try/catch` wrapping (awaited data fetch + JSX return) in the two `transcripts` pages. Diagnosed route-level (not false-neighbors): the inline catch handled the data-fetch errors, which an App-Router `error.tsx` boundary catches identically (server-render errors incl. failed awaits) — plus child-render crashes the inline catch could not, with a `reset()` recovery path.
+- **New:** `transcripts/error.tsx` + `transcripts/[studentId]/error.tsx` (client boundaries; console.error logging; "Try Again" → `reset()`).
+- **Removed** the inline try/catch from both pages (`git diff -w` = only the wrapper removed; `!organizationId` guard kept as a normal early return; `[studentId]` page no longer leaks `error.message`).
+
+### react-hooks/set-state-in-effect 8 → 0 — LOCKED
+- **TopicSelector ×4 — real fix (effect-as-event → handler):** moved the downstream cascade-clears out of the 4 fetch effects into 4 `onValueChange` handlers. Behavior-identical (each handler's clear-set mirrors the old effect; `selectedX` is only set via its own handler). No derived-state deleted → no new referential-identity churn.
+- **Scoped suppressions (3, genuine external-sync):** `BibleAudioPlayer` ×2 (reset transport + reload `<audio>` on `audioUrl`; key-remount would drop user `volume`), `ThinklingChat` (clear safety-chat on mode/student; key-remount would reset `useChat` + CrisisHelp/safety-precheck wiring).
+- **InteractiveCatechism:** was flagged (reset-on-`title`) but the linter stopped flagging it once the other edits settled (React-Compiler component bail-out interacting with its exhaustive-deps disable) → no disable needed. NOTE: remains a *latent* reset-on-prop-change (compiler opt-out) — left as-is.
+
+### react-hooks/exhaustive-deps 5 → 0 — LOCKED (Next-default → explicit error)
+- **courses `blocks/new` — real fix:** `watch("parentBlockId")` was called *in the dep array*; hoisted to a `const` (stable primitive) used in body + deps. Behavior-identical.
+- **Scoped suppressions (3, run-frequency footguns):** `GeneratorsClient` (searchParams self-mutation loop), `TopicSelector` propagate (unmemoized parent `onTopicChange` + label-lookup arrays), `InteractiveCatechism` loadProgress (`flattenedData` recreated each render → refetch-per-render).
+
+### Disables added (6, all used, each with a `--` reason)
+set-state-in-effect: BibleAudioPlayer (bible-memory + bible-study), ThinklingChat. exhaustive-deps: GeneratorsClient, TopicSelector, InteractiveCatechism. No `as any`/`@ts-ignore`/`startTransition`/`setTimeout` tricks.
+
+### Reconcile (§4 partition)
+- **Warnings 548 → 518** (−30). **Locked 3 more rules** (error-boundaries, set-state-in-effect, exhaustive-deps) → **11 rules now error-locked.**
+- **Q-01-004 stays OPEN** [LOW] — remaining at warn: `no-explicit-any` 273, `no-unused-vars` 234 (Tier C, owner-paused), `@next/next/no-img-element` 11 (by design). **Headline unchanged: 0 CRITICAL · 0 HIGH · 0 MED · 1 LOW (Q-01-004).** Updated ch.01 §7, ch.24 §7, 00-INDEX, progress memory.
+- ⚠️ **UI smoke-test owed** (untested in CI): TopicSelector cascading dropdowns (restructured) + the transcripts error path (error.tsx + Try Again).

@@ -45,6 +45,7 @@ export default function BibleAudioPlayer({ audioUrl, reference, isLoading }: Bib
 
     // Reset state when audioUrl changes
     useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- deliberate external sync: reset transport UI and reload the <audio> element when the source prop changes; key-remount would also discard the user's volume
         setIsPlaying(false);
         setCurrentTime(0);
         // Audio ref load handled automatically by src change?

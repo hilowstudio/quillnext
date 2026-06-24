@@ -178,6 +178,7 @@ const InteractiveCatechism = ({ catechismData, title, studentId, catechismId }: 
             }
         };
         loadProgress();
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- loads saved progress on student/catechism change; flattenedData is derived fresh each render from catechismData (stable per catechism) and is read only to map mastered question numbers — depending on its per-render identity would refetch every render
     }, [studentId, catechismId, title]);
 
     // Initialize speech recognition

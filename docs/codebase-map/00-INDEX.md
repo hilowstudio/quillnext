@@ -76,8 +76,9 @@ owner's legal sign-off; see 24 §5/§7). **2026-06-23
 (later): child-safety Phase 1 shipped** — Q-12-008/009/010/011/012 [MED] + Q-12-013 [LOW] all ✅ resolved
 (+ non-safety Q-10-010 / Q-16-001 [LOW]). **Q-09-005 ✅ resolved 2026-06-23** (generator consolidation onto
 `generateResourceCore`). Open **MED (0)**; open **LOW (1)** = **Q-01-004** only (lint warn-ratchet,
-owner-accepted / kept-open by design; burndown pass 1 done 2026-06-23 — 8 rules locked warn→error,
-637→548 warnings, Tier C pending sign-off). See **24 §5/§7** for the roadmap + full register.
+owner-accepted / kept-open by design; burndown passes 1 + 2 done 2026-06-23 — 11 rules locked warn→error
+(incl. the react-hooks trio), 637→518 warnings, Tier C [no-explicit-any/no-unused-vars] pending sign-off).
+See **24 §5/§7** for the roadmap + full register.
 
 ## Excluded from line-by-line reading (documented by shape)
 

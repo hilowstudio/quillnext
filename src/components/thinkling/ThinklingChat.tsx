@@ -65,6 +65,7 @@ export function ThinklingChat({ studentId, mode, onModeChange }: ThinklingChatPr
     // Clear chat when mode or student changes
     useEffect(() => {
         setMessages([]);
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- deliberate reset-on-context-change; key-remounting this safety-critical chat to avoid it would reset its useChat session + CrisisHelp/safety-precheck wiring
         setInput("");
     }, [mode, studentId, setMessages]);
 

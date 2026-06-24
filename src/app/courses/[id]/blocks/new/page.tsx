@@ -133,8 +133,8 @@ export default function NewCourseBlockPage() {
   }, [selectedBookId]);
 
   // Auto-calculate position
+  const parentBlockId = watch("parentBlockId");
   useEffect(() => {
-    const parentBlockId = watch("parentBlockId");
     if (parentBlockId) {
       // Position should be after last child of parent
       const parentChildren = existingBlocks.filter(
@@ -152,7 +152,7 @@ export default function NewCourseBlockPage() {
         : 0;
       setValue("position", maxPosition + 1);
     }
-  }, [existingBlocks, watch("parentBlockId"), setValue]);
+  }, [existingBlocks, parentBlockId, setValue]);
 
   const onSubmit = async (data: CourseBlockFormData) => {
     setIsCreating(true);

@@ -35,37 +35,56 @@ export function TopicSelector({ onTopicChange }: TopicSelectorProps) {
         getSubjects().then(res => res.success && setSubjects(res.subjects || []));
     }, []);
 
+    // Fetch the next spine level when a selection changes (setState lives in the async .then,
+    // which set-state-in-effect allows). The downstream RESETS are not here — clearing stale
+    // child selections is a reaction to the user picking a level, so it lives in the
+    // onValueChange handlers below (effect-as-event → move to the handler).
     useEffect(() => {
         if (selectedSubject) {
             getStrands({ subjectId: selectedSubject }).then(res => res.success && setStrands(res.strands || []));
-            setStrands([]); setTopics([]); setSubtopics([]); setObjectives([]);
-            setSelectedStrand(""); setSelectedTopic(""); setSelectedSubtopic(""); setSelectedObjective("");
         }
     }, [selectedSubject]);
 
     useEffect(() => {
         if (selectedStrand) {
             getTopics({ strandId: selectedStrand }).then(res => res.success && setTopics(res.topics || []));
-            setTopics([]); setSubtopics([]); setObjectives([]);
-            setSelectedTopic(""); setSelectedSubtopic(""); setSelectedObjective("");
         }
     }, [selectedStrand]);
 
     useEffect(() => {
         if (selectedTopic) {
             getSubtopics({ topicId: selectedTopic }).then(res => res.success && setSubtopics(res.subtopics || []));
-            setSubtopics([]); setObjectives([]);
-            setSelectedSubtopic(""); setSelectedObjective("");
         }
     }, [selectedTopic]);
 
     useEffect(() => {
         if (selectedSubtopic) {
             getObjectives({ subtopicId: selectedSubtopic }).then(res => res.success && setObjectives(res.objectives || []));
-            setObjectives([]);
-            setSelectedObjective("");
         }
     }, [selectedSubtopic]);
+
+    // Selection handlers: set the chosen level and clear everything downstream (data + selection),
+    // mirroring exactly what the per-level effects used to clear synchronously.
+    const handleSubjectChange = (v: string) => {
+        setSelectedSubject(v);
+        setStrands([]); setTopics([]); setSubtopics([]); setObjectives([]);
+        setSelectedStrand(""); setSelectedTopic(""); setSelectedSubtopic(""); setSelectedObjective("");
+    };
+    const handleStrandChange = (v: string) => {
+        setSelectedStrand(v);
+        setTopics([]); setSubtopics([]); setObjectives([]);
+        setSelectedTopic(""); setSelectedSubtopic(""); setSelectedObjective("");
+    };
+    const handleTopicChange = (v: string) => {
+        setSelectedTopic(v);
+        setSubtopics([]); setObjectives([]);
+        setSelectedSubtopic(""); setSelectedObjective("");
+    };
+    const handleSubtopicChange = (v: string) => {
+        setSelectedSubtopic(v);
+        setObjectives([]);
+        setSelectedObjective("");
+    };
 
     // Propagate changes
     useEffect(() => {
@@ -84,6 +103,7 @@ export function TopicSelector({ onTopicChange }: TopicSelectorProps) {
         } else if (mode === "STANDARD") {
             onTopicChange(`Standard: ${standardCode}`);
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- notifies the parent of the composed topic on selection change; onTopicChange is a parent callback (not guaranteed memoized → adding it re-fires every parent render) and the subjects/strands/... arrays are read only to resolve display names
     }, [mode, selectedSubject, selectedStrand, selectedTopic, selectedSubtopic, selectedObjective, freeText, standardCode]);
 
 
@@ -98,25 +118,25 @@ export function TopicSelector({ onTopicChange }: TopicSelectorProps) {
 
                 <TabsContent value="SPINE" className="space-y-3 pt-2">
                     <div className="grid grid-cols-1 gap-3">
-                        <Select value={selectedSubject} onValueChange={setSelectedSubject}>
+                        <Select value={selectedSubject} onValueChange={handleSubjectChange}>
                             <SelectTrigger><SelectValue placeholder="Select Subject" /></SelectTrigger>
                             <SelectContent>
                                 {subjects.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
                             </SelectContent>
                         </Select>
-                        {selectedSubject && <Select value={selectedStrand} onValueChange={setSelectedStrand}>
+                        {selectedSubject && <Select value={selectedStrand} onValueChange={handleStrandChange}>
                             <SelectTrigger><SelectValue placeholder="Select Strand" /></SelectTrigger>
                             <SelectContent>
                                 {strands.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
                             </SelectContent>
                         </Select>}
-                        {selectedStrand && <Select value={selectedTopic} onValueChange={setSelectedTopic}>
+                        {selectedStrand && <Select value={selectedTopic} onValueChange={handleTopicChange}>
                             <SelectTrigger><SelectValue placeholder="Select Topic" /></SelectTrigger>
                             <SelectContent>
                                 {topics.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
                             </SelectContent>
                         </Select>}
-                        {selectedTopic && <Select value={selectedSubtopic} onValueChange={setSelectedSubtopic}>
+                        {selectedTopic && <Select value={selectedSubtopic} onValueChange={handleSubtopicChange}>
                             <SelectTrigger><SelectValue placeholder="Select Subtopic" /></SelectTrigger>
                             <SelectContent>
                                 {subtopics.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}

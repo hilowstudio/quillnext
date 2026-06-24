@@ -78,6 +78,7 @@ export default function GeneratorsClient({ organizationId }: { organizationId: s
       params.delete("sourceType");
     }
     router.replace(`${pathname}?${params.toString()}`);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- syncs only on sourceType change; searchParams is read to preserve sibling params but must NOT be a dep (the effect's own router.replace mutates it → re-fire loop)
   }, [sourceType, router, pathname]);
 
   // Load Kinds
