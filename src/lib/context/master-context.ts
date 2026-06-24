@@ -526,8 +526,8 @@ export async function getStudentContext(
       id: obj.id,
       code: obj.code,
       text: obj.text,
-      subject: (obj as any).subtopic.topic.strand.subject.name,
-      strand: (obj as any).subtopic.topic.strand.name,
+      subject: obj.subtopic.topic.strand.subject.name,
+      strand: obj.subtopic.topic.strand.name,
     })),
     progress: {
       completedActivities: student.activityProgress.length,
@@ -593,7 +593,7 @@ export async function getAcademicContext(
     return null;
   }
 
-  const obj = objective as any; // Type assertion for nested select
+  const obj = objective;
 
   const hierarchy = {
     subject: {
@@ -672,7 +672,7 @@ export async function getLibraryContext(
     });
 
     if (objective) {
-      const obj = objective as any;
+      const obj = objective;
       relevantBooks = await withTenant(
         (tx) =>
           tx.book.findMany({
@@ -843,7 +843,7 @@ export async function getLibraryContext(
     courseResources: courseResources.map((resource) => ({
       id: resource.id,
       title: resource.title,
-      resourceKind: (resource.resourceKind as any).label,
+      resourceKind: resource.resourceKind.label,
     })),
   };
 }
@@ -884,8 +884,7 @@ export async function getScheduleContext(
     return null;
   }
 
-  // Type assertion for select inference
-  const room = classroom as any;
+  const room = classroom;
 
   const today = new Date();
   const startDate = room.schoolYearStartDate;
@@ -906,7 +905,7 @@ export async function getScheduleContext(
     schoolDaysOfWeek: room.schoolDaysOfWeek as number[],
     dailyStartTime: room.dailyStartTime,
     dailyEndTime: room.dailyEndTime,
-    holidays: room.holidays.map((h: any) => ({
+    holidays: room.holidays.map((h) => ({
       holidayDate: h.holidayDate,
       name: h.name,
     })),
