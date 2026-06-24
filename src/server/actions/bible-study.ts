@@ -191,7 +191,7 @@ export async function getBibleAudio(rawData: unknown) {
 
         return { audioUrl: response.url };
 
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error("ESV Audio Fetch Error:", error);
         throw new StandardError(
             ERROR_CODES.EXTERNAL.API_ERROR,

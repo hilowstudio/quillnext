@@ -166,9 +166,9 @@ export async function distributeCourse(
             success: true,
             count: scheduleItems.length
         };
-    } catch (e: any) {
+    } catch (e: unknown) {
         console.error("Error during distribution:", e);
-        return { success: false, error: e.message || "An unexpected error occurred" };
+        return { success: false, error: e instanceof Error ? e.message : "An unexpected error occurred" };
     }
 }
 
@@ -337,9 +337,9 @@ export async function moveScheduleItem(itemId: string, newDate: Date) {
             revalidateTag(`schedule-${item.organizationId}`, {});
         }
         return { success: true };
-    } catch (e: any) {
+    } catch (e: unknown) {
         console.error("Error moving item:", e);
-        return { success: false, error: e.message };
+        return { success: false, error: e instanceof Error ? e.message : String(e) };
     }
 }
 
@@ -370,8 +370,8 @@ export async function addAdHocEvent(
 
         revalidateTag(`schedule-${organizationId}`, {});
         return { success: true };
-    } catch (e: any) {
+    } catch (e: unknown) {
         console.error("Failed to create ad-hoc event:", e);
-        return { success: false, error: e.message };
+        return { success: false, error: e instanceof Error ? e.message : String(e) };
     }
 }

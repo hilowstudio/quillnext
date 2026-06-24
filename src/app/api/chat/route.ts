@@ -117,7 +117,7 @@ export async function POST(req: Request) {
 
         // useChat expects structured UI messages; toUIMessageStreamResponse is the AI SDK v5 method.
         return result.toUIMessageStreamResponse();
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error("Thinkling Error:", error);
         return new Response(JSON.stringify({ error: "Internal Server Error" }), {
             status: 500,

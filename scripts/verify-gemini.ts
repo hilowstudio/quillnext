@@ -32,9 +32,11 @@ async function test() {
             }
             console.log("Success:", buffer);
             return; // Exit on first success
-        } catch (e: any) {
-            console.error(`Failed ${mName}:`, e.message || e);
-            if (e.data) console.error("Error Data:", JSON.stringify(e.data, null, 2));
+        } catch (e: unknown) {
+            console.error(`Failed ${mName}:`, e instanceof Error ? e.message : e);
+            if (e && typeof e === "object" && "data" in e) {
+                console.error("Error Data:", JSON.stringify(e.data, null, 2));
+            }
         }
     }
 }

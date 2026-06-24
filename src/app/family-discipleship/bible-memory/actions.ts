@@ -173,9 +173,9 @@ export async function addVerseToUser(rawData: unknown) {
 
         revalidatePath('/family-discipleship/bible-memory');
         return { success: true, verse: newVerse };
-    } catch (e: any) {
+    } catch (e: unknown) {
         console.error("Failed to add verse error:", e);
-        return { success: false, error: "Failed to add verse: " + e.message };
+        return { success: false, error: "Failed to add verse: " + (e instanceof Error ? e.message : String(e)) };
     }
 }
 

@@ -45,7 +45,7 @@ export function CourseDistributor({
             } else {
                 toast.error(result.error || "Failed to schedule lessons.");
             }
-        } catch (error: any) {
+        } catch (error: unknown) {
             toast.error("An unexpected network error occurred.");
             console.error(error);
         } finally {
