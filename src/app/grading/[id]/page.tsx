@@ -4,6 +4,7 @@ import { getCurrentUserOrg } from "@/lib/auth-helpers";
 import { withTenant } from "@/server/db";
 import { getMasterContext } from "@/lib/context/master-context";
 import { serializeMasterContext } from "@/lib/context/context-serializer";
+import { parsePersonalityData } from "@/lib/students/learner-profile";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { GradingInterface } from "@/components/grading/GradingInterface";
@@ -82,13 +83,31 @@ export default async function GradingPage({
     prioritize: ["student", "academic", "family"],
   });
 
-  // Get student's personality profile for personalized feedback
-  // NOTE: kept `as any` deliberately — the Student Context card below reads `communicationStyle`
-  // (:~138) and `primaryDrivers` (:~142/148), which are NOT fields of the PersonalityProfile schema
-  // (src/server/ai/personality.ts) — stale names that are always undefined at runtime. parsePersonalityData()
-  // would (correctly) reject them. Pending an owner decision on what that card should display (wire to real
-  // fields vs. remove), this read stays untyped. See the as-any burndown notes (wave 14).
-  const personalityData = attempt.student.learnerProfile?.personalityData as any;
+  // Get student's personality profile for personalized feedback. Validated against the producer's
+  // PersonalityProfile shape (src/server/ai/personality.ts) so the Student Context card below shows the
+  // real fields the assessment actually generates.
+  const personalityData = parsePersonalityData(attempt.student.learnerProfile?.personalityData);
+
+  // The scalar personality fields to surface in the Student Context card (each present only if set).
+  const personalityFields = personalityData
+    ? [
+        { label: "Motivational Driver", value: personalityData.motivationalDriver },
+        { label: "Feedback Style", value: personalityData.feedbackStyle },
+        { label: "Scaffolding Level", value: personalityData.scaffoldingLevel },
+        { label: "Creativity", value: personalityData.creativityPreference },
+        { label: "Frustration Response", value: personalityData.frustrationResponse },
+        { label: "Work Style", value: personalityData.workStyle },
+        {
+          label: "Gamification",
+          value:
+            personalityData.gamificationMode === undefined
+              ? undefined
+              : personalityData.gamificationMode
+                ? "On"
+                : "Off",
+        },
+      ].filter((f) => Boolean(f.value))
+    : [];
 
   return (
     <div className="container mx-auto max-w-6xl px-4 py-8">
@@ -133,31 +152,36 @@ export default async function GradingPage({
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
-                {personalityData.suggestedSystemPrompt && (
-                  <div className="p-3 bg-qc-primary/5 rounded-qc-md border border-qc-primary/20">
-                    <p className="font-body text-xs font-medium text-qc-primary mb-1">
-                      Communication Style
+                {personalityFields.length > 0 && (
+                  <div className="grid grid-cols-2 gap-x-3 gap-y-2">
+                    {personalityFields.map((f) => (
+                      <div key={f.label}>
+                        <p className="font-body text-[11px] font-medium text-qc-text-muted">
+                          {f.label}
+                        </p>
+                        <p className="font-body text-xs text-qc-charcoal">{f.value}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {personalityData.toneInstructions && (
+                  <div>
+                    <p className="font-body text-xs font-medium text-qc-text-muted mb-1">
+                      Tone Instructions
                     </p>
-                    <p className="font-body text-xs text-qc-charcoal">
-                      {personalityData.communicationStyle || "Standard"}
+                    <p className="font-body text-xs text-qc-charcoal italic">
+                      &quot;{personalityData.toneInstructions}&quot;
                     </p>
                   </div>
                 )}
-                {personalityData.primaryDrivers && personalityData.primaryDrivers.length > 0 && (
-                  <div>
-                    <p className="font-body text-xs font-medium text-qc-text-muted mb-2">
-                      Primary Motivators
+                {personalityData.suggestedSystemPrompt && (
+                  <div className="p-3 bg-qc-primary/5 rounded-qc-md border border-qc-primary/20">
+                    <p className="font-body text-xs font-medium text-qc-primary mb-1">
+                      Suggested System Prompt
                     </p>
-                    <div className="flex flex-wrap gap-1">
-                      {personalityData.primaryDrivers.slice(0, 3).map((driver: string, idx: number) => (
-                        <span
-                          key={idx}
-                          className="px-2 py-1 bg-qc-parchment rounded-full text-xs font-body text-qc-charcoal"
-                        >
-                          {driver}
-                        </span>
-                      ))}
-                    </div>
+                    <p className="font-body text-xs text-qc-charcoal">
+                      {personalityData.suggestedSystemPrompt}
+                    </p>
                   </div>
                 )}
               </CardContent>
