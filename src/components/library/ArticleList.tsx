@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Spinner, Newspaper, Trash } from "@phosphor-icons/react";
 import Link from "next/link";
 import { addArticle, deleteArticle } from "@/app/actions/resource-library-actions";
+import type { LibraryArticle } from "@/components/library/library-types";
 import { toast } from "sonner";
 import {
     AlertDialog,
@@ -23,8 +24,8 @@ import {
 } from "@/components/ui/alert-dialog";
 
 interface ArticleListProps {
-    articles: any[];
-    setArticles: (articles: any[]) => void;
+    articles: LibraryArticle[];
+    setArticles: (articles: LibraryArticle[]) => void;
 }
 
 export function ArticleList({ articles, setArticles }: ArticleListProps) {
@@ -117,7 +118,7 @@ import { useRouter } from "next/navigation";
 
 // ... (existing imports)
 
-function ArticleCard({ article }: { article: any }) {
+function ArticleCard({ article }: { article: LibraryArticle }) {
     const [isDeleting, setIsDeleting] = useState(false);
     const router = useRouter();
 

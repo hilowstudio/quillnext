@@ -8,17 +8,26 @@ import { ArticleList } from "@/components/library/ArticleList";
 import { DocumentList } from "@/components/library/DocumentList";
 import { CourseList } from "@/components/library/CourseList";
 import { ResourceList } from "@/components/library/ResourceList";
+import type {
+    LibraryBook,
+    LibraryVideo,
+    LibraryArticle,
+    LibraryDocument,
+    LibraryCourse,
+    LibraryGeneratedResource,
+    LibraryStudent,
+} from "@/components/library/library-types";
 import { useSearchParams, useRouter } from "next/navigation";
 
 interface LibraryClientProps {
     initialData: {
-        books: any[];
-        videos: any[];
-        articles: any[];
-        documents: any[];
-        courses: any[];
-        resources: any[];
-        students: any[];
+        books: LibraryBook[];
+        videos: LibraryVideo[];
+        articles: LibraryArticle[];
+        documents: LibraryDocument[];
+        courses: LibraryCourse[];
+        resources: LibraryGeneratedResource[];
+        students: LibraryStudent[];
     };
     organizationId: string;
 }

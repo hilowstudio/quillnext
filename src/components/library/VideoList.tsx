@@ -3,7 +3,7 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { VideoResource } from "@/generated/client";
+import type { LibraryVideo } from "@/components/library/library-types";
 import { AddVideoDialog } from "@/components/library/AddVideoDialog";
 import { Trash } from "@phosphor-icons/react";
 import { deleteVideo } from "@/app/actions/resource-library-actions";
@@ -24,8 +24,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 interface VideoListProps {
-    videos: any[];
-    setVideos: (videos: any[]) => void;
+    videos: LibraryVideo[];
+    setVideos: (videos: LibraryVideo[]) => void;
 }
 
 export function VideoList({ videos, setVideos }: VideoListProps) {
@@ -54,7 +54,7 @@ export function VideoList({ videos, setVideos }: VideoListProps) {
     );
 }
 
-function VideoCard({ video }: { video: any }) {
+function VideoCard({ video }: { video: LibraryVideo }) {
     const [isDeleting, setIsDeleting] = useState(false);
     const router = useRouter();
 

@@ -4,13 +4,19 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { GeneratedResourceCard } from "@/components/resources/GeneratedResourceCard";
+import type {
+    LibraryGeneratedResource,
+    LibraryStudent,
+    LibraryCourse,
+    LibraryBook,
+} from "@/components/library/library-types";
 import { useRouter, useSearchParams } from "next/navigation";
 
 interface ResourceListProps {
-    resources: any[];
-    students: any[];
-    courses: any[];
-    books: any[];
+    resources: LibraryGeneratedResource[];
+    students: LibraryStudent[];
+    courses: LibraryCourse[];
+    books: LibraryBook[];
 }
 
 export function ResourceList({ resources, students, courses, books }: ResourceListProps) {

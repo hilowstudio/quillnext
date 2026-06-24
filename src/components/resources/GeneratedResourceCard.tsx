@@ -22,9 +22,10 @@ import {
     AlertDialogTitle,
     AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import type { LibraryGeneratedResource } from "@/components/library/library-types";
 
 interface GeneratedResourceCardProps {
-    resource: any; // Type as needed, mimicking resources/page.tsx
+    resource: LibraryGeneratedResource;
 }
 
 export function GeneratedResourceCard({ resource }: GeneratedResourceCardProps) {

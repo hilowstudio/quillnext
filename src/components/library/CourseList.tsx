@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { Trash } from "@phosphor-icons/react";
 import { deleteCourse } from "@/app/actions/course-actions";
+import type { LibraryCourse } from "@/components/library/library-types";
 import { toast } from "sonner";
 import {
     AlertDialog,
@@ -20,7 +21,7 @@ import {
 import { useState } from "react";
 
 interface CourseListProps {
-    courses: any[];
+    courses: LibraryCourse[];
 }
 
 export function CourseList({ courses }: CourseListProps) {
@@ -55,7 +56,7 @@ import { useRouter } from "next/navigation";
 
 // ... (existing imports)
 
-function CourseCard({ course }: { course: any }) {
+function CourseCard({ course }: { course: LibraryCourse }) {
     const [isDeleting, setIsDeleting] = useState(false);
     const router = useRouter();
 

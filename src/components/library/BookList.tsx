@@ -3,7 +3,7 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { Book } from "@/generated/client";
+import type { LibraryBook } from "@/components/library/library-types";
 import { Trash } from "@phosphor-icons/react";
 import { deleteBook } from "@/app/actions/resource-library-actions";
 import { toast } from "sonner";
@@ -21,7 +21,7 @@ import {
 import { useState } from "react";
 
 interface BookListProps {
-    books: any[];
+    books: LibraryBook[];
     refreshBooks: () => void;
     organizationId: string;
 }
@@ -58,7 +58,7 @@ import { useRouter } from "next/navigation";
 
 // ... (existing imports)
 
-function BookCard({ book }: { book: any }) {
+function BookCard({ book }: { book: LibraryBook }) {
     const [isDeleting, setIsDeleting] = useState(false);
     const router = useRouter();
 

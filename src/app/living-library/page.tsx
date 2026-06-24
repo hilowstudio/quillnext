@@ -4,6 +4,7 @@ import { db as prisma, withTenant } from "@/server/db";
 import { Prisma } from "@/generated/client";
 import { excludeParentLearners } from "@/server/queries/learner-filters";
 import { getLibraryResources } from "@/app/actions/resource-library-actions";
+import { libraryResourceSelect } from "@/components/library/library-types";
 import { LibraryClient } from "@/app/living-library/LibraryClient";
 
 export default async function LibraryPage(
@@ -66,49 +67,10 @@ export default async function LibraryPage(
   const resources = await withTenant(
     (tx) =>
       tx.resource.findMany({
-    where,
-    select: {
-      id: true,
-      title: true,
-      content: true,
-      storageType: true,
-      createdAt: true,
-      resourceKind: {
-        select: {
-          id: true,
-          code: true,
-          label: true,
-        },
-      },
-      student: {
-        select: {
-          id: true,
-          firstName: true,
-          lastName: true,
-          preferredName: true,
-        },
-      },
-      book: {
-        select: {
-          id: true,
-          title: true,
-        },
-      },
-      video: {
-        select: {
-          id: true,
-          title: true,
-        },
-      },
-      createdByUser: {
-        select: {
-          id: true,
-          name: true,
-        },
-      },
-    },
-    orderBy: { createdAt: "desc" },
-    take: 50,
+        where,
+        select: libraryResourceSelect,
+        orderBy: { createdAt: "desc" },
+        take: 50,
       }),
     undefined,
     { organizationId, userId: null }

@@ -29,7 +29,7 @@ interface ContextLineageDisplayProps {
   } | null;
   video?: {
     id: string;
-    title: string;
+    title: string | null;
   } | null;
   course?: {
     id: string;

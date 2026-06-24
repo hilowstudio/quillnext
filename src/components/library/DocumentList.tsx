@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Spinner, FileText, Trash } from "@phosphor-icons/react";
 import Link from "next/link";
 import { addDocuments, deleteDocument } from "@/app/actions/resource-library-actions";
+import type { LibraryDocument } from "@/components/library/library-types";
 import { toast } from "sonner";
 import {
     AlertDialog,
@@ -23,8 +24,8 @@ import {
 } from "@/components/ui/alert-dialog";
 
 interface DocumentListProps {
-    documents: any[];
-    setDocuments: (documents: any[]) => void;
+    documents: LibraryDocument[];
+    setDocuments: (documents: LibraryDocument[]) => void;
 }
 
 export function DocumentList({ documents, setDocuments }: DocumentListProps) {
@@ -142,7 +143,7 @@ import { useRouter } from "next/navigation";
 
 // ... (existing imports)
 
-function DocumentCard({ doc }: { doc: any }) {
+function DocumentCard({ doc }: { doc: LibraryDocument }) {
     const [isDeleting, setIsDeleting] = useState(false);
     const router = useRouter();
 
