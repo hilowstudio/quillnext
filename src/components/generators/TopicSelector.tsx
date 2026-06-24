@@ -109,7 +109,7 @@ export function TopicSelector({ onTopicChange }: TopicSelectorProps) {
 
     return (
         <div className="space-y-4">
-            <Tabs value={mode} onValueChange={(v) => setMode(v as any)} className="w-full">
+            <Tabs value={mode} onValueChange={(v) => setMode(v as "SPINE" | "FREE" | "STANDARD")} className="w-full">
                 <TabsList className="w-full grid grid-cols-3">
                     <TabsTrigger value="SPINE">Academic Spine</TabsTrigger>
                     <TabsTrigger value="FREE">Free Text</TabsTrigger>

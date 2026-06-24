@@ -38,14 +38,14 @@ const authInstance = NextAuth({
     async jwt({ token, user, trigger, session }) {
       if (user) {
         token.id = user.id;
-        token.organizationId = (user as any).organizationId;
+        token.organizationId = user.organizationId;
       }
       return token;
     },
     async session({ session, token }) {
       if (session.user && token.id) {
         session.user.id = token.id as string;
-        (session.user as any).organizationId = token.organizationId as string;
+        session.user.organizationId = token.organizationId;
       }
       return session;
     },
