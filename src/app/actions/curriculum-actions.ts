@@ -66,13 +66,26 @@ export async function getBookChapters(rawData: unknown) {
 
     if (!book || !book.tableOfContents) return { chapters: [] };
 
-    // Parse TOC. Assumes standard structure. Adjust based on actual JSON shape.
-    const toc = book.tableOfContents as any[];
+    // The stored TOC is heterogeneous (legacy {id,label} rows + extraction {title} rows). Read the
+    // picker's fields off each entry leniently — a non-conforming entry falls back to "Untitled
+    // Chapter", exactly as the previous untyped map did, and the row count is preserved.
+    const tocEntrySchema = z.object({
+        id: z.string().optional(),
+        label: z.string().optional(),
+        title: z.string().optional(),
+    });
+    const rawToc = Array.isArray(book.tableOfContents) ? book.tableOfContents : [];
 
-    const chapters = Array.isArray(toc) ? toc.map((item: any) => ({
-        id: item.id || item.label,
-        label: item.label || item.title || "Untitled Chapter",
-    })) : [];
+    const chapters = rawToc.map((entry) => {
+        const parsed = tocEntrySchema.safeParse(entry);
+        const item = parsed.success ? parsed.data : {};
+        const label = item.label || item.title || "Untitled Chapter";
+        // `id` falls back to `label` (always a string) so chapters from extraction TOCs — which carry
+        // only a title, no id/label — get a stable selectable id instead of `undefined`. The previous
+        // `as any[]` hid that `item.id || item.label` could be undefined for those rows, which fed an
+        // undefined option value into the chapter picker.
+        return { id: item.id || label, label };
+    });
 
     return { chapters };
 }

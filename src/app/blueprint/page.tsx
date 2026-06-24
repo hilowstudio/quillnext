@@ -153,10 +153,10 @@ export default async function BlueprintPage() {
                 {((progress.data.schoolDaysOfWeek as number[]) || []).length} days per week
               </p>
             </div>
-            {(progress.data as any).holidays && Array.isArray((progress.data as any).holidays) && (progress.data as any).holidays.length > 0 && (
+            {progress.data.holidays && Array.isArray(progress.data.holidays) && progress.data.holidays.length > 0 && (
               <div>
                 <p className="font-body text-sm font-medium text-qc-text-muted mb-1">Planned Holidays</p>
-                <p className="font-body text-qc-charcoal">{(progress.data as any).holidays.length} holidays scheduled</p>
+                <p className="font-body text-qc-charcoal">{progress.data.holidays.length} holidays scheduled</p>
               </div>
             )}
             <Button variant="outline" asChild>
