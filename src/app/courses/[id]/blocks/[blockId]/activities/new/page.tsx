@@ -42,8 +42,8 @@ export default function NewActivityPage() {
         formState: { errors },
         setValue,
         watch,
-    } = useForm<ActivityFormData>({
-        resolver: zodResolver(activitySchema) as any,
+    } = useForm<z.input<typeof activitySchema>, unknown, z.output<typeof activitySchema>>({
+        resolver: zodResolver(activitySchema),
         defaultValues: {
             activityType: "OTHER",
         },

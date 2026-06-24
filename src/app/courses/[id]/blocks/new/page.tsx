@@ -68,7 +68,7 @@ export default function NewCourseBlockPage() {
     setValue,
     watch,
   } = useForm<CourseBlockFormData>({
-    resolver: zodResolver(courseBlockSchema) as any,
+    resolver: zodResolver(courseBlockSchema),
     defaultValues: {
       position: initialPosition ? parseInt(initialPosition) : 1,
       parentBlockId: initialParentId || "",

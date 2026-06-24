@@ -32,8 +32,8 @@ interface SpecFormProps {
 }
 
 export function SpecForm({ onSubmit, isLoading, initialContext }: SpecFormProps) {
-    const form = useForm<z.infer<typeof formSchema>>({
-        resolver: zodResolver(formSchema) as any,
+    const form = useForm<z.input<typeof formSchema>, unknown, z.output<typeof formSchema>>({
+        resolver: zodResolver(formSchema),
         defaultValues: {
             subject: initialContext?.subject || "",
             topic: initialContext?.topic || "",

@@ -90,8 +90,8 @@ export default function EditCourseBlockPage() {
     formState: { errors },
     setValue,
     watch,
-  } = useForm<CourseBlockFormData>({
-    resolver: zodResolver(courseBlockSchema.partial()) as any,
+  } = useForm<Partial<CourseBlockFormData>>({
+    resolver: zodResolver(courseBlockSchema.partial()),
   });
 
   const blockKind = watch("kind") || block?.kind;
@@ -145,7 +145,7 @@ export default function EditCourseBlockPage() {
     }
   }, [selectedTopicId]);
 
-  const onSubmit = async (data: CourseBlockFormData) => {
+  const onSubmit = async (data: Partial<CourseBlockFormData>) => {
     setIsSaving(true);
     try {
       const response = await fetch(`/api/courses/${courseId}/blocks/${blockId}`, {
