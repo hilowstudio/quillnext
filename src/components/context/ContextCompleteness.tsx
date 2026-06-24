@@ -22,6 +22,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import type { Icon } from "@phosphor-icons/react";
 import type { ContextSuggestion } from "@/lib/context/context-types";
 import { getContextImpactDescription } from "@/lib/context/context-types";
 
@@ -35,7 +36,7 @@ type PillarStatus = "complete" | "partial" | "missing";
 interface Pillar {
   id: "family" | "student" | "academic" | "library" | "schedule";
   label: string;
-  icon: any;
+  icon: Icon;
   status: PillarStatus;
   suggestion?: ContextSuggestion;
 }

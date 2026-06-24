@@ -11,15 +11,16 @@ import { Badge } from "@/components/ui/badge";
 import { getStudentAvatarUrl } from "@/lib/utils";
 import { AvatarCustomizer } from "@/components/profile/AvatarCustomizer";
 import { DiscipleshipDashboard } from "@/components/family-discipleship/DiscipleshipDashboard";
+import type { StudentDashboardData, StudentAssignmentsData } from "./dashboard-types";
 
 interface StudentDashboardProps {
-    student: any;
+    student: StudentDashboardData;
     /** Active profile's view mode. Kid-view seam (spec §10); renders STANDARD today. */
     viewMode?: "STANDARD" | "KID";
 }
 
 export function StudentDashboard({ student, viewMode = "STANDARD" }: StudentDashboardProps) {
-    const [data, setData] = useState<{ assignments: any[]; courseEnrollments: any[] }>({ assignments: [], courseEnrollments: [] });
+    const [data, setData] = useState<StudentAssignmentsData>({ assignments: [], courseEnrollments: [] });
     const [loading, setLoading] = useState(true);
     const [customizerOpen, setCustomizerOpen] = useState(false);
     const [avatarConfig, setAvatarConfig] = useState(student.avatarConfig);

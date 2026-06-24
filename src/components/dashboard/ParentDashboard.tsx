@@ -7,13 +7,14 @@ import { InklingToolkit } from "@/components/navigation/InklingToolkit";
 import { AssignResourceDialog } from "@/components/assignments/AssignResourceDialog";
 import { MyLearningCard } from "./MyLearningCard";
 import type { MyLearning } from "@/server/profiles/my-learning";
+import type { ParentDashboardData } from "./dashboard-types";
 
 export interface ParentDashboardProps {
-    students: any[];
-    recentResources: any[];
-    recentCourses: any[];
-    completeness: any;
-    suggestions: any;
+    students: ParentDashboardData["students"];
+    recentResources: ParentDashboardData["recentResources"];
+    recentCourses: ParentDashboardData["recentCourses"];
+    completeness: ParentDashboardData["completeness"];
+    suggestions: ParentDashboardData["suggestions"];
     classroomName: string;
     myLearning: MyLearning;
     todayDevotional?: { reference: string; excerpt: string } | null;

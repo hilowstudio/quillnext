@@ -11,7 +11,7 @@ interface AssignResourceDialogProps {
     resourceId: string;
     resourceTitle: string;
     type?: 'RESOURCE' | 'COURSE';
-    students: any[];
+    students: { id: string; firstName: string; preferredName: string | null }[];
     trigger?: React.ReactNode;
 }
 
@@ -56,7 +56,7 @@ export function AssignResourceDialog({ resourceId, resourceTitle, type = 'RESOUR
                             <SelectValue placeholder="Select a student" />
                         </SelectTrigger>
                         <SelectContent>
-                            {students.map((s: any) => (
+                            {students.map((s) => (
                                 <SelectItem key={s.id} value={s.id}>
                                     {s.preferredName || s.firstName}
                                 </SelectItem>
