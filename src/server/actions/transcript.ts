@@ -7,6 +7,7 @@ import { DEFAULT_GRADING_SCALE } from "@/components/transcript/utils";
 import { getCurrentUserOrg } from "@/lib/auth-helpers";
 import { revalidatePath } from "next/cache";
 import { Prisma } from "@/generated/client";
+import { toJsonInput } from "@/lib/prisma-json";
 
 // Define the type we expect from the detailed student fetch
 type StudentWithDetails = Prisma.LearnerGetPayload<{
@@ -158,11 +159,11 @@ export async function saveTranscript(studentId: string, data: TranscriptData, tr
                 studentId,
                 organizationId,
                 name: data.name,
-                data: data as any,
+                data: toJsonInput(data),
             },
             update: {
                 name: data.name,
-                data: data as any,
+                data: toJsonInput(data),
             }
         }),
         undefined,
