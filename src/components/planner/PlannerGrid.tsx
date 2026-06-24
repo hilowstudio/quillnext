@@ -99,24 +99,12 @@ export function PlannerGrid({
         setPickerOpen(true);
     };
 
-    const handleResourceSelected = async (resource: any, type: string) => {
+    // Each ResourcePicker callback normalizes its (typed) payload into { title, description } so the
+    // field access is correct per resource kind — previously this took a loose `resource`/`type` and
+    // read resource.url for videos (VideoResource has youtubeUrl) and resource.title for documents
+    // (DocumentResource has fileName), so both silently produced blanks.
+    const handleResourceSelected = async ({ title, description = "" }: { title: string; description?: string }) => {
         if (!targetSlot) return;
-
-        let title = "Untitled Activity";
-        let description = "";
-
-        // Format title based on type
-        if (type === "BOOK") {
-            title = `Read: ${resource.title}`;
-            description = `Read from ${resource.title}`; // TODO: Add link
-        } else if (type === "VIDEO") {
-            title = `Watch: ${resource.title}`;
-            description = resource.url || "";
-        } else if (type === "GENERATED") {
-            title = `${resource.kindLabel || 'Activity'}: ${resource.title || 'New Item'}`;
-        } else {
-            title = resource.title;
-        }
 
         // Q-21-004: await the write before refreshing (the old code fired router.refresh() synchronously,
         // racing the create + revalidateTag → the event was missing until a later refresh). addAdHocEvent
@@ -231,11 +219,11 @@ export function PlannerGrid({
                 open={pickerOpen}
                 onOpenChange={setPickerOpen}
                 mode="universal"
-                onSelectBook={(book) => handleResourceSelected(book, "BOOK")}
-                onSelectVideo={(video) => handleResourceSelected(video, "VIDEO")}
-                onSelectArticle={(article) => handleResourceSelected(article, "ARTICLE")}
-                onSelectDocument={(doc) => handleResourceSelected(doc, "DOCUMENT")}
-                onSelectResource={(res) => handleResourceSelected(res, "RESOURCE")}
+                onSelectBook={(book) => handleResourceSelected({ title: `Read: ${book.title}`, description: `Read from ${book.title}` })}
+                onSelectVideo={(video) => handleResourceSelected({ title: `Watch: ${video.title ?? "Video"}`, description: video.youtubeUrl ?? "" })}
+                onSelectArticle={(article) => handleResourceSelected({ title: article.title })}
+                onSelectDocument={(doc) => handleResourceSelected({ title: doc.fileName })}
+                onSelectResource={(res) => handleResourceSelected({ title: res.title })}
                 onGenerate={(kindId, kindLabel) => {
                     // Todo: Handle generation. For now just a toast.
                     // Ideally this opens the Generator form pre-filled.
