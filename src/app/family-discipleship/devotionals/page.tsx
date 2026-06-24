@@ -28,7 +28,7 @@ export default async function DevotionalsPage() {
                 <h1 className="font-display text-4xl font-bold text-qc-primary text-balance">Daily Devotional</h1>
                 <p className="font-body text-lg text-qc-text-muted">Daily readings from C.H. Spurgeon</p>
             </div>
-            <DevotionalDisplay devotionals={devotionals as any} date={formattedDate} />
+            <DevotionalDisplay devotionals={devotionals} date={formattedDate} />
         </div>
     );
 }

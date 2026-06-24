@@ -32,5 +32,5 @@ export default async function GeneratorsPage() {
     { organizationId, userId: null }
   );
 
-  return <CreationStationClient organizationId={organizationId} initialBundles={bundles as any} />;
+  return <CreationStationClient organizationId={organizationId} initialBundles={bundles} />;
 }

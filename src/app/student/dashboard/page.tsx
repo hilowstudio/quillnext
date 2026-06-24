@@ -84,8 +84,8 @@ export default async function StudentDashboardPage({
 
                         <DailyScheduleList
                             date={targetDate}
-                            items={items as any}
-                            events={events as any}
+                            items={items}
+                            events={events}
                         />
                     </div>
                 </div>

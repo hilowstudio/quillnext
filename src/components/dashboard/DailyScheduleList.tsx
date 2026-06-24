@@ -12,8 +12,8 @@ import { toast } from "sonner";
 type ScheduleItem = {
     id: string;
     status: 'PENDING' | 'COMPLETED' | 'SKIPPED' | string; // loose string to match prisma enum potentially
-    courseBlock?: { title: string, course: { title: string } };
-    activity?: { title: string };
+    courseBlock?: { title: string, course: { title: string } } | null;
+    activity?: { title: string } | null;
 };
 
 type CustomEvent = {
