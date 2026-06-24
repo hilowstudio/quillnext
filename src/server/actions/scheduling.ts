@@ -111,7 +111,7 @@ export async function distributeCourse(
             }),
             undefined,
             { organizationId, userId: null }
-        ) as any;
+        );
 
         if (!course || course.organizationId !== organizationId) return { success: false, error: "Course not found" };
 
@@ -145,18 +145,18 @@ export async function distributeCourse(
         );
 
         // 4. Create Schedule Items
-        const scheduleItems = (course.blocks as any[]).map((block, index) => ({
+        const scheduleItems = course.blocks.map((block, index) => ({
             organizationId: course.organizationId,
             studentId,
             courseBlockId: block.id,
             date: scheduleDates[index],
             sequenceOrder: index,
-            status: 'PENDING'
+            status: 'PENDING' as const
         }));
 
         await withTenant(
             (tx) => tx.studentScheduleItem.createMany({
-                data: scheduleItems as any
+                data: scheduleItems
             }),
             undefined,
             { organizationId, userId: null }
