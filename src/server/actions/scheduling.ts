@@ -155,7 +155,7 @@ export async function distributeCourse(
         }));
 
         await withTenant(
-            (tx) => (tx as any).studentScheduleItem.createMany({
+            (tx) => tx.studentScheduleItem.createMany({
                 data: scheduleItems as any
             }),
             undefined,
@@ -189,7 +189,7 @@ export async function getWeeklySchedule(
                         select: { id: true, firstName: true, preferredName: true }
                     });
 
-                    const scheduleItems = await (tx as any).studentScheduleItem.findMany({
+                    const scheduleItems = await tx.studentScheduleItem.findMany({
                         where: {
                             organizationId,
                             date: {
@@ -208,7 +208,7 @@ export async function getWeeklySchedule(
                         }
                     });
 
-                    const customEvents = await (tx as any).customEvent.findMany({
+                    const customEvents = await tx.customEvent.findMany({
                         where: {
                             organizationId,
                             date: {
@@ -249,7 +249,7 @@ export async function getStudentDailySchedule(
 
     return withTenant(
         async (tx) => {
-            const items = await (tx as any).studentScheduleItem.findMany({
+            const items = await tx.studentScheduleItem.findMany({
                 where: {
                     studentId,
                     date: {
@@ -268,7 +268,7 @@ export async function getStudentDailySchedule(
                 orderBy: { sequenceOrder: 'asc' }
             });
 
-            const events = await (tx as any).customEvent.findMany({
+            const events = await tx.customEvent.findMany({
                 where: {
                     studentId,
                     date: {
@@ -292,13 +292,13 @@ export async function toggleItemStatus(
     const organizationId = await requireOrg();
     const item = await withTenant(
         async (tx) => {
-            const existing = await (tx as any).studentScheduleItem.findUnique({
+            const existing = await tx.studentScheduleItem.findUnique({
                 where: { id: itemId },
                 select: { organizationId: true },
             });
             if (!existing || existing.organizationId !== organizationId) throw new Error("Unauthorized");
 
-            return (tx as any).studentScheduleItem.update({
+            return tx.studentScheduleItem.update({
                 where: { id: itemId },
                 data: { status }
             });
@@ -318,13 +318,13 @@ export async function moveScheduleItem(itemId: string, newDate: Date) {
         const organizationId = await requireOrg();
         const item = await withTenant(
             async (tx) => {
-                const existing = await (tx as any).studentScheduleItem.findUnique({
+                const existing = await tx.studentScheduleItem.findUnique({
                     where: { id: itemId },
                     select: { organizationId: true },
                 });
                 if (!existing || existing.organizationId !== organizationId) throw new Error("Unauthorized");
 
-                return (tx as any).studentScheduleItem.update({
+                return tx.studentScheduleItem.update({
                     where: { id: itemId },
                     data: { date: newDate }
                 });
@@ -354,7 +354,7 @@ export async function addAdHocEvent(
         await assertStudentInOrg(studentId, organizationId);
 
         await withTenant(
-            (tx) => (tx as any).customEvent.create({
+            (tx) => tx.customEvent.create({
                 data: {
                     organizationId,
                     studentId,

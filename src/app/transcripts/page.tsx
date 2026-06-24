@@ -29,7 +29,7 @@ export default async function TranscriptsPage() {
     }
 
     const students = await withTenant(
-        (tx) => (tx as any).learner.findMany({
+        (tx) => tx.learner.findMany({
             where: { organizationId, ...excludeParentLearners },
             include: {
                 transcripts: {
