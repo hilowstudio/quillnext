@@ -8,19 +8,26 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { getSubjects, getStrands, getTopics, getSubtopics, getObjectives } from "@/app/actions/spine-actions";
 
+// Spine taxonomy element types, derived from the spine-actions each cascade level fetches.
+type SpineSubject = Awaited<ReturnType<typeof getSubjects>>["subjects"][number];
+type SpineStrand = Awaited<ReturnType<typeof getStrands>>["strands"][number];
+type SpineTopic = Awaited<ReturnType<typeof getTopics>>["topics"][number];
+type SpineSubtopic = Awaited<ReturnType<typeof getSubtopics>>["subtopics"][number];
+type SpineObjective = Awaited<ReturnType<typeof getObjectives>>["objectives"][number];
+
 interface TopicSelectorProps {
-    onTopicChange: (topic: string, metadata?: any) => void;
+    onTopicChange: (topic: string, metadata?: { subjectId: string; strandId: string }) => void;
 }
 
 export function TopicSelector({ onTopicChange }: TopicSelectorProps) {
     const [mode, setMode] = useState<"SPINE" | "FREE" | "STANDARD">("SPINE");
 
     // Spine State
-    const [subjects, setSubjects] = useState<any[]>([]);
-    const [strands, setStrands] = useState<any[]>([]);
-    const [topics, setTopics] = useState<any[]>([]);
-    const [subtopics, setSubtopics] = useState<any[]>([]);
-    const [objectives, setObjectives] = useState<any[]>([]);
+    const [subjects, setSubjects] = useState<SpineSubject[]>([]);
+    const [strands, setStrands] = useState<SpineStrand[]>([]);
+    const [topics, setTopics] = useState<SpineTopic[]>([]);
+    const [subtopics, setSubtopics] = useState<SpineSubtopic[]>([]);
+    const [objectives, setObjectives] = useState<SpineObjective[]>([]);
 
     const [selectedSubject, setSelectedSubject] = useState("");
     const [selectedStrand, setSelectedStrand] = useState("");
