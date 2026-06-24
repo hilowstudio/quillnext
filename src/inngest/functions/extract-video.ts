@@ -29,14 +29,7 @@ export const extractVideo = inngest.createFunction(
         // hangs in EXTRACTING. (`event` here is the inngest/function.failed event; the original
         // trigger payload is at event.data.event.data — same shape as extract-book.ts.)
         onFailure: async ({ event }) => {
-            const orig = (event as any)?.data?.event?.data as
-                | {
-                      videoExtractionId?: string;
-                      triggeringVideoId?: string;
-                      organizationId?: string;
-                      userId?: string | null;
-                  }
-                | undefined;
+            const orig = event.data?.event?.data;
             const videoExtractionId = orig?.videoExtractionId;
             const triggeringVideoId = orig?.triggeringVideoId;
             const organizationId = orig?.organizationId;

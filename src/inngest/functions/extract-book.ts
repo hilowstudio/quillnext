@@ -26,14 +26,7 @@ export const extractBook = inngest.createFunction(
         // in EXTRACTING. (`event` here is the inngest/function.failed event; the original
         // trigger payload is at event.data.event.data — same shape as compile-curriculum.)
         onFailure: async ({ event }) => {
-            const orig = (event as any)?.data?.event?.data as
-                | {
-                      bookExtractionId?: string;
-                      triggeringBookId?: string;
-                      organizationId?: string;
-                      userId?: string | null;
-                  }
-                | undefined;
+            const orig = event.data?.event?.data;
             const bookExtractionId = orig?.bookExtractionId;
             const triggeringBookId = orig?.triggeringBookId;
             const organizationId = orig?.organizationId;

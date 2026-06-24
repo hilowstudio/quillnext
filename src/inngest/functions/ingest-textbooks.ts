@@ -86,7 +86,7 @@ export const ingestTextbook = inngest.createFunction(
         retries: 3,
         concurrency: { limit: 3 }, // gentle on the embedding provider during a bulk run
         onFailure: async ({ event }) => {
-            const externalId = (event as any)?.data?.event?.data?.externalId as string | undefined;
+            const externalId = event.data?.event?.data?.externalId;
             if (externalId) {
                 await db.textbookDocument
                     .update({ where: { externalId }, data: { status: "UNAVAILABLE" } })

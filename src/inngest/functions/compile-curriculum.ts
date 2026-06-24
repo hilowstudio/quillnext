@@ -48,7 +48,7 @@ export const compileCurriculum = inngest.createFunction(
         // doesn't hang on COMPILING, and record why. (`event` here is the
         // inngest/function.failed event; the original trigger is at event.data.event.)
         onFailure: async ({ event, error }) => {
-            const orig = (event as any)?.data?.event?.data as { bundleId?: string; organizationId?: string; userId?: string } | undefined;
+            const orig = event.data?.event?.data;
             const bundleId = orig?.bundleId;
             if (!bundleId) return;
             const organizationId = orig?.organizationId;

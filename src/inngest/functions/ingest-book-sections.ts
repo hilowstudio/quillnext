@@ -27,8 +27,7 @@ export const ingestBookSections = inngest.createFunction(
         retries: 3,
         concurrency: { limit: 2 },
         onFailure: async ({ event }) => {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const id = (event as any)?.data?.event?.data?.bookExtractionId as string | undefined;
+            const id = event.data?.event?.data?.bookExtractionId;
             if (id) {
                 await db.bookExtraction
                     .update({ where: { id }, data: { sectionsStatus: "UNAVAILABLE" } })

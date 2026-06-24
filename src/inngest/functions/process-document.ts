@@ -35,9 +35,7 @@ export const processDocument = inngest.createFunction(
         // silently blank with no signal (mirrors extract-book/extract-video). DocumentResource is
         // org-scoped, so the tenant must be stamped explicitly (ALS doesn't reach Prisma here).
         onFailure: async ({ event }) => {
-            const orig = (event as any)?.data?.event?.data as
-                | { resourceId?: string; organizationId?: string }
-                | undefined;
+            const orig = event.data?.event?.data;
             const resourceId = orig?.resourceId;
             const organizationId = orig?.organizationId;
             if (!resourceId || !organizationId) return;
