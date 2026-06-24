@@ -184,7 +184,7 @@ const InteractiveCatechism = ({ catechismData, title, studentId, catechismId }: 
     // Initialize speech recognition
     useEffect(() => {
         if (typeof window !== 'undefined' && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
-            const SpeechRecognitionConstructor = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+            const SpeechRecognitionConstructor = window.SpeechRecognition || window.webkitSpeechRecognition;
             if (SpeechRecognitionConstructor) {
                 recognitionRef.current = new SpeechRecognitionConstructor() as CatechismSpeechRecognitionAPI;
                 if (recognitionRef.current) {
