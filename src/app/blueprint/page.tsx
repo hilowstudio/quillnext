@@ -34,7 +34,7 @@ export default async function BlueprintPage() {
   });
 
   // Get counts for context completeness
-  const [studentsCount, studentsWithProfilesCount, booksCount, _coursesCount] = await Promise.all([
+  const [studentsCount, studentsWithProfilesCount, booksCount] = await Promise.all([
     withTenant((tx) => tx.learner.count({ where: { organizationId, ...excludeParentLearners } }), undefined, { organizationId, userId: null }),
     withTenant((tx) => tx.learner.count({
       where: {
@@ -44,7 +44,6 @@ export default async function BlueprintPage() {
       },
     }), undefined, { organizationId, userId: null }),
     withTenant((tx) => tx.book.count({ where: { organizationId } }), undefined, { organizationId, userId: null }),
-    withTenant((tx) => tx.course.count({ where: { organizationId } }), undefined, { organizationId, userId: null }),
   ]);
 
   // Calculate context completeness score
