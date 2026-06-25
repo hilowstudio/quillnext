@@ -3,11 +3,18 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { MapContainer, TileLayer, GeoJSON } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
+import type { Feature, FeatureCollection } from 'geojson';
+import type { Layer, LeafletMouseEvent } from 'leaflet';
 import { mapCountryToOperationWorld, findOperationWorldData, createOperationWorldLookup } from './utils/countryMapping';
+import type { OperationWorldStats } from './actions';
+
+// The clicked/selected country. Loose by design (client-JSON decision): a found country carries the
+// loose Operation World record, the fallback carries {} — so data/url are unknown and country optional.
+export type CountrySelection = { country?: string; data?: unknown; url?: unknown };
 
 interface WorldMapProps {
-    stats: any;
-    onCountrySelect: (countryData: any) => void;
+    stats: OperationWorldStats | null;
+    onCountrySelect: (countryData: CountrySelection) => void;
 }
 
 const GeoJSONStyle = {
@@ -27,7 +34,7 @@ const HoverStyle = {
 };
 
 export default function WorldMap({ stats, onCountrySelect }: WorldMapProps) {
-    const [geoJsonData, setGeoJsonData] = useState<any>(null);
+    const [geoJsonData, setGeoJsonData] = useState<FeatureCollection | null>(null);
     const [isLoading, setIsLoading] = useState(true);
 
     const operationWorldLookup = useMemo(() => {
@@ -49,17 +56,17 @@ export default function WorldMap({ stats, onCountrySelect }: WorldMapProps) {
             });
     }, []);
 
-    const onEachFeature = (feature: any, layer: any) => {
+    const onEachFeature = (feature: Feature, layer: Layer) => {
         const countryId = feature.id || feature.properties?.name || feature.properties?.sovereignt;
         const name = feature.properties?.name || feature.id;
 
         layer.on({
-            mouseover: (e: any) => {
+            mouseover: (e: LeafletMouseEvent) => {
                 const layer = e.target;
                 layer.setStyle(HoverStyle);
                 layer.bringToFront();
             },
-            mouseout: (e: any) => {
+            mouseout: (e: LeafletMouseEvent) => {
                 const layer = e.target;
                 layer.setStyle(GeoJSONStyle);
             },
@@ -79,7 +86,7 @@ export default function WorldMap({ stats, onCountrySelect }: WorldMapProps) {
                     onCountrySelect({
                         country: name || "Unknown",
                         data: {},
-                        url: undefined
+                        url: ""
                     });
                 }
             }

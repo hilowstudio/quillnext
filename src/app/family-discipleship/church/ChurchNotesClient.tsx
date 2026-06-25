@@ -26,7 +26,7 @@ type ChurchNote = {
     servingIdeas?: string | null;
     generosityReflection?: string | null;
     communityPlan?: string | null;
-    songs?: any; // JSON
+    songs?: unknown; // JSON column (the form persists {title,theme}[]; not read back here)
 };
 
 export function ChurchNotesClient({ initialNotes }: { initialNotes: ChurchNote[] }) {

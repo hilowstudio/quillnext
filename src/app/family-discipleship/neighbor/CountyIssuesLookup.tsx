@@ -19,8 +19,8 @@ interface Concern {
 interface County extends CountyData {
     issues?: {
         concerns?: Concern[];
-        indicators?: Record<string, any>;
-        sources?: any[];
+        indicators?: Record<string, { value: number; year?: number } | undefined>;
+        sources?: unknown[];
         scores?: Record<string, number>;
     };
     population?: {

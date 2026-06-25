@@ -5,8 +5,9 @@ import dynamic from 'next/dynamic';
 import { Input } from "@/components/ui/input";
 import { MagnifyingGlass } from "@phosphor-icons/react/dist/ssr";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { CountryInfoCard } from './CountryInfoCard';
+import { CountryInfoCard, type CountryInfoData } from './CountryInfoCard';
 import type { OperationWorldStats } from './actions';
+import type { CountrySelection } from './WorldMap';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { GlobeHemisphereWest, List } from "@phosphor-icons/react";
 
@@ -22,7 +23,7 @@ interface MissionsClientProps {
 
 export default function MissionsClient({ stats }: MissionsClientProps) {
     const [search, setSearch] = useState('');
-    const [selectedCountry, setSelectedCountry] = useState<any>(null);
+    const [selectedCountry, setSelectedCountry] = useState<CountrySelection | null>(null);
     const [view, setView] = useState<'map' | 'list'>('map');
 
     const countries = useMemo(() => {
@@ -114,7 +115,9 @@ export default function MissionsClient({ stats }: MissionsClientProps) {
             <CountryInfoCard
                 isOpen={!!selectedCountry}
                 onClose={() => setSelectedCountry(null)}
-                countryData={selectedCountry}
+                // The selection's `data` is the loose Operation World JSON record; CountryInfoCard reads
+                // it via CountryData's optional string fields. Bridge the loose→typed gap here.
+                countryData={selectedCountry as CountryInfoData | null}
             />
 
             <div className="text-center text-xs text-muted-foreground mt-2">

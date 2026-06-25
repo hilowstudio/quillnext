@@ -24,7 +24,7 @@ interface CountryData {
     [key: string]: unknown;
 }
 
-interface CountryInfoData {
+export interface CountryInfoData {
     country: string;
     url?: string;
     data: CountryData;
