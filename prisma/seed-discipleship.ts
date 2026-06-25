@@ -5,6 +5,16 @@ import { withoutSslParams } from "../src/lib/db-url";
 import { Pool } from "pg";
 import fs from 'fs';
 import path from 'path';
+import { z } from 'zod';
+
+// Validate the seed JSON at the file boundary rather than asserting its shape.
+const devotionalSeedSchema = z.array(z.object({
+    month: z.number(),
+    day: z.number(),
+    time: z.string(),
+    keyverse: z.string(),
+    body: z.string(),
+}));
 
 // Create a Prisma client for seeding (Prisma 7 requires a driver adapter).
 const createPrismaClient = () => {
@@ -33,7 +43,7 @@ async function main() {
     }
 
     const rawData = fs.readFileSync(dataPath, 'utf8');
-    const devotionals = JSON.parse(rawData);
+    const devotionals = devotionalSeedSchema.parse(JSON.parse(rawData));
 
     console.log(`Found ${devotionals.length} devotionals to seed.`);
 
@@ -43,7 +53,7 @@ async function main() {
         const chunk = devotionals.slice(i, i + chunkSize);
 
         await Promise.all(
-            chunk.map(async (dev: any) => {
+            chunk.map(async (dev) => {
                 // Ensure month/day/time uniqueness handling or upsert
                 await prisma.devotional.upsert({
                     where: {

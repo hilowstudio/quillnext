@@ -99,7 +99,7 @@ async function main() {
 
     // 3. Prepare Payloads
     console.log("🔄 Processing YAML entries...");
-    const operations: (() => Promise<any>)[] = [];
+    const operations: (() => Promise<unknown>)[] = [];
 
     let processedCount = 0;
     const skippedCount = 0;
