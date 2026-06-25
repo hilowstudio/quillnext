@@ -38,7 +38,7 @@ export default function CreationStationClient({ organizationId, initialBundles }
     const [bundles, setBundles] = useState<Bundle[]>(initialBundles);
     const [isCompiling, setIsCompiling] = useState(false);
 
-    const handleCompile = async (values: any) => {
+    const handleCompile = async (values: Parameters<typeof compileCurriculumAction>[0]) => {
         setIsCompiling(true);
         try {
             // compileCurriculumAction returns {success:true} or throws — there is no failure branch

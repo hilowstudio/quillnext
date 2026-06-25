@@ -64,7 +64,7 @@ export function DevotionalDisplay({ devotionals, date }: DevotionalDisplayProps)
     );
 }
 
-function DevotionalCard({ entry, timeLabel, icon }: { entry: any, timeLabel: string, icon: React.ReactNode }) {
+function DevotionalCard({ entry, timeLabel, icon }: { entry: DevotionalEntry, timeLabel: string, icon: React.ReactNode }) {
     const formatKeyVerse = (raw: string) => {
         let text = raw.toString();
         let reference = "";

@@ -284,7 +284,7 @@ export async function generateResourceCore(params: GenerateResourceCoreParams) {
     let sourceTitle = "";
     let bookId: string | undefined;
     let videoId: string | undefined;
-    let genContext: any = undefined;
+    let genContext: Prisma.InputJsonValue | undefined = undefined;
     let modelToUse = models.flash;
     // Authoritative "canonical facts" block injected into the prompt + used by the
     // post-generation verify/revise pass (grounded-generation spec, Phase 1).

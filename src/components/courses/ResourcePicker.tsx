@@ -52,7 +52,7 @@ export function ResourcePicker({
     const [articles, setArticles] = useState<ArticleType[]>([]);
     const [documents, setDocuments] = useState<DocumentType[]>([]);
     const [resources, setResources] = useState<{ id: string; title: string; resourceKind: { label: string } }[]>([]);
-    const [bundles, setBundles] = useState<any[]>([]); // Using any for simplicity or import CurriculumBundle type
+    const [bundles, setBundles] = useState<Awaited<ReturnType<typeof getLibraryResources>>["bundles"]>([]);
     const [kinds, setKinds] = useState<{ id: string; label: string; description: string | null }[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 

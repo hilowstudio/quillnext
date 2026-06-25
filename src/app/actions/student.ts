@@ -1,6 +1,7 @@
 "use server";
 
 import { db } from "@/server/db";
+import { Prisma } from "@/generated/client";
 import { getCurrentUserOrg } from "@/lib/auth-helpers";
 
 // The student must belong to the caller's organization (throws otherwise).
@@ -87,7 +88,7 @@ export async function getStudentAssignments(studentId: string) {
     return { assignments, courseEnrollments };
 }
 
-export async function saveStudentAvatarConfig(studentId: string, config: any) {
+export async function saveStudentAvatarConfig(studentId: string, config: Prisma.InputJsonValue) {
     await assertStudentInOrg(studentId);
 
     await db.learner.update({

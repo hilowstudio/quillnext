@@ -204,7 +204,7 @@ export function AssessmentWizard({ studentId }: AssessmentWizardProps) {
     // Handlers
     const handleSaveStep = async (
         currentStepName: "personality" | "learning" | "interests",
-        data: any,
+        data: Record<string, unknown>,
     ) => {
         setIsSubmitting(true);
         try {
