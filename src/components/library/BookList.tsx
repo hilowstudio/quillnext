@@ -69,9 +69,6 @@ function BookCard({ book }: { book: LibraryBook }) {
             if (result.success) {
                 toast.success("Book deleted successfully");
                 router.refresh();
-            } else {
-                // @ts-expect-error result is {success:true} (action throws on failure); 'error' not on type — defensive UI branch
-                toast.error(result.error || "Failed to delete book");
             }
         } catch (error) {
             console.error(error);

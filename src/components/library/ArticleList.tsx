@@ -125,14 +125,10 @@ function ArticleCard({ article }: { article: LibraryArticle }) {
     const handleDelete = async () => {
         setIsDeleting(true);
         try {
-            const result = await deleteArticle(article.id);
+            const result = await deleteArticle({ id: article.id });
             if (result.success) {
                 toast.success("Article deleted successfully");
                 router.refresh();
-            } else {
-                // ...
-                // @ts-expect-error result is {success:true} (action throws on failure); 'error' not on type — defensive UI branch
-                toast.error(result.error || "Failed to delete article");
             }
         } catch (error) {
             console.error(error);

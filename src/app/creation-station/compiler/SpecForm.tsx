@@ -115,8 +115,10 @@ export function SpecForm({ onSubmit, isLoading, initialContext }: SpecFormProps)
                                 <FormItem>
                                     <FormLabel>Duration (Days)</FormLabel>
                                     <FormControl>
-                                        {/* durationDays is coerced, so z.input types field.value as unknown; it's a number at runtime. */}
-                                        <Input type="number" {...field} value={field.value as number} />
+                                        {/* durationDays is coerced: z.input types field.value as unknown, and RHF stores the
+                                            raw control value (a string while editing, the numeric default initially). The
+                                            validated number lives in z.output after the resolver — not in this field state. */}
+                                        <Input type="number" {...field} value={field.value as string | number} />
                                     </FormControl>
                                     <FormMessage />
                                 </FormItem>

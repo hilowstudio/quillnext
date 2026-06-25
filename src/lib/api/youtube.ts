@@ -39,6 +39,18 @@ const youTubePlaylistItemSchema = z.object({
 });
 const youTubePlaylistItemsResponseSchema = z.object({ items: z.array(youTubePlaylistItemSchema) });
 
+// Same trust boundary for the playlist-details response (the sibling call). Lenient leaves, defaulted below.
+const youTubePlaylistDetailsResponseSchema = z.object({
+    items: z.array(z.object({
+        snippet: z.object({
+            title: z.string().optional(),
+            description: z.string().optional(),
+            channelTitle: z.string().optional(),
+            thumbnails: z.object({ high: z.object({ url: z.string() }).optional(), medium: z.object({ url: z.string() }).optional() }).optional(),
+        }),
+    })),
+});
+
 export async function fetchPlaylistData(playlistUrlOrId: string, apiKey?: string): Promise<YouTubePlaylist | null> {
     if (!apiKey) {
         // Prefer server-side env var if not passed
@@ -64,8 +76,8 @@ export async function fetchPlaylistData(playlistUrlOrId: string, apiKey?: string
         const detailsRes = await fetch(detailsUrl.toString());
         if (!detailsRes.ok) throw new Error(`Playlist fetch failed: ${detailsRes.statusText}`);
 
-        const detailsData = await detailsRes.json();
-        if (!detailsData.items || detailsData.items.length === 0) return null;
+        const detailsData = youTubePlaylistDetailsResponseSchema.parse(await detailsRes.json());
+        if (detailsData.items.length === 0) return null;
 
         const playlistInfo = detailsData.items[0].snippet;
 
@@ -93,11 +105,11 @@ export async function fetchPlaylistData(playlistUrlOrId: string, apiKey?: string
 
         return {
             id: playlistId,
-            title: playlistInfo.title,
-            description: playlistInfo.description,
-            author: playlistInfo.channelTitle,
+            title: playlistInfo.title ?? "",
+            description: playlistInfo.description ?? "",
+            author: playlistInfo.channelTitle ?? "",
             itemCount: videos.length,
-            thumbnailUrl: playlistInfo.thumbnails?.high?.url || playlistInfo.thumbnails?.medium?.url,
+            thumbnailUrl: playlistInfo.thumbnails?.high?.url || playlistInfo.thumbnails?.medium?.url || "",
             videos: videos
         };
 

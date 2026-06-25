@@ -16,19 +16,32 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog";
+import { z } from "zod";
 
 // DiceBear lorelei options as this editor manipulates them: feature/color keys hold string[]
 // (variant ids / hex), the *Probability keys hold number, seed is a string. The config is keyed
 // dynamically by feature name, so it needs an index signature — which is why the array reads below
-// assert string[] (those keys always hold arrays at runtime).
+// assert string[] (those keys always hold arrays at runtime; provenance is established by the
+// Zod read-schema below, so those narrowings are honest, not boundary lies).
 // No `undefined`/optional members so AvatarConfig stays assignable to Prisma's Json input/value on the
 // save path (a key is either present with a value or absent). seed is read via the index + asserted.
 type AvatarConfig = { [key: string]: string[] | number | string };
 type AvatarUpdates = Record<string, string[] | number>;
 
+// The persisted avatar config is a loose Prisma `Json` column written by setProfileAvatar without
+// validation, so a read is untrusted. Validate it at the boundary (lenient: every value must be one
+// of the AvatarConfig member types) and fall back to a fresh config on any mismatch — a corrupted row
+// self-heals to a default avatar instead of laundering an unverified shape through `as AvatarConfig`.
+const avatarConfigSchema = z.record(z.string(), z.union([z.array(z.string()), z.number(), z.string()]));
+function parseAvatarConfig(value: unknown): AvatarConfig | null {
+    if (value == null) return null;
+    const result = avatarConfigSchema.safeParse(value);
+    return result.success ? result.data : null;
+}
+
 interface AvatarCustomizerProps {
     studentId: string;
-    // The persisted avatar config arrives as a loose Json-column value; narrowed to AvatarConfig below.
+    // The persisted avatar config arrives as a loose Json-column value; validated to AvatarConfig below.
     initialConfig?: unknown;
     initialName?: string;
     onSave: (newConfig: AvatarConfig) => Promise<{ ok: boolean; error?: string }>;
@@ -266,7 +279,7 @@ export function AvatarCustomizer({
     open,
     onOpenChange
 }: AvatarCustomizerProps) {
-    const [config, setConfig] = useState<AvatarConfig>((initialConfig as AvatarConfig | undefined) || { seed: initialName });
+    const [config, setConfig] = useState<AvatarConfig>(parseAvatarConfig(initialConfig) || { seed: initialName });
     const [isSaving, setIsSaving] = useState(false);
 
     // Generate avatar preview

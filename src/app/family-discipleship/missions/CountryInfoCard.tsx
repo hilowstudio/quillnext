@@ -1,28 +1,7 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
 import { X } from '@phosphor-icons/react';
-
-interface CountryData {
-    capital?: string;
-    population?: string;
-    continent?: string;
-    _urban?: string;
-    population_under_15_yrs?: string;
-    life_expectancy?: string;
-    official_language?: string;
-    languages?: string;
-    literacy_rate?: string;
-    largest_religion?: string;
-    _largest_religion?: string;
-    _christian?: string;
-    _evangelical?: string;
-    people_groups?: string;
-    least_reached_people_groups?: string;
-    _unevangelized?: string;
-    hdi_ranking?: string;
-    persecution_ranking?: string;
-    [key: string]: unknown;
-}
+import type { CountryData } from './actions';
 
 export interface CountryInfoData {
     country: string;

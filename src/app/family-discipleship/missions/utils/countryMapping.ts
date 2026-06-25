@@ -1,6 +1,8 @@
 // Country name mapping utility for Operation World data
 // Maps GeoJSON country identifiers to Operation World country names
 
+import type { OperationWorldCountry } from '../actions';
+
 const COUNTRY_MAPPING: Record<string, string> = {
     // ISO codes to Operation World names
     'AFG': 'Afghanistan',
@@ -286,11 +288,6 @@ export const mapCountryToOperationWorld = (identifier: string | null | undefined
 
     return null;
 };
-
-interface OperationWorldCountry {
-    country?: string;
-    [key: string]: unknown;
-}
 
 /**
  * Creates a lookup map from Operation World data for faster searching

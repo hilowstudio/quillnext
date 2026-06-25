@@ -39,9 +39,6 @@ export function GeneratedResourceCard({ resource }: GeneratedResourceCardProps) 
             if (result.success) {
                 toast.success("Resource deleted successfully");
                 router.refresh();
-            } else {
-                // @ts-expect-error result is {success:true} (action throws on failure); 'error' not on type — defensive UI branch
-                toast.error(result.error || "Failed to delete resource");
             }
         } catch (error) {
             console.error(error);

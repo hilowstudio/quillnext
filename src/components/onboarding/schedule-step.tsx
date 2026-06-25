@@ -76,7 +76,8 @@ export function ScheduleStep({
         ? new Date(initialData.schoolYearEndDate)
         : addYears(new Date(), 1),
       isYearRound: initialData?.isYearRound ?? false,
-      schoolDaysOfWeek: Array.isArray(initialData?.schoolDaysOfWeek) ? (initialData.schoolDaysOfWeek as number[]) : [1, 2, 3, 4, 5],
+      // schoolDaysOfWeek is a Prisma Json? column → validate elements, don't assert (Array.isArray proves array-ness, not number-ness).
+      schoolDaysOfWeek: Array.isArray(initialData?.schoolDaysOfWeek) ? initialData.schoolDaysOfWeek.filter((d): d is number => typeof d === "number") : [1, 2, 3, 4, 5],
       daysPerWeek: initialData?.daysPerWeek || undefined,
       // dailyStartTime/EndTime are Prisma @db.Time columns → Date (preserved across the RSC boundary);
       // new Date() also tolerates a string if one ever arrives, so the prior string-branch was dead.

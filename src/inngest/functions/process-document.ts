@@ -7,8 +7,7 @@ import PDFParser from "pdf2json";
 // Helper to parse PDF buffer
 async function parsePdfBuffer(buffer: Buffer): Promise<string> {
     return new Promise((resolve, reject) => {
-        // @ts-expect-error pdf2json's bundled types reject this (context, needRawText) constructor overload
-        const pdfParser = new PDFParser(null, 1); // 1 = text only
+        const pdfParser = new PDFParser(null, true); // needRawText: text-only output
 
         pdfParser.on("pdfParser_dataError", (errData) => {
             reject(errData instanceof Error ? errData : new Error(String(errData.parserError)));

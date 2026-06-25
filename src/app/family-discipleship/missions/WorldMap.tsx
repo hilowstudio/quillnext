@@ -6,11 +6,11 @@ import 'leaflet/dist/leaflet.css';
 import type { Feature, FeatureCollection } from 'geojson';
 import type { Layer, LeafletMouseEvent } from 'leaflet';
 import { mapCountryToOperationWorld, findOperationWorldData, createOperationWorldLookup } from './utils/countryMapping';
-import type { OperationWorldStats } from './actions';
+import type { OperationWorldStats, OperationWorldCountry } from './actions';
 
-// The clicked/selected country. Loose by design (client-JSON decision): a found country carries the
-// loose Operation World record, the fallback carries {} — so data/url are unknown and country optional.
-export type CountrySelection = { country?: string; data?: unknown; url?: unknown };
+// The clicked/selected country is a validated Operation World entry (country/url strings + a typed
+// CountryData bag). The map's not-found fallback supplies an empty `data: {}` (valid CountryData).
+export type CountrySelection = OperationWorldCountry;
 
 interface WorldMapProps {
     stats: OperationWorldStats | null;

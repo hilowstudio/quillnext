@@ -3,44 +3,42 @@
 import React, { useState, useMemo, useEffect, memo, useTransition } from 'react';
 import { Warning, House, ForkKnife, Church, Skull, Baby, HeartBreak, Car, Users } from '@phosphor-icons/react/dist/ssr';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { getCountiesForState, type CountyData } from '../missions/actions';
+import { getCountiesForState } from '../missions/actions';
+import { z } from 'zod';
 
-// Type definitions
+// Type definitions — derived from the Zod read-schema below so the validated runtime shape and the
+// consumed TS types are one source of truth. The county `data` arrives as an unvalidated Json column,
+// so it is validated here at the boundary rather than asserted (`as County[]`).
 type ConcernLevel = 'severe' | 'high' | 'moderate' | 'low';
 
-interface Concern {
-    key: string;
-    value: number;
-    level: ConcernLevel;
-    percentile: number;
-    year: number;
-}
+const concernSchema = z.object({
+    key: z.string(),
+    value: z.number(),
+    level: z.enum(['severe', 'high', 'moderate', 'low']),
+    percentile: z.number(),
+    year: z.number(),
+});
+type Concern = z.infer<typeof concernSchema>;
 
-interface County extends CountyData {
-    issues?: {
-        concerns?: Concern[];
-        indicators?: Record<string, { value: number; year?: number } | undefined>;
-        sources?: unknown[];
-        scores?: Record<string, number>;
-    };
-    population?: {
-        total?: number;
-        year?: number;
-    };
-    context?: {
-        rucc_2023?: number;
-        uic_2024?: number;
-    };
-    ids?: {
-        fips?: string;
-    };
-    unemployment_series?: Record<string, number>;
-    abortion_data?: {
-        abortion_rate: number;
-        total_abortions: number;
-        year: number;
-    };
-}
+// Lenient: only modeled fields are checked, unknown extras pass through (catchall). `abortion_data` —
+// whose numbers are rendered with .toFixed/.toLocaleString — is `.catch(undefined)` so a malformed
+// block degrades to "section hidden" (the existing `abortion_data &&` guard) instead of crashing the tab.
+const countySchema = z.object({
+    State: z.string(),
+    County: z.string(),
+    issues: z.object({
+        concerns: z.array(concernSchema).optional(),
+        indicators: z.record(z.string(), z.object({ value: z.number(), year: z.number().optional() })).optional(),
+        sources: z.array(z.unknown()).optional(),
+        scores: z.record(z.string(), z.number()).optional(),
+    }).optional(),
+    population: z.object({ total: z.number().optional(), year: z.number().optional() }).optional(),
+    context: z.object({ rucc_2023: z.number().optional(), uic_2024: z.number().optional() }).optional(),
+    ids: z.object({ fips: z.string().optional() }).optional(),
+    unemployment_series: z.record(z.string(), z.number()).optional(),
+    abortion_data: z.object({ abortion_rate: z.number(), total_abortions: z.number(), year: z.number() }).optional().catch(undefined),
+}).catchall(z.unknown());
+type County = z.infer<typeof countySchema>;
 
 interface IndicatorDescription {
     title: string;
@@ -275,7 +273,11 @@ export default function CountyIssuesLookup({ initialStates }: CountyIssuesLookup
             setLoadingCounties(true);
             try {
                 const data = await getCountiesForState(selectedState);
-                setCountiesInState(data as County[]);
+                // Validate each unvalidated Json row at the boundary; drop any that don't match.
+                setCountiesInState(data.flatMap((d) => {
+                    const parsed = countySchema.safeParse(d);
+                    return parsed.success ? [parsed.data] : [];
+                }));
             } catch (error) {
                 console.error('Failed to load counties:', error);
             } finally {

@@ -154,10 +154,6 @@ function DocumentCard({ doc }: { doc: LibraryDocument }) {
             if (result.success) {
                 toast.success("Document deleted successfully");
                 router.refresh();
-            } else {
-                // ...
-                // @ts-expect-error result is {success:true} (action throws on failure); 'error' not on type — defensive UI branch
-                toast.error(result.error || "Failed to delete document");
             }
         } catch (error) {
             console.error(error);

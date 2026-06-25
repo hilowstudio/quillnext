@@ -1,6 +1,6 @@
 import { streamText, type ModelMessage } from "ai";
 import { z } from "zod";
-import { getContextForThinkling, ThinklingMode } from "@/lib/thinkling";
+import { getContextForThinkling } from "@/lib/thinkling";
 import { auth } from "@/auth";
 import { getCurrentUserOrg } from "@/lib/auth-helpers";
 import { db } from "@/server/db";
@@ -11,12 +11,17 @@ import { persistPendingScan, drainPendingSafetyScans } from "@/lib/safety/pendin
 
 export const maxDuration = 30;
 
-// The chat body is untrusted (req.json()). Validate the message shape we consume — role plus the
-// v5 `parts` and/or legacy `content` — at the boundary instead of asserting it via `: any`.
+// The chat body is untrusted (req.json()). Validate the whole shape we consume — studentId, mode, and
+// each message (role plus the v5 `parts` and/or legacy `content`) — at the boundary instead of asserting.
 const incomingMessageSchema = z.object({
     role: z.enum(["system", "user", "assistant"]),
     content: z.string().optional(),
     parts: z.array(z.object({ text: z.string().optional() })).optional(),
+});
+const chatRequestSchema = z.object({
+    studentId: z.string().min(1),
+    mode: z.enum(["TUTOR", "RESEARCH", "CAREER"]),
+    messages: z.array(incomingMessageSchema),
 });
 
 export async function POST(req: Request) {
@@ -26,18 +31,15 @@ export async function POST(req: Request) {
         return new Response("Unauthorized", { status: 401 });
     }
 
-    const json = await req.json();
-    const { studentId, mode } = json;
-    const parsedMessages = z.array(incomingMessageSchema).safeParse(json?.messages);
-
-    if (!studentId || !mode || !parsedMessages.success) {
+    const parsed = chatRequestSchema.safeParse(await req.json());
+    if (!parsed.success) {
         console.error("Thinkling API: missing studentId/mode or malformed messages");
         return new Response(JSON.stringify({ error: "Missing studentId or mode" }), {
             status: 400,
             headers: { 'Content-Type': 'application/json' }
         });
     }
-    const messages = parsedMessages.data;
+    const { studentId, mode, messages } = parsed.data;
 
     try {
         // Multi-tenant guard: the student (whose full learner profile drives the system prompt)
@@ -65,7 +67,7 @@ export async function POST(req: Request) {
             console.error("Thinkling: failed to drain pending safety scans:", drainErr);
         }
 
-        const { systemPrompt } = await getContextForThinkling(studentId, mode as ThinklingMode, organizationId);
+        const { systemPrompt } = await getContextForThinkling(studentId, mode, organizationId);
 
         // Convert messages manually to ensure cleaner payload for Google provider
         // Handle cases where 'content' is missing but 'parts' exist (from UIMessage state)

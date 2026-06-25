@@ -5,7 +5,7 @@ import dynamic from 'next/dynamic';
 import { Input } from "@/components/ui/input";
 import { MagnifyingGlass } from "@phosphor-icons/react/dist/ssr";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { CountryInfoCard, type CountryInfoData } from './CountryInfoCard';
+import { CountryInfoCard } from './CountryInfoCard';
 import type { OperationWorldStats } from './actions';
 import type { CountrySelection } from './WorldMap';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -90,13 +90,13 @@ export default function MissionsClient({ stats }: MissionsClientProps) {
                                 >
                                     <span className="font-semibold text-sm mb-1 group-hover:text-qc-primary transition-colors">{c.country}</span>
                                     <span className="text-xs text-muted-foreground">
-                                        {parseInt(c.data.population as string || '0').toLocaleString()} people
+                                        {parseInt(c.data.population || '0').toLocaleString()} people
                                     </span>
                                     <div className="flex gap-2 mt-2">
-                                        {(c.data._evangelical as string)?.startsWith('0') && (
+                                        {c.data._evangelical?.startsWith('0') && (
                                             <span className="w-2 h-2 rounded-full bg-qc-error ring-4 ring-qc-error-bg" title="Low Evangelical %" />
                                         )}
-                                        {(c.data.persecution_ranking as string) && (
+                                        {c.data.persecution_ranking && (
                                             <span className="w-2 h-2 rounded-full bg-qc-warning ring-4 ring-qc-warning-bg" title="Persecution Watch" />
                                         )}
                                     </div>
@@ -115,9 +115,8 @@ export default function MissionsClient({ stats }: MissionsClientProps) {
             <CountryInfoCard
                 isOpen={!!selectedCountry}
                 onClose={() => setSelectedCountry(null)}
-                // The selection's `data` is the loose Operation World JSON record; CountryInfoCard reads
-                // it via CountryData's optional string fields. Bridge the loose→typed gap here.
-                countryData={selectedCountry as CountryInfoData | null}
+                // selectedCountry is a validated OperationWorldCountry (≡ CountryInfoData) — no cast needed.
+                countryData={selectedCountry}
             />
 
             <div className="text-center text-xs text-muted-foreground mt-2">
