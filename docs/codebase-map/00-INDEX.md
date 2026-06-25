@@ -76,10 +76,11 @@ owner's legal sign-off; see 24 §5/§7). **2026-06-23
 (later): child-safety Phase 1 shipped** — Q-12-008/009/010/011/012 [MED] + Q-12-013 [LOW] all ✅ resolved
 (+ non-safety Q-10-010 / Q-16-001 [LOW]). **Q-09-005 ✅ resolved 2026-06-23** (generator consolidation onto
 `generateResourceCore`). Open **MED (0)**; open **LOW (1)** = **Q-01-004** only (lint warn-ratchet,
-owner-accepted / kept-open by design; burndown passes 1 + 2 done 2026-06-23 — 11 rules locked warn→error
-(incl. the react-hooks trio), 637→397 warnings; the `as any` cast burn-down is COMPLETE
-(waves 1–17, 2026-06-24: no-explicit-any 273→153, **0 casts in src**, + a full AI SDK v4→v5 migration);
-no-unused-vars 234 is the final pass — NOW NEXT).
+owner-accepted / kept-open by design; **12 rules now locked warn→error** — passes 1 + 2 (2026-06-23, incl.
+the react-hooks trio) + **`no-explicit-any` (2026-06-25)**: the full 273→0 burndown across the `as any` cast
+phase (273→153, **0 casts in src**, + a surfaced AI SDK v4→v5 migration) and the `: any` annotation phase
+(153→0, which surfaced+fixed several real bugs and corrected a laundering slip → Zod-at-boundary);
+**no-unused-vars is the final pass — Q-01-004 closes when it locks**).
 See **24 §5/§7** for the roadmap + full register.
 
 ## Excluded from line-by-line reading (documented by shape)

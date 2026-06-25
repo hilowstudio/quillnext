@@ -3559,3 +3559,53 @@ target; they feed the FINAL no-unused-vars/structural pass. **Headline unchanged
   DayPicker; (2) the FINAL **no-unused-vars** pass — the residual 153 no-explicit-any are `: any` annotations
   to type structurally + the dead vars the honest types now orphan (e.g. the `auth.ts` PrismaClient import, the
   schedule-step `modifiers` rest-exclusion, GradingInterface `attempt: any`). Nothing pushed.
+
+## 2026-06-24/25 — Q-01-004 `: any` ANNOTATION phase COMPLETE → no-explicit-any 153 → 0, LOCKED warn→error 🔒
+
+The phase AFTER the `as any` casts: the residual 153 were `: any` ANNOTATIONS (params/props/state/`any[]`),
+mostly the **server→client Prisma-payload boundary** — fixed by typing each client component's props to the
+DAL's real return (`Awaited<ReturnType<typeof query>>` / `Prisma.XGetPayload` / a shared `…-types.ts`), so the
+inner `.map((x: any))` callbacks auto-infer. **Worked one cluster at a time, CI green (tsc 0 / eslint 0-err /
+vitest 244), committed in waves; this phase was PUSHED to `main`** (owner-authorized — first burndown work to
+deploy, on top of the 2026-06-23 RLS work). Final: **`@typescript-eslint/no-explicit-any` promoted warn→error**
+in `eslint.config.mjs` (12 ratchet rules locked now). **Headline unchanged: 0 CRITICAL · 0 HIGH · 0 MED · 1 LOW
+(Q-01-004 — now narrowed to the no-unused-vars final pass).**
+
+### Clusters (selected) + new shared payload-type modules
+- catch(e:any)→unknown (8, narrowed by `instanceof Error` / `'data' in e`); Living Library (`library-types.ts`),
+  dashboards (`dashboard-types.ts`), GradingInterface (`grading-types.ts`), onboarding (`onboarding-types.ts`),
+  TopicSelector, BibleMemoryDashboard, PlannerGrid, TranscriptPreview, master-context, CourseBuilder, etc.
+- Server-side: external-API responses (google-books/open-library/youtube/ESV) **Zod-validated at the boundary**;
+  errorTaxonomy/prisma-cache → `unknown`/generics; scheduling/auth-helpers/utils/personality typed.
+- Library friction: SpecForm RHF `render` props infer from shadcn `FormField` (no `@ts-expect-error`);
+  AvatarCustomizer modeled as an index-signature `AvatarConfig` (DiceBear bag); WorldMap/MissionsClient typed
+  loose-in-place (GeoJSON/Leaflet types) per owner's client-JSON call. `useZodForm` `$ZodType<any,any>` bound
+  accepted via disable-with-reason (the documented Zod-4 constraint).
+
+### ⚠️ Real bugs the `any` was hiding (surfaced + fixed, owner-approved)
+- **Living Library:** the resource query never `select`ed `description`/`generationContext` though
+  `GeneratedResourceCard` reads both → those UI sections rendered blank. Added to the shared select.
+- **Planner smart-slot:** read `resource.url` for videos (it's `youtubeUrl`) and `resource.title` for documents
+  (it's `fileName`) → blank description / undefined title. Refactored to per-kind normalized `{title,description}`.
+- **Onboarding resume:** schedule-step read `initialData.plannedOffDays` (not a Classroom field → always empty)
+  instead of `initialData.holidays` where off-days are saved → saved off-days never repopulated. Fixed (+ dropped
+  dead `breaks`/`whatStudentsCall` reads; coerced the `schoolDaysOfWeek` Json; dropped dead Date string-branches).
+- **Transcript:** YearCard read `summary.showNarratives` (not a `YearSummary` field → always undefined) → course
+  narratives never rendered. Now passed from `transcript.gradingSettings`.
+- **ContextLineageDisplay:** `video.title` typed `string` but is nullable; widened (component already handled null).
+- ThinklingChat: render v5 `UIMessage` text parts (`p.type === 'text'`) instead of the v5-removed `m.content`.
+
+### ⚠️ Owner-caught laundering slip — corrected (the key process lesson)
+A first cut typed external `response.json()` boundaries by ASSERTING a shape (`const data: T = await res.json()`
+and a return-only generic `fetchFromESV<T>`). The owner flagged it: `any` satisfies every `T`, so nothing is
+checked — it's an unchecked cast relocated to call sites and made invisible. **Fixed per bucket-3: Zod-parse at the
+boundary** (concrete return; callers drop redundant annotations). The two-appearance test for a legit generic
+(`T` in an argument + the return, validator-backed) is now in the `any-annotation-burndown-approach` memory.
+
+### Owed
+- **UI/AI smoke-tests** (no browser tests in CI): the surfaced behavior fixes above — Living Library cards,
+  planner smart-slot add, onboarding off-days round-trip, transcript narratives, Thinkling chat render — plus the
+  cast-phase items (grading personality card, AI-SDK image tool in markdown gen, onboarding DayPicker).
+- **`tsconfig.tsbuildinfo`** is a tracked generated cache that keeps showing modified (swept into the `-a`
+  commits) — worth gitignoring.
+- **no-unused-vars** is the LAST ratchet pass; Q-01-004 closes when it locks.
