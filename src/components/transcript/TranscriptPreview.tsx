@@ -86,7 +86,7 @@ export function TranscriptPreview({ transcript, className }: TranscriptPreviewPr
             {/* Course Grid - 2x2 */}
             <div className="grid grid-cols-2 gap-4 mb-6">
                 {yearSummaries.map((summary) => (
-                    <YearCard key={summary.gradeLevel} summary={summary} />
+                    <YearCard key={summary.gradeLevel} summary={summary} showNarratives={transcript.gradingSettings?.showNarratives ?? false} />
                 ))}
             </div>
 
@@ -223,8 +223,8 @@ function InfoRow({ label, value, className }: { label: string; value?: string; c
     );
 }
 
-function YearCard({ summary }: { summary: any }) {
-    const sortedCourses = [...summary.courses].sort((a: any, b: any) => a.courseName.localeCompare(b.courseName));
+function YearCard({ summary, showNarratives }: { summary: ReturnType<typeof calculateYearSummary>; showNarratives?: boolean }) {
+    const sortedCourses = [...summary.courses].sort((a, b) => a.courseName.localeCompare(b.courseName));
 
     return (
         <div className="border border-qc-border-subtle rounded overflow-hidden flex flex-col h-full bg-white">
@@ -251,12 +251,12 @@ function YearCard({ summary }: { summary: any }) {
                             </tr>
                         </thead>
                         <tbody>
-                            {sortedCourses.map((course: any, i: number) => (
+                            {sortedCourses.map((course, i: number) => (
                                 <React.Fragment key={course.id}>
                                     <tr className={cn("border-b border-qc-border-subtle/50 last:border-0", i % 2 !== 0 ? "bg-qc-surface-raised/50" : "")}>
                                         <td className="py-1 pr-2 align-middle text-qc-charcoal leading-tight">
                                             {course.courseName}
-                                            {summary.showNarratives && course.courseNotes && (
+                                            {showNarratives && course.courseNotes && (
                                                 <div className="text-[9px] text-qc-text-muted italic mt-0.5 leading-snug font-serif">
                                                     {course.courseNotes}
                                                 </div>

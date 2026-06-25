@@ -781,7 +781,7 @@ function generatePrintHTML(transcript: TranscriptData): string {
       ${transcript.activities && transcript.activities.length > 0 ? `
       <div class="activities">
         <div class="activities-title">ACTIVITIES & AWARDS</div>
-        ${transcript.activities.map((activity: any) => `
+        ${transcript.activities.map((activity) => `
         <div class="activity-card">
           <div class="activity-header">
             <div class="activity-name">${esc(activity.title)}</div>
@@ -804,7 +804,7 @@ function generatePrintHTML(transcript: TranscriptData): string {
       ${transcript.notes && transcript.notes.length > 0 ? `
       <div class="notes-section">
         <div class="notes-title">ADDITIONAL NOTES</div>
-        ${transcript.notes.map((note: any) => `
+        ${transcript.notes.map((note) => `
         <div class="note-item">
           ${esc(note.content)}
         </div>

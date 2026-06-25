@@ -153,14 +153,14 @@ export interface LibraryContext {
     subject: string;
     strand: string | null;
     summary: string | null;
-    tableOfContents: any;
+    tableOfContents: Prisma.JsonValue;
   }>;
   relevantVideos: Array<{
     id: string;
     title: string | null;
     youtubeVideoId: string;
     extractedSummary: string | null;
-    extractedKeyPoints: any;
+    extractedKeyPoints: Prisma.JsonValue;
   }>;
   courseResources: Array<{
     id: string;
@@ -653,7 +653,13 @@ export async function getLibraryContext(
   courseId?: string,
 ): Promise<LibraryContext | null> {
   // Get relevant books based on objective or course
-  let relevantBooks: any[] = [];
+  let relevantBooks: Prisma.BookGetPayload<{
+    select: {
+      id: true; title: true; authors: true; summary: true; tableOfContents: true;
+      subject: { select: { name: true } };
+      strand: { select: { name: true } };
+    };
+  }>[] = [];
 
   if (objectiveId) {
     const objective = await db.objective.findUnique({
@@ -798,7 +804,9 @@ export async function getLibraryContext(
   );
 
   // Get course resources if courseId provided
-  let courseResources: any[] = [];
+  let courseResources: Prisma.ResourceGetPayload<{
+    select: { id: true; title: true; resourceKind: { select: { label: true } } };
+  }>[] = [];
   if (courseId) {
     courseResources = await withTenant(
       (tx) =>
