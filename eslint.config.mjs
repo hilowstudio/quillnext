@@ -35,8 +35,9 @@ const eslintConfig = [
       "react-hooks/error-boundaries": "error",
       "react-hooks/set-state-in-effect": "error",
       "react-hooks/exhaustive-deps": "error",
-      // Still burning down — kept at "warn" until they reach 0:
-      "@typescript-eslint/no-explicit-any": "warn",
+      "@typescript-eslint/no-explicit-any": "error",
+      // Still burning down — kept at "warn" until it reaches 0:
+      // @typescript-eslint/no-unused-vars (the final ratchet pass).
     },
   },
 ];
