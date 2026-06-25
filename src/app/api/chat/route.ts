@@ -1,4 +1,5 @@
-import { streamText } from "ai";
+import { streamText, type ModelMessage } from "ai";
+import { z } from "zod";
 import { getContextForThinkling, ThinklingMode } from "@/lib/thinkling";
 import { auth } from "@/auth";
 import { getCurrentUserOrg } from "@/lib/auth-helpers";
@@ -10,6 +11,14 @@ import { persistPendingScan, drainPendingSafetyScans } from "@/lib/safety/pendin
 
 export const maxDuration = 30;
 
+// The chat body is untrusted (req.json()). Validate the message shape we consume — role plus the
+// v5 `parts` and/or legacy `content` — at the boundary instead of asserting it via `: any`.
+const incomingMessageSchema = z.object({
+    role: z.enum(["system", "user", "assistant"]),
+    content: z.string().optional(),
+    parts: z.array(z.object({ text: z.string().optional() })).optional(),
+});
+
 export async function POST(req: Request) {
     const session = await auth();
 
@@ -18,15 +27,17 @@ export async function POST(req: Request) {
     }
 
     const json = await req.json();
-    const { messages, studentId, mode } = json;
+    const { studentId, mode } = json;
+    const parsedMessages = z.array(incomingMessageSchema).safeParse(json?.messages);
 
-    if (!studentId || !mode) {
-        console.error("Thinkling API: missing studentId or mode");
+    if (!studentId || !mode || !parsedMessages.success) {
+        console.error("Thinkling API: missing studentId/mode or malformed messages");
         return new Response(JSON.stringify({ error: "Missing studentId or mode" }), {
             status: 400,
             headers: { 'Content-Type': 'application/json' }
         });
     }
+    const messages = parsedMessages.data;
 
     try {
         // Multi-tenant guard: the student (whose full learner profile drives the system prompt)
@@ -58,10 +69,10 @@ export async function POST(req: Request) {
 
         // Convert messages manually to ensure cleaner payload for Google provider
         // Handle cases where 'content' is missing but 'parts' exist (from UIMessage state)
-        const coreMessages = messages.map((m: any) => {
+        const coreMessages = messages.map((m) => {
             let content = m.content;
             if (!content && m.parts && Array.isArray(m.parts)) {
-                content = m.parts.map((p: any) => p.text || '').join('');
+                content = m.parts.map((p) => p.text || '').join('');
             }
             return {
                 role: m.role,
@@ -112,7 +123,10 @@ export async function POST(req: Request) {
         const result = streamText({
             model: models.flash, // Use Gemini Flash for speed and efficiency
             system: systemPrompt,
-            messages: coreMessages,
+            // coreMessages are {role: 'system'|'user'|'assistant', content: string} — each a valid
+            // ModelMessage (roles Zod-validated above, content is a string). The assertion only bridges
+            // TS's inability to correlate a union-typed `role` in one object to the ModelMessage union.
+            messages: coreMessages as ModelMessage[],
         });
 
         // useChat expects structured UI messages; toUIMessageStreamResponse is the AI SDK v5 method.
