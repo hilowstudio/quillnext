@@ -33,8 +33,6 @@ export function formatDateLocal(
  */
 export function getGpaPoints(
     grade: GradeValue,
-    // Contract param kept for callers; weighted-GPA (Honors/AP bumps) by course type is not yet implemented.
-    _courseType: CourseType = 'Regular',
     scaleType: GradingScaleType = '10-point'
 ): number | null {
     if (!grade) return null;
@@ -140,7 +138,7 @@ export function applyCourseTypeWeighting(points: number | null, courseType: Cour
  */
 export function calculateUnweightedGPA(courses: TranscriptCourse[], scaleType: GradingScaleType = '10-point'): number {
     const coursesWithGrades = courses.filter(course => {
-        const points = getGpaPoints(course.grade, 'Regular', scaleType);
+        const points = getGpaPoints(course.grade, scaleType);
         return points !== null;
     });
 
@@ -150,7 +148,7 @@ export function calculateUnweightedGPA(courses: TranscriptCourse[], scaleType: G
     let totalCredits = 0;
 
     coursesWithGrades.forEach(course => {
-        const points = getGpaPoints(course.grade, 'Regular', scaleType);
+        const points = getGpaPoints(course.grade, scaleType);
         if (points !== null) {
             totalPoints += points * course.credits;
             totalCredits += course.credits;
@@ -165,7 +163,7 @@ export function calculateUnweightedGPA(courses: TranscriptCourse[], scaleType: G
  */
 export function calculateWeightedGPA(courses: TranscriptCourse[], settings: GPASettings = { scale: '10-point', weighted: true }): number {
     const coursesWithGrades = courses.filter(course => {
-        const points = getGpaPoints(course.grade, course.courseType, settings.scale);
+        const points = getGpaPoints(course.grade, settings.scale);
         return points !== null;
     });
 
@@ -175,7 +173,7 @@ export function calculateWeightedGPA(courses: TranscriptCourse[], settings: GPAS
     let totalCredits = 0;
 
     coursesWithGrades.forEach(course => {
-        const basePoints = getGpaPoints(course.grade, 'Regular', settings.scale);
+        const basePoints = getGpaPoints(course.grade, settings.scale);
         if (basePoints !== null) {
             const weightedPoints = applyCourseTypeWeighting(basePoints, course.courseType, settings.weighted);
             if (weightedPoints !== null) {
