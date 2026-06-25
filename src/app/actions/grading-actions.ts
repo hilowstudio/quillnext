@@ -10,7 +10,7 @@ interface GenerateFeedbackParams {
     studentId: string;
     courseId: string;
     questionText: string;
-    responseContent: string | any;
+    responseContent: unknown;
 }
 
 interface GenerateOverallFeedbackParams {

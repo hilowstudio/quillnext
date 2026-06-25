@@ -1,6 +1,7 @@
 'use server';
 
 import { withTenant } from "@/server/db";
+import { Prisma } from "@/generated/client";
 import { revalidatePath } from "next/cache";
 import { getBibleText } from "@/server/actions/bible-study";
 import { getCurrentUserOrg } from "@/lib/auth-helpers";
@@ -184,7 +185,7 @@ export async function updateVerseProgress(verseId: string, stepCompleted: number
         const { organizationId, userId } = await requireCaller();
         await assertVerseAccess(verseId, organizationId, userId);
 
-        const updateData: any = {
+        const updateData: Prisma.BibleMemoryUpdateInput = {
             currentStep: stepCompleted,
             lastPracticedAt: new Date()
         };
