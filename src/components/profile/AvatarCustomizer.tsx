@@ -17,11 +17,21 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog";
 
+// DiceBear lorelei options as this editor manipulates them: feature/color keys hold string[]
+// (variant ids / hex), the *Probability keys hold number, seed is a string. The config is keyed
+// dynamically by feature name, so it needs an index signature — which is why the array reads below
+// assert string[] (those keys always hold arrays at runtime).
+// No `undefined`/optional members so AvatarConfig stays assignable to Prisma's Json input/value on the
+// save path (a key is either present with a value or absent). seed is read via the index + asserted.
+type AvatarConfig = { [key: string]: string[] | number | string };
+type AvatarUpdates = Record<string, string[] | number>;
+
 interface AvatarCustomizerProps {
     studentId: string;
-    initialConfig?: any;
+    // The persisted avatar config arrives as a loose Json-column value; narrowed to AvatarConfig below.
+    initialConfig?: unknown;
     initialName?: string;
-    onSave: (newConfig: any) => Promise<{ ok: boolean; error?: string }>;
+    onSave: (newConfig: AvatarConfig) => Promise<{ ok: boolean; error?: string }>;
     open: boolean;
     onOpenChange: (open: boolean) => void;
 }
@@ -160,13 +170,13 @@ const FEATURE_LABELS: Record<string, string> = {
 };
 
 // Helper to remove empty/null values
-const cleanConfig = (config: any) => {
-    return Object.fromEntries(Object.entries(config).filter(([_, v]) => v != null && v !== ''));
+const cleanConfig = (config: AvatarConfig): AvatarConfig => {
+    return Object.fromEntries(Object.entries(config).filter(([_, v]) => v != null && v !== '')) as AvatarConfig;
 };
 
-const FeatureSlider = ({ feature, options, config, onUpdate }: { feature: string, options: string[], config: any, onUpdate: (updates: Record<string, any>) => void }) => {
+const FeatureSlider = ({ feature, options, config, onUpdate }: { feature: string, options: string[], config: AvatarConfig, onUpdate: (updates: AvatarUpdates) => void }) => {
     // Find current index
-    const currentVal = config[feature]?.[0];
+    const currentVal = (config[feature] as string[] | undefined)?.[0];
     const currentIndex = currentVal ? options.indexOf(currentVal) : -1;
 
     const isOptional = ["glasses", "earrings", "freckles"].includes(feature);
@@ -192,7 +202,7 @@ const FeatureSlider = ({ feature, options, config, onUpdate }: { feature: string
                 step={1}
                 onValueChange={(vals) => {
                     const index = vals[0];
-                    const updates: Record<string, any> = {};
+                    const updates: AvatarUpdates = {};
 
                     if (index === -1) {
                         updates[feature] = [];
@@ -212,7 +222,7 @@ const FeatureSlider = ({ feature, options, config, onUpdate }: { feature: string
     );
 };
 
-const ColorPicker = ({ label, property, config, onUpdate, options, required }: { label: string, property: string, config: any, onUpdate: (updates: Record<string, any>) => void, options?: { name?: string, hex: string }[], required?: boolean }) => {
+const ColorPicker = ({ label, property, config, onUpdate, options, required }: { label: string, property: string, config: AvatarConfig, onUpdate: (updates: AvatarUpdates) => void, options?: { name?: string, hex: string }[], required?: boolean }) => {
     const defaultColors: { name?: string, hex: string }[] = [
         { hex: "b6e3f4" }, { hex: "c0aede" }, { hex: "d1d4f9" }, { hex: "ffd5dc" },
         { hex: "ffdfbf" }, { hex: "ffffff" }, { hex: "000000" }, { hex: "e6e6e6" }
@@ -229,7 +239,7 @@ const ColorPicker = ({ label, property, config, onUpdate, options, required }: {
                     return (
                         <button
                             key={color}
-                            className={`w-8 h-8 rounded-full border-2 ${config[property]?.[0] === color ? "border-qc-primary" : "border-transparent"}`}
+                            className={`w-8 h-8 rounded-full border-2 ${(config[property] as string[] | undefined)?.[0] === color ? "border-qc-primary" : "border-transparent"}`}
                             style={{ backgroundColor: `#${color}` }}
                             onClick={() => onUpdate({ [property]: [color] })}
                             title={colorObj.name || `#${color}`}
@@ -256,19 +266,19 @@ export function AvatarCustomizer({
     open,
     onOpenChange
 }: AvatarCustomizerProps) {
-    const [config, setConfig] = useState<any>(initialConfig || { seed: initialName });
+    const [config, setConfig] = useState<AvatarConfig>((initialConfig as AvatarConfig | undefined) || { seed: initialName });
     const [isSaving, setIsSaving] = useState(false);
 
     // Generate avatar preview
     const avatarSvg = useMemo(() => {
         return createAvatar(lorelei, {
             ...config,
-            seed: config.seed || initialName,
+            seed: (config.seed as string | undefined) || initialName,
         }).toString();
     }, [config, initialName]);
 
-    const updateConfig = (updates: Record<string, any>) => {
-        setConfig((prev: any) => {
+    const updateConfig = (updates: AvatarUpdates) => {
+        setConfig((prev) => {
             const newConfigs = { ...prev };
             Object.entries(updates).forEach(([key, value]) => {
                 if (value === undefined || value === null) {
@@ -284,7 +294,7 @@ export function AvatarCustomizer({
     const handleSave = async () => {
         setIsSaving(true);
         try {
-            const finalConfig = cleanConfig({ ...config, seed: config.seed || initialName });
+            const finalConfig = cleanConfig({ ...config, seed: (config.seed as string | undefined) || initialName });
             const result = await onSave(finalConfig);
 
             if (result.ok) {
@@ -302,7 +312,7 @@ export function AvatarCustomizer({
 
     const randomize = () => {
         const randomItem = (arr: string[]) => arr[Math.floor(Math.random() * arr.length)];
-        const newConfig: any = {
+        const newConfig: AvatarConfig = {
             seed: Math.random().toString(36).substring(7),
             hair: [randomItem(OPTIONS.hair)],
             eyes: [randomItem(OPTIONS.eyes)],
