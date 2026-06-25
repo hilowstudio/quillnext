@@ -10,11 +10,11 @@ async function parsePdfBuffer(buffer: Buffer): Promise<string> {
         // @ts-expect-error pdf2json's bundled types reject this (context, needRawText) constructor overload
         const pdfParser = new PDFParser(null, 1); // 1 = text only
 
-        pdfParser.on("pdfParser_dataError", (errData: any) => {
-            reject(new Error(errData.parserError));
+        pdfParser.on("pdfParser_dataError", (errData) => {
+            reject(errData instanceof Error ? errData : new Error(String(errData.parserError)));
         });
 
-        pdfParser.on("pdfParser_dataReady", (pdfData: any) => {
+        pdfParser.on("pdfParser_dataReady", (pdfData) => {
             try {
                 const text = pdfParser.getRawTextContent();
                 resolve(text);
