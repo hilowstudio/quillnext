@@ -40,6 +40,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { ResourceKind, Book, VideoResource as Video, Article, DocumentResource } from "@/generated/client";
 import { SpecForm } from "@/app/creation-station/compiler/SpecForm";
 import { compileCurriculumAction } from "@/app/actions/compile-curriculum-action";
+import { z } from "zod";
+import { curriculumSpecSchema } from "@/lib/validation/curriculum-spec";
 
 import { toast } from "sonner";
 
@@ -55,7 +57,7 @@ interface Block {
     documentId?: string | null;
     resourceId?: string | null;
     children?: Block[];
-    activities: any[];
+    activities: unknown[]; // only .length is read in the UI
     courseId?: string;
 }
 
@@ -375,8 +377,8 @@ function SortableBlockItem({
 interface CourseBuilderProps {
     courseId: string;
     organizationId: string;
-    initialBlocks: any[]; // Using any[] for now as we have complex include types
-    availableTools: any[];
+    initialBlocks: Block[];
+    availableTools: ResourceKind[];
     initialContext?: {
         subject?: string;
         topic?: string;
@@ -583,7 +585,7 @@ export function CourseBuilder({ courseId, organizationId, initialBlocks, availab
         }
     };
 
-    const handleCompilerSubmit = async (values: any) => {
+    const handleCompilerSubmit = async (values: z.infer<typeof curriculumSpecSchema>) => {
         setIsCompiling(true);
         try {
             const result = await compileCurriculumAction({

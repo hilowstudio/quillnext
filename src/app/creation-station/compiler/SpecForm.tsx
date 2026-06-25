@@ -66,7 +66,7 @@ export function SpecForm({ onSubmit, isLoading, initialContext }: SpecFormProps)
                             <FormField
                                 control={form.control}
                                 name="subject"
-                                render={({ field }: { field: any }) => (
+                                render={({ field }) => (
                                     <FormItem>
                                         <FormLabel>Subject</FormLabel>
                                         <FormControl>
@@ -79,7 +79,7 @@ export function SpecForm({ onSubmit, isLoading, initialContext }: SpecFormProps)
                             <FormField
                                 control={form.control}
                                 name="readingLevel"
-                                render={({ field }: { field: any }) => (
+                                render={({ field }) => (
                                     <FormItem>
                                         <FormLabel>Target Audience</FormLabel>
                                         <FormControl>
@@ -94,7 +94,7 @@ export function SpecForm({ onSubmit, isLoading, initialContext }: SpecFormProps)
                         <FormField
                             control={form.control}
                             name="topic"
-                            render={({ field }: { field: any }) => (
+                            render={({ field }) => (
                                 <FormItem>
                                     <FormLabel>Specific Topic / Standard</FormLabel>
                                     <FormControl>
@@ -111,11 +111,12 @@ export function SpecForm({ onSubmit, isLoading, initialContext }: SpecFormProps)
                         <FormField
                             control={form.control}
                             name="durationDays"
-                            render={({ field }: { field: any }) => (
+                            render={({ field }) => (
                                 <FormItem>
                                     <FormLabel>Duration (Days)</FormLabel>
                                     <FormControl>
-                                        <Input type="number" {...field} />
+                                        {/* durationDays is coerced, so z.input types field.value as unknown; it's a number at runtime. */}
+                                        <Input type="number" {...field} value={field.value as number} />
                                     </FormControl>
                                     <FormMessage />
                                 </FormItem>
@@ -128,7 +129,7 @@ export function SpecForm({ onSubmit, isLoading, initialContext }: SpecFormProps)
                                 <FormField
                                     control={form.control}
                                     name="constraints.noDevices"
-                                    render={({ field }: { field: any }) => (
+                                    render={({ field }) => (
                                         <FormItem className="flex flex-row items-start space-x-3 space-y-0">
                                             <FormControl>
                                                 <Checkbox
@@ -148,7 +149,7 @@ export function SpecForm({ onSubmit, isLoading, initialContext }: SpecFormProps)
                                 <FormField
                                     control={form.control}
                                     name="constraints.lowPrep"
-                                    render={({ field }: { field: any }) => (
+                                    render={({ field }) => (
                                         <FormItem className="flex flex-row items-start space-x-3 space-y-0">
                                             <FormControl>
                                                 <Checkbox
