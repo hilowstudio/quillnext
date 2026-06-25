@@ -5,7 +5,7 @@ import { withTenant } from "@/server/db";
 import { excludeParentLearners } from "@/server/queries/learner-filters";
 import { studentCardSelect } from "@/server/queries/students";
 import { cacheQuery } from "@/lib/utils/prisma-cache";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { StudentCard } from "@/components/students/StudentCard";

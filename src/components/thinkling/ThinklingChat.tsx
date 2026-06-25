@@ -4,7 +4,7 @@ import { useChat } from "@ai-sdk/react";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { PaperPlaneRight, Robot, User as UserIcon, Trash } from "@phosphor-icons/react";
 import ReactMarkdown from "react-markdown";
@@ -27,7 +27,7 @@ interface ThinklingChatProps {
 }
 
 export function ThinklingChat({ studentId, mode, onModeChange }: ThinklingChatProps) {
-    const { messages, setMessages, sendMessage, status, stop } = useChat({
+    const { messages, setMessages, sendMessage, status } = useChat({
         onError: (e) => console.error("ThinklingChat API Error:", e),
         onFinish: (event) => {
             // The onFinish callback provides an event object containing the final UIMessage.
@@ -139,13 +139,13 @@ export function ThinklingChat({ studentId, mode, onModeChange }: ThinklingChatPr
                                         remarkPlugins={[remarkGfm, remarkBreaks, remarkMath]}
                                         rehypePlugins={[rehypeKatex]}
                                         components={{
-                                            p: ({ node, ...props }) => <p className="mb-4 last:mb-0 leading-relaxed" {...props} />,
-                                            ul: ({ node, ...props }) => <ul className="my-4 ml-6 list-disc space-y-2" {...props} />,
-                                            ol: ({ node, ...props }) => <ol className="my-4 ml-6 list-decimal space-y-2" {...props} />,
-                                            li: ({ node, ...props }) => <li className="pl-1" {...props} />,
-                                            h1: ({ node, ...props }) => <h1 className="text-xl font-bold mt-6 mb-3" {...props} />,
-                                            h2: ({ node, ...props }) => <h2 className="text-lg font-bold mt-5 mb-2" {...props} />,
-                                            h3: ({ node, ...props }) => <h3 className="text-md font-bold mt-4 mb-2" {...props} />,
+                                            p: ({ node: _node, ...props }) => <p className="mb-4 last:mb-0 leading-relaxed" {...props} />,
+                                            ul: ({ node: _node, ...props }) => <ul className="my-4 ml-6 list-disc space-y-2" {...props} />,
+                                            ol: ({ node: _node, ...props }) => <ol className="my-4 ml-6 list-decimal space-y-2" {...props} />,
+                                            li: ({ node: _node, ...props }) => <li className="pl-1" {...props} />,
+                                            h1: ({ node: _node, ...props }) => <h1 className="text-xl font-bold mt-6 mb-3" {...props} />,
+                                            h2: ({ node: _node, ...props }) => <h2 className="text-lg font-bold mt-5 mb-2" {...props} />,
+                                            h3: ({ node: _node, ...props }) => <h3 className="text-md font-bold mt-4 mb-2" {...props} />,
                                         }}
                                     >
                                         {m.parts

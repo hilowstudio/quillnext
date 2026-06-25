@@ -7,7 +7,6 @@ import { db } from "../src/server/db";
 
 async function main() {
     console.log("Starting debug query...");
-    const studentId = "test-student-id"; // We might need a real ID, but Prisma usually fails query parsing before checking ID existence if it's a schema issue. 
     // Or if it executes, it returns empty. 
     // The error "column (not available) does not exist" suggests a SQL generation error or execution error on DB.
 

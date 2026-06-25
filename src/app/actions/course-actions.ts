@@ -124,8 +124,6 @@ export async function deleteBlock(rawData: unknown) {
     return { success: true };
 }
 
-import { CourseBlockKind } from "@/generated/client";
-
 // ... existing code ...
 
 export async function updateBlock(rawData: unknown) {

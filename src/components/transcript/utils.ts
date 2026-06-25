@@ -33,7 +33,8 @@ export function formatDateLocal(
  */
 export function getGpaPoints(
     grade: GradeValue,
-    courseType: CourseType = 'Regular',
+    // Contract param kept for callers; weighted-GPA (Honors/AP bumps) by course type is not yet implemented.
+    _courseType: CourseType = 'Regular',
     scaleType: GradingScaleType = '10-point'
 ): number | null {
     if (!grade) return null;

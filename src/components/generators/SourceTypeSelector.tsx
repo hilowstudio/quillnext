@@ -1,6 +1,5 @@
 "use client";
 
-import { useSearchParams } from "next/navigation";
 import { Book, Video, PresentationChart, TextT, Link as LinkIcon, FileText, YoutubeLogo, GraduationCap } from "@phosphor-icons/react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SourceType } from "@/app/actions/generator-actions";

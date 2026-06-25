@@ -1,15 +1,14 @@
 "use client";
 
 import React from "react";
-import type { TranscriptData, TestScore } from "./types";
+import type { TranscriptData } from "./types";
 import {
     formatGPA,
     formatCredits,
     calculateAcademicSummary,
     calculateYearSummary,
     formatDateLocal,
-    getGradingScaleLegend,
-    DEFAULT_GRADING_SCALE
+    getGradingScaleLegend
 } from "./utils";
 import { cn } from "@/lib/utils";
 

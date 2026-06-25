@@ -282,11 +282,11 @@ export default function BibleStudyClient() {
                                                                     <ReactMarkdown
                                                                         remarkPlugins={[remarkGfm, remarkBreaks]}
                                                                         components={{
-                                                                            p: ({ node, ...props }) => <p className="mb-4 last:mb-0" {...props} />,
-                                                                            ul: ({ node, ...props }) => <ul className="list-disc pl-5 mb-4 space-y-1" {...props} />,
-                                                                            ol: ({ node, ...props }) => <ol className="list-decimal pl-5 mb-4 space-y-1" {...props} />,
-                                                                            li: ({ node, ...props }) => <li className="pl-1" {...props} />,
-                                                                            strong: ({ node, ...props }) => <span className="font-bold text-qc-warning-text" {...props} />,
+                                                                            p: ({ node: _node, ...props }) => <p className="mb-4 last:mb-0" {...props} />,
+                                                                            ul: ({ node: _node, ...props }) => <ul className="list-disc pl-5 mb-4 space-y-1" {...props} />,
+                                                                            ol: ({ node: _node, ...props }) => <ol className="list-decimal pl-5 mb-4 space-y-1" {...props} />,
+                                                                            li: ({ node: _node, ...props }) => <li className="pl-1" {...props} />,
+                                                                            strong: ({ node: _node, ...props }) => <span className="font-bold text-qc-warning-text" {...props} />,
                                                                         }}
                                                                     >
                                                                         {summaryHtml}

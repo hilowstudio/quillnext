@@ -65,7 +65,7 @@ export const compileCurriculum = inngest.createFunction(
         },
     },
     { event: "curriculum/compile" },
-    async ({ event, step, logger }) => {
+    async ({ event, step, logger: _logger }) => {
         const { bundleId, specId, organizationId, userId } = event.data;
         // Background workers have no request — establish the RLS tenant context from the event.
         setRlsContext({ organizationId, userId });
@@ -106,7 +106,7 @@ export const compileCurriculum = inngest.createFunction(
         });
 
         // 2. Generate Teacher Guide (TG) - The Source of Truth
-        const tgResource = await step.run("generate-teacher-guide", async () => {
+        await step.run("generate-teacher-guide", async () => {
             // Find or create "Teacher Guide" ResourceKind
             const kind = await db.resourceKind.findFirst({ where: { code: "teacher_guide" } });
             if (!kind) throw new NonRetriableError("Teacher Guide ResourceKind not found (code: teacher_guide)");
@@ -144,7 +144,7 @@ export const compileCurriculum = inngest.createFunction(
         });
 
         // 3. Generate Student Packet (SP) - Derived from TG
-        const spResource = await step.run("generate-student-packet", async () => {
+        await step.run("generate-student-packet", async () => {
             const kind = await db.resourceKind.findFirst({ where: { code: "student_packet" } });
             if (!kind) throw new NonRetriableError("Student Packet ResourceKind not found");
 
@@ -211,7 +211,7 @@ export const compileCurriculum = inngest.createFunction(
         });
 
         // 5. Generate Reading Anthology (RA) - All texts in one place
-        const raResource = await step.run("generate-reading-anthology", async () => {
+        await step.run("generate-reading-anthology", async () => {
             // specific kind or fallback to ARTICLE
             let kind = await db.resourceKind.findFirst({ where: { code: "reading_anthology" } });
             if (!kind) kind = await db.resourceKind.findFirst({ where: { code: "article" } });
@@ -247,7 +247,7 @@ export const compileCurriculum = inngest.createFunction(
         });
 
         // 6. Generate Organizers (CO) - Charts & Graphic Organizers
-        const coResource = await step.run("generate-organizers", async () => {
+        await step.run("generate-organizers", async () => {
             let kind = await db.resourceKind.findFirst({ where: { code: "graphic_organizers" } });
             if (!kind) kind = await db.resourceKind.findFirst({ where: { code: "worksheet" } });
             if (!kind) return null;

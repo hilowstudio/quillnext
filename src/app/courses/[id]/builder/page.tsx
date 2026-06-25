@@ -3,8 +3,6 @@ import { auth } from "@/auth";
 import { getCurrentUserOrg } from "@/lib/auth-helpers";
 import { db, withTenant } from "@/server/db";
 import { Prisma } from "@/generated/client";
-import { getMasterContext } from "@/lib/context/master-context";
-import { serializeMasterContext } from "@/lib/context/context-serializer";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ContextBadges } from "@/components/context/ContextBadges";
@@ -77,18 +75,6 @@ export default async function CourseBuilderPage({
   if (!course || course.organizationId !== organizationId) {
     redirect("/courses");
   }
-
-  // Get master context for this course
-  const masterContext = await getMasterContext({
-    organizationId,
-    courseId: course.id,
-  });
-
-  const contextPreview = serializeMasterContext(masterContext, {
-    includeDetails: true,
-    maxTokens: 2000,
-    prioritize: ["academic", "family", "library", "schedule"],
-  });
 
   // Get context completeness
   const { completeness, suggestions } = await analyzeContextCompleteness(organizationId, {

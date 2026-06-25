@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { LibraryClient } from "@/app/living-library/LibraryClient";
 import type { MasterContext } from "@/lib/context/master-context";
 
 interface ContextInspectorClientProps {
@@ -18,10 +17,6 @@ interface ContextInspectorClientProps {
 export function ContextInspectorClient({
   masterContext,
   contextPreview,
-  organizationId,
-  studentId,
-  objectiveId,
-  courseId,
 }: ContextInspectorClientProps) {
   const [activeTab, setActiveTab] = useState<"preview" | "raw" | "structured">("preview");
 

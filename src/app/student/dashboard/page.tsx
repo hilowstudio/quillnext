@@ -6,7 +6,6 @@ import { withTenant } from "@/server/db";
 import { excludeParentLearners } from "@/server/queries/learner-filters";
 import { redirect } from "next/navigation";
 import { DailyScheduleList } from "@/components/dashboard/DailyScheduleList";
-import { format } from "date-fns";
 import { Card } from "@/components/ui/card";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";

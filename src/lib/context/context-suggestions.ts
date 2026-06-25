@@ -1,7 +1,6 @@
 import { withTenant } from "@/server/db";
 import { excludeParentLearners } from "@/server/queries/learner-filters";
 import { getMasterContext } from "./master-context";
-import type { MasterContext } from "./master-context";
 import { ContextSuggestion } from "./context-types";
 
 export type { ContextSuggestion };

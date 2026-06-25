@@ -1,11 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { UseFormRegister, UseFormSetValue, UseFormWatch } from "react-hook-form";
-import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
-import { Check, CaretRight, CaretDown, Info } from "@phosphor-icons/react";
+import { Check, Info } from "@phosphor-icons/react";
 import { StudentFormData } from "@/lib/schemas/students";
 
 // -----------------------------------------------------------------------
@@ -105,7 +104,7 @@ interface WizardProps {
     watch: UseFormWatch<StudentFormData>;
 }
 
-export function SupportProfileWizard({ register, setValue, watch }: WizardProps) {
+export function SupportProfileWizard({ register: _register, setValue, watch }: WizardProps) {
     // Local State for Progressive Disclosure
     const [gatewayAnswer, setGatewayAnswer] = useState<"YES" | "NO" | "NOT_SURE" | null>(null);
     const [showOptionalLabels, setShowOptionalLabels] = useState(false);

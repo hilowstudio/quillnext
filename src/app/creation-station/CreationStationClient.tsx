@@ -4,9 +4,8 @@ import { useState } from "react";
 import GeneratorsClient from "./GeneratorsClient";
 import { SpecForm } from "./compiler/SpecForm";
 import { BundleView } from "./compiler/BundleView";
-import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Lightning, BookOpen, ClockCounterClockwise } from "@phosphor-icons/react";
+import { Lightning, BookOpen } from "@phosphor-icons/react";
 import { compileCurriculumAction } from "@/app/actions/compile-curriculum-action";
 import { toast } from "sonner";
 
@@ -35,7 +34,7 @@ interface CreationStationClientProps {
 }
 
 export default function CreationStationClient({ organizationId, initialBundles }: CreationStationClientProps) {
-    const [bundles, setBundles] = useState<Bundle[]>(initialBundles);
+    const bundles = initialBundles;
     const [isCompiling, setIsCompiling] = useState(false);
 
     const handleCompile = async (values: Parameters<typeof compileCurriculumAction>[0]) => {

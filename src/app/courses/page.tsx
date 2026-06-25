@@ -89,7 +89,7 @@ export default async function CoursesIndexPage() {
     let userOrg;
     try {
         userOrg = await getCurrentUserOrg(session);
-    } catch (error) {
+    } catch {
         // User not found in DB or other auth error
         redirect("/login");
     }

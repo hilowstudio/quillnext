@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
     Card,
@@ -186,8 +185,6 @@ interface AssessmentWizardProps {
 }
 
 export function AssessmentWizard({ studentId }: AssessmentWizardProps) {
-    const router = useRouter();
-
     const [step, setStep] = useState<Step>("intro");
     const [isSubmitting, setIsSubmitting] = useState(false);
 

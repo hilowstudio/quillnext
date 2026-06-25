@@ -26,7 +26,7 @@ interface BookListProps {
     organizationId: string;
 }
 
-export function BookList({ books, refreshBooks, organizationId }: BookListProps) {
+export function BookList({ books, refreshBooks: _refreshBooks, organizationId: _organizationId }: BookListProps) {
     return (
         <div className="space-y-6">
             <div className="flex justify-end">

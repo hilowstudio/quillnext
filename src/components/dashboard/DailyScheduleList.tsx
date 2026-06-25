@@ -3,7 +3,7 @@
 
 import { useState } from "react";
 import { format } from "date-fns";
-import { CheckCircle, Circle } from "@phosphor-icons/react";
+import { CheckCircle } from "@phosphor-icons/react";
 import { toggleItemStatus } from "@/server/actions/scheduling";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -49,7 +49,7 @@ export function DailyScheduleList({
         try {
             await toggleItemStatus(itemId, newStatus);
             // toast.success("Updated!");
-        } catch (e) {
+        } catch {
             toast.error("Failed to update status");
             // Revert
             setOptimisticItems(prev => prev.map(i =>

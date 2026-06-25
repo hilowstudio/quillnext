@@ -33,11 +33,11 @@ interface LibraryClientProps {
 }
 
 export function LibraryClient({ initialData, organizationId }: LibraryClientProps) {
-    const [books, setBooks] = useState(initialData.books);
+    const books = initialData.books;
     const [videos, setVideos] = useState(initialData.videos);
     const [articles, setArticles] = useState(initialData.articles);
     const [documents, setDocuments] = useState(initialData.documents);
-    const [courses, setCourses] = useState(initialData.courses);
+    const courses = initialData.courses;
     // Resources are managed via URL params, so we might not need state, but for consistency if we want client updates...
     // Actually ResourceList manages its own validaiton via URL, so we can pass initialData.resources directly.
 

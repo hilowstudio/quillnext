@@ -7,12 +7,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Trash, ArrowLeft, Calendar, User, BookOpen, MusicNotes, HandsPraying, UsersThree, Lightbulb, Fire } from "@phosphor-icons/react/dist/ssr";
+import { Plus, Trash, Calendar, User, BookOpen, MusicNotes, HandsPraying, UsersThree, Lightbulb, Fire } from "@phosphor-icons/react/dist/ssr";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { addChurchNote, deleteChurchNote } from "../actions";
-import Link from "next/link";
 import { format } from "date-fns";
-import { ScrollArea } from "@/components/ui/scroll-area";
 
 type ChurchNote = {
     id: string;

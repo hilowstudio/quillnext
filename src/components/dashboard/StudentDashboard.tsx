@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { getStudentAssignments, saveStudentAvatarConfig } from "@/app/actions/student";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, BookOpen, FileText, CheckCircle, Clock, PencilSimple, Users } from "@phosphor-icons/react";
+import { ArrowLeft, BookOpen, FileText, PencilSimple, Users } from "@phosphor-icons/react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";

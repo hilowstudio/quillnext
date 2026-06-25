@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { assignResourceToStudent } from "@/app/actions/assignments";
-import { SpinnerGap, Plus, UserPlus } from "@phosphor-icons/react";
+import { SpinnerGap, UserPlus } from "@phosphor-icons/react";
 
 interface AssignResourceDialogProps {
     resourceId: string;

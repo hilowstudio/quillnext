@@ -42,7 +42,7 @@ export function StudentCard({ student }: StudentCardProps) {
             } else {
                 toast.error(result.error || "Failed to delete student");
             }
-        } catch (error) {
+        } catch {
             toast.error("An error occurred");
         } finally {
             setIsDeleting(false);

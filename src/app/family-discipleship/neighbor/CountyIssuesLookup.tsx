@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useEffect, memo, useTransition } from 'react';
+import React, { useState, useEffect, memo } from 'react';
 import { Warning, House, ForkKnife, Church, Skull, Baby, HeartBreak, Car, Users } from '@phosphor-icons/react/dist/ssr';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { getCountiesForState } from '../missions/actions';
@@ -259,8 +259,6 @@ export default function CountyIssuesLookup({ initialStates }: CountyIssuesLookup
     // Modal State
     const [showGetInvolvedModal, setShowGetInvolvedModal] = useState(false);
     const [selectedIndicatorKey, setSelectedIndicatorKey] = useState<string | null>(null);
-
-    const [isPending, startTransition] = useTransition();
 
     // Data Loading
     useEffect(() => {
@@ -549,7 +547,7 @@ export default function CountyIssuesLookup({ initialStates }: CountyIssuesLookup
         setShowGetInvolvedModal(true);
     };
 
-    const hasGetInvolvedContent = (key: string) => {
+    const hasGetInvolvedContent = (_key: string) => {
         // loose check including fallbacks
         return true;
     };

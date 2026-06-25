@@ -6,9 +6,6 @@ import {
   classroomStepSchema,
   scheduleStepSchema,
   environmentStepSchema,
-  type Classroom,
-  type Schedule,
-  type Environment,
 } from "@/lib/schemas/onboarding";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";

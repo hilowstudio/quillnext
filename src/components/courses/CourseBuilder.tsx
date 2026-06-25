@@ -10,7 +10,6 @@ import {
     useSensors,
     DragEndEvent,
     DragOverlay,
-    defaultDropAnimationSideEffects,
     DragStartEvent,
 } from "@dnd-kit/core";
 import {
@@ -31,7 +30,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { DotsSixVertical, Plus, Trash, PencilSimple, Check, X, Sparkle as SparkleIcon, Book as BookIcon, Video as VideoIcon, FileText as FileTextIcon, File as FileIcon, XCircle, Brain } from "@phosphor-icons/react";
+import { DotsSixVertical, Plus, Trash, PencilSimple, Check, X, Sparkle as SparkleIcon, Book as BookIcon, Video as VideoIcon, FileText as FileTextIcon, File as FileIcon } from "@phosphor-icons/react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { ResourcePicker } from "./ResourcePicker";
@@ -123,7 +122,7 @@ function SortableBlockItem({
         try {
             await onUpdate(block.id, { title });
             setIsEditing(false);
-        } catch (error) {
+        } catch {
             toast.error("Failed to update title");
         } finally {
             setIsSaving(false);
@@ -455,7 +454,7 @@ export function CourseBuilder({ courseId, organizationId, initialBlocks, availab
             if (!result.success) {
                 toast.error("Failed to save order");
             }
-        } catch (err) {
+        } catch {
             toast.error("Error saving course structure");
         } finally {
             setIsSaving(false);
@@ -570,7 +569,7 @@ export function CourseBuilder({ courseId, organizationId, initialBlocks, availab
         }
     };
 
-    const handlePickerGenerate = (kindId: string, kindLabel: string) => {
+    const handlePickerGenerate = (kindId: string, _kindLabel: string) => {
         if (kindId === "COMPILER") {
             setCompilerOpen(true);
             // Context comes from activeBlockForResource

@@ -10,7 +10,6 @@ import { Pool } from "pg";
 
 // --- Configuration ---
 const BATCH_SIZE = 10; // Number of concurrent upserts
-const TIMEOUT_MS = 60000; // 60s timeout for script
 
 const connectionString = withoutSslParams(process.env.DIRECT_DATABASE_URL || process.env.POSTGRES_URL_NON_POOLING || process.env.DATABASE_URL || process.env.POSTGRES_URL);
 if (!connectionString) {
@@ -102,7 +101,6 @@ async function main() {
     const operations: (() => Promise<unknown>)[] = [];
 
     let processedCount = 0;
-    const skippedCount = 0;
 
     for (const [subjectKey, strandsData] of Object.entries(contentTypes)) {
       // Resolve Subject

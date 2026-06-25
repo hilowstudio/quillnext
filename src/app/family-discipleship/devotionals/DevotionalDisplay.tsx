@@ -1,13 +1,10 @@
 
 "use client";
 
-import React, { useState } from 'react';
+import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Sun, Moon, ArrowLeft, BookOpen } from "@phosphor-icons/react/dist/ssr";
-import Link from "next/link";
-import { Badge } from "@/components/ui/badge";
+import { Sun, Moon, BookOpen } from "@phosphor-icons/react/dist/ssr";
 
 type DevotionalEntry = {
     id: string;

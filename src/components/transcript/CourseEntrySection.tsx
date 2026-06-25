@@ -1,14 +1,12 @@
 "use client";
 
 import React from "react";
-import { Plus, Trash, DotsSixVertical, BookOpen, FileText } from "@phosphor-icons/react";
+import { Plus, Trash, BookOpen, FileText } from "@phosphor-icons/react";
 import type { TranscriptCourse, CourseType, GPASettings } from "./types";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
+import { Card } from "@/components/ui/card";
 
 interface CourseEntrySectionProps {
     gradeLevel: number;

@@ -219,7 +219,7 @@ export async function deleteUserVerse(verseId: string) {
         );
         revalidatePath('/family-discipleship/bible-memory');
         return { success: true };
-    } catch (e) {
+    } catch {
         return { success: false, error: "Failed to delete" };
     }
 }
@@ -273,7 +273,7 @@ export async function createFolder(studentId: string, name: string) {
         );
         revalidatePath('/family-discipleship/bible-memory');
         return { success: true, folder };
-    } catch (e) {
+    } catch {
         return { success: false, error: "Failed to create folder" };
     }
 }
@@ -290,7 +290,7 @@ export async function deleteFolder(folderId: string) {
         );
         revalidatePath('/family-discipleship/bible-memory');
         return { success: true };
-    } catch (e) {
+    } catch {
         return { success: false, error: "Failed to delete folder" };
     }
 }
@@ -308,7 +308,7 @@ export async function renameFolder(folderId: string, name: string) {
         );
         revalidatePath('/family-discipleship/bible-memory');
         return { success: true };
-    } catch (e) {
+    } catch {
         return { success: false, error: "Failed to rename folder" };
     }
 }
@@ -328,7 +328,7 @@ export async function moveVerseToFolder(verseId: string, folderId: string | null
         );
         revalidatePath('/family-discipleship/bible-memory');
         return { success: true };
-    } catch (e) {
+    } catch {
         return { success: false, error: "Failed to move verse" };
     }
 }
@@ -353,7 +353,7 @@ export async function refreshVerse(verseId: string) {
         );
         revalidatePath('/family-discipleship/bible-memory');
         return { success: true };
-    } catch (e) {
+    } catch {
         return { success: false, error: "Failed to refresh verse" };
     }
 }
@@ -378,7 +378,7 @@ export async function resetVerseMastery(verseId: string) {
         );
         revalidatePath('/family-discipleship/bible-memory');
         return { success: true };
-    } catch (e) {
+    } catch {
         return { success: false, error: "Failed to reset mastery" };
     }
 }

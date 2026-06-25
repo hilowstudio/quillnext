@@ -61,7 +61,7 @@ export function ProfileSettingsDialog({
             } else {
                 toast.error(result.error || "Failed to update profile");
             }
-        } catch (error) {
+        } catch {
             toast.error("An error occurred");
         } finally {
             setIsLoading(false);
@@ -89,7 +89,7 @@ export function ProfileSettingsDialog({
             } else {
                 toast.error(result.error || "Failed to export data");
             }
-        } catch (error) {
+        } catch {
             toast.error("An error occurred during export");
         } finally {
             setIsExporting(false);
@@ -106,7 +106,7 @@ export function ProfileSettingsDialog({
             } else {
                 toast.error(result.error || "Failed to deactivate account");
             }
-        } catch (error) {
+        } catch {
             toast.error("An error occurred");
         } finally {
             setIsDeactivating(false);
@@ -124,7 +124,7 @@ export function ProfileSettingsDialog({
             } else {
                 toast.error(result.error || "Failed to delete account");
             }
-        } catch (error) {
+        } catch {
             toast.error("An error occurred");
         } finally {
             setIsDeleting(false);

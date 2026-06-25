@@ -7,7 +7,7 @@ import { PrayerEntry, PrayerEntryInput } from '@/server/actions/prayer-journal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { TextB, TextItalic, ListBullets, Pencil, FloppyDisk, X, Lock, LockOpen, Tag as TagIcon, Calendar as CalendarIcon, Quotes } from '@phosphor-icons/react/dist/ssr';
+import { TextB, TextItalic, ListBullets, Pencil, FloppyDisk, X, Lock, Tag as TagIcon, Calendar as CalendarIcon, Quotes } from '@phosphor-icons/react/dist/ssr';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';

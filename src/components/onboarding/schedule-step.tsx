@@ -172,7 +172,7 @@ export function ScheduleStep({
   };
 
   const CustomDayButton = (props: DayButtonProps) => {
-    const { day, modifiers, ...buttonProps } = props;
+    const { day, modifiers: _modifiers, ...buttonProps } = props;
     const holiday = isHoliday(day.date);
     return (
       <button

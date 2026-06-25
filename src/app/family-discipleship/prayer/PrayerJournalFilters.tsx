@@ -3,7 +3,6 @@
 import React from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Funnel, X, Calendar, Tag as TagIcon } from '@phosphor-icons/react/dist/ssr';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';

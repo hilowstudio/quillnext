@@ -42,7 +42,7 @@ export async function deleteStudent(rawData: unknown) {
 
         revalidatePath("/students");
         return { success: true };
-    } catch (error) {
+    } catch {
         return { success: false, error: "Failed to delete student" };
     }
 }

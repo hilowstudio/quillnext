@@ -5,7 +5,7 @@
  */
 
 import type { TranscriptData, TestScore } from './types';
-import { formatGPA, formatCredits, calculateAcademicSummary, calculateYearSummary, calculateTotalCredits, formatDateLocal, DEFAULT_GRADING_SCALE } from './utils';
+import { formatGPA, formatCredits, calculateAcademicSummary, calculateYearSummary, formatDateLocal, DEFAULT_GRADING_SCALE } from './utils';
 
 /**
  * Escape user-controlled values before interpolating into the print HTML.

@@ -8,7 +8,6 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { CountryInfoCard } from './CountryInfoCard';
 import type { OperationWorldStats } from './actions';
 import type { CountrySelection } from './WorldMap';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { GlobeHemisphereWest, List } from "@phosphor-icons/react";
 
 // Dynamically import map to avoid SSR issues with Leaflet

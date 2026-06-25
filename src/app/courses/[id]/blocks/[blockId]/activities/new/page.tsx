@@ -5,7 +5,7 @@ import { useRouter, useParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -40,8 +40,6 @@ export default function NewActivityPage() {
         register,
         handleSubmit,
         formState: { errors },
-        setValue,
-        watch,
     } = useForm<z.input<typeof activitySchema>, unknown, z.output<typeof activitySchema>>({
         resolver: zodResolver(activitySchema),
         defaultValues: {

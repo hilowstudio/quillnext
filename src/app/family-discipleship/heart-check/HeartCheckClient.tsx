@@ -1,11 +1,9 @@
 'use client';
 
-import React, { useState, memo, useCallback } from 'react';
+import React, { useState, memo } from 'react';
 
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { X, Check, Cross } from '@phosphor-icons/react/dist/ssr';
-import { toast } from 'sonner';
+import { Check, Cross } from '@phosphor-icons/react/dist/ssr';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkBreaks from 'remark-breaks';
@@ -435,7 +433,7 @@ interface EmotionCardProps {
     onSelect: (emotion: Emotion) => void;
 }
 
-const EmotionCard = memo<EmotionCardProps>(({ emotion, index, onSelect }) => {
+const EmotionCard = memo<EmotionCardProps>(({ emotion, index: _index, onSelect }) => {
     // Tailwind colors aren't directly available as classes unless they're safe-listed or used as arbitrary values if dynamic.
     // For simplicity, we'll use specific background colors that match the "vibe" or standard palette.
     // The reference used specific color names: compass-gold, table-wine, inkwell, midnight.
@@ -546,7 +544,7 @@ export default function HeartCheckClient() {
                                         <div className="prose prose-sm text-qc-success-text max-w-none">
                                             <ReactMarkdown
                                                 remarkPlugins={[remarkGfm, remarkBreaks]}
-                                                components={{ p: ({ node, ...props }) => <span {...props} /> }}
+                                                components={{ p: ({ node: _node, ...props }) => <span {...props} /> }}
                                             >
                                                 {item}
                                             </ReactMarkdown>
@@ -565,7 +563,7 @@ export default function HeartCheckClient() {
                                         <div className="prose prose-sm text-qc-info-text max-w-none">
                                             <ReactMarkdown
                                                 remarkPlugins={[remarkGfm, remarkBreaks]}
-                                                components={{ p: ({ node, ...props }) => <span {...props} /> }}
+                                                components={{ p: ({ node: _node, ...props }) => <span {...props} /> }}
                                             >
                                                 {item}
                                             </ReactMarkdown>
@@ -609,7 +607,7 @@ export default function HeartCheckClient() {
                                     <div className="prose prose-stone max-w-none">
                                         <ReactMarkdown
                                             remarkPlugins={[remarkGfm, remarkBreaks]}
-                                            components={{ p: ({ node, ...props }) => <span {...props} /> }}
+                                            components={{ p: ({ node: _node, ...props }) => <span {...props} /> }}
                                         >
                                             {item}
                                         </ReactMarkdown>
@@ -627,7 +625,7 @@ export default function HeartCheckClient() {
                                     <div className="prose prose-stone max-w-none inline">
                                         <ReactMarkdown
                                             remarkPlugins={[remarkGfm, remarkBreaks]}
-                                            components={{ p: ({ node, ...props }) => <span {...props} /> }}
+                                            components={{ p: ({ node: _node, ...props }) => <span {...props} /> }}
                                         >
                                             {q}
                                         </ReactMarkdown>
@@ -646,7 +644,7 @@ export default function HeartCheckClient() {
                                     <div className="pl-4 prose prose-stone max-w-none">
                                         <ReactMarkdown
                                             remarkPlugins={[remarkGfm, remarkBreaks]}
-                                            components={{ p: ({ node, ...props }) => <span {...props} /> }}
+                                            components={{ p: ({ node: _node, ...props }) => <span {...props} /> }}
                                         >
                                             {p.replace(/^"|"$/g, '')}
                                         </ReactMarkdown>
@@ -664,7 +662,7 @@ export default function HeartCheckClient() {
                                     <div className="prose prose-stone max-w-none inline">
                                         <ReactMarkdown
                                             remarkPlugins={[remarkGfm, remarkBreaks]}
-                                            components={{ p: ({ node, ...props }) => <span {...props} /> }}
+                                            components={{ p: ({ node: _node, ...props }) => <span {...props} /> }}
                                         >
                                             {s}
                                         </ReactMarkdown>

@@ -59,7 +59,7 @@ const CHALLENGES = [
 ];
 
 export function EnvironmentStep({
-  initialData,
+  initialData: _initialData,
   onSaveComplete,
   isSaving,
   setIsSaving,
@@ -72,7 +72,6 @@ export function EnvironmentStep({
   const {
     register,
     handleSubmit,
-    formState: { errors },
     watch,
     setValue,
   } = useForm<EnvironmentFormData>({

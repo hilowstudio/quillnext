@@ -23,7 +23,7 @@ import type { OnboardingData } from "./onboarding-types";
 const stepParam = parseAsInteger.withDefault(1);
 
 export function OnboardingWizard({
-  initialStep,
+  initialStep: _initialStep,
   initialData,
 }: {
   initialStep: number;

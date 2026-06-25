@@ -236,14 +236,15 @@ and many actions rely on hand-written org checks, the absence of tenancy tests i
 
 ## 7. Consolidated findings register
 
-0 CRITICAL · **0 HIGH** · **0 MED open** · **1 LOW open** · 44 INFO (chapter findings) + foundational findings
+0 CRITICAL · **0 HIGH** · **0 MED open** · **0 LOW open** · 44 INFO (chapter findings) + foundational findings
 from 02/04. Full evidence/impact for each is in the owning chapter's §7. *(**The entire findings program is now
-complete except 1 owner-accepted LOW (Q-01-004, the lint warn-ratchet).** Foundational `Q-001` [HIGH] **✅ RESOLVED 2026-06-23** — RLS cutover LIVE.
+COMPLETE — Q-01-004 (the lint-debt ratchet) ✅ RESOLVED 2026-06-25, the last open finding.** Foundational `Q-001` [HIGH] **✅ RESOLVED 2026-06-23** — RLS cutover LIVE.
 **2026-06-23 (later): the child-safety hardening program shipped end-to-end** — Q-12-008/009/010/011/012 [MED] +
 Q-12-013 [LOW] (Phase 1) and **Q-12-007 [HIGH]** (the in-the-moment Hybrid layer, built after the owner's written
 legal sign-off), plus non-safety Q-10-010 + Q-16-001 [LOW]. **Q-09-005 [LOW] ✅ RESOLVED 2026-06-23** by
 consolidating the two generators onto the source-aware `generateResourceCore` (see ch.10 §5/§7). Open HIGH =
-none; open MED = none; open LOW = **Q-01-004** only (lint warn-ratchet, owner-accepted / kept-open by design).)*
+none; open MED = none; **open LOW = none** — Q-01-004 ✅ RESOLVED 2026-06-25 (all 13 lint-ratchet rules locked
+warn→error: `no-explicit-any` + `no-unused-vars` both burned to 0; only `no-img-element` stays warn by design).)*
 
 > **Disposition note (2026-06-23 later / Q-09-005 — generator consolidation).** Owner chose to consolidate rather
 > than build a second source-aware path. `GeneratorForm` now calls `generateResource` (→ `generateResourceCore`,
@@ -879,7 +880,7 @@ none; open MED = none; open LOW = **Q-01-004** only (lint warn-ratchet, owner-ac
 > closed Q-13-009 (✅ accepted), leaving **8**. (HIGH/MED reconcile fine via their own lists; this is the one grade whose
 > running tally was prose-only.)
 > **Open LOW set (authoritative, 5 — Q-011/Q-013/Q-23-003 closed 2026-06-23):**
-> 1. **Q-01-004** (ch.01) — lint rules downgraded to warnings; owner-accepted deliberate adoption ratchet → **kept-OPEN (owner)**. *(Burndown 2026-06-23: baseline corrected for a stale `.claude/worktrees/` lint-pollution; **11 rules locked warn→error** (passes 1+2, incl. the react-hooks trio); then the `as any` cast burn-down COMPLETED (waves 1–17, 2026-06-24): no-explicit-any **273→153**, **0 casts in src** (+ a surfaced AI SDK v4→v5 migration); then the **`: any` ANNOTATION phase COMPLETED (153→0, 2026-06-24/25) → `no-explicit-any` LOCKED warn→error (12 rules locked now)**, surfacing+fixing several real bugs the `any` hid (Living Library select gaps, planner smart-slot, onboarding off-days, transcript narratives) and correcting a laundering slip (external `response.json()` now Zod-validated). Remaining Tier C = the **no-unused-vars** FINAL pass + no-img-element 11 (by design); **Q-01-004 closes when no-unused-vars locks.** See CHANGELOG + the any-annotation-burndown-approach memory.)*
+> 1. ~~**Q-01-004**~~ (ch.01) — lint rules downgraded to warnings; owner-accepted deliberate adoption ratchet → **✅ RESOLVED 2026-06-25** (ratchet finished, all 13 rules locked). *(Burndown 2026-06-23: baseline corrected for a stale `.claude/worktrees/` lint-pollution; **11 rules locked warn→error** (passes 1+2, incl. the react-hooks trio); then the `as any` cast burn-down COMPLETED (waves 1–17, 2026-06-24): no-explicit-any **273→153**, **0 casts in src** (+ a surfaced AI SDK v4→v5 migration); then the **`: any` ANNOTATION phase COMPLETED (153→0, 2026-06-24/25) → `no-explicit-any` LOCKED warn→error (12 rules locked now)**, surfacing+fixing several real bugs the `any` hid (Living Library select gaps, planner smart-slot, onboarding off-days, transcript narratives) and correcting a laundering slip (external `response.json()` now Zod-validated). then the **`no-unused-vars` FINAL pass COMPLETED 2026-06-25: 230→0 across 80 files** (config got `^_` ignore patterns; the bug-prone write-only bucket was hand-cleared, surfacing+fixing the PlannerGrid cross-student-drag bug, the ResourcePicker loading-state mis-wire, a broken FILE-upload flag, and a trimmed half-built BibleAudioPlayer scrubber; the mechanical bulk swept via 5 parallel agents + a full audit) → **`no-unused-vars` LOCKED warn→error. All 13 ratchet rules now locked; the lint-debt program is COMPLETE.** Only `no-img-element` (11, by design) stays warn. See CHANGELOG.)*
 > 2. **Q-09-005** (ch.09) — the unbuilt source-specific context-injection half of source-anchored generation → **kept-OPEN (unfinished feature)**.
 > 3. **Q-10-010** (ch.10) — unverified caller-supplied lineage-id *write* on `generate-tool.tsx` (no cross-org *read* leak) → 🔻 re-graded MED→LOW, **⏳ deferred** with the Q-001 RLS-cutover audit.
 > 4. ~~**Q-011**~~ ✅ **RESOLVED 2026-06-23** (ch.02 — migration 0016 renamed `organization_id`→`account_id` on transcripts + curriculum_specs + recreated the coupled RLS policies).

@@ -1,6 +1,5 @@
 "use client";
 
-import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { GraduationCap, MagnifyingGlass, Compass, type Icon } from "@phosphor-icons/react";
 import { ThinklingMode } from "@/lib/thinkling";

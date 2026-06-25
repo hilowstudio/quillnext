@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import {
-    Keyboard, Microphone, SpeakerHigh, Eye, EyeSlash,
+    Microphone,
     ArrowRight, ArrowLeft, ArrowCounterClockwise
 } from '@phosphor-icons/react/dist/ssr';
 import { Button } from "@/components/ui/button";

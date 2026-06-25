@@ -3,11 +3,10 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent } from "@/components/ui/card";
 import { getPlaylistDetails } from "@/app/actions/youtube-actions";
 import { YouTubePlaylist } from "@/lib/api/youtube";
 import { toast } from "sonner";
-import { YoutubeLogo, CheckCircle, Warning, ArrowRight } from "@phosphor-icons/react";
+import { YoutubeLogo, CheckCircle, ArrowRight } from "@phosphor-icons/react";
 
 interface YouTubeImportProps {
     onImport: (playlist: YouTubePlaylist) => void;
@@ -31,7 +30,7 @@ export function YouTubeImport({ onImport }: YouTubeImportProps) {
             } else {
                 toast.error(result.error || "Failed to load playlist");
             }
-        } catch (err) {
+        } catch {
             toast.error("Something went wrong");
         } finally {
             setIsLoading(false);

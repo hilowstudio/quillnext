@@ -1,14 +1,10 @@
 'use server';
 
 import { auth } from "@/auth";
-import { StandardError, ERROR_CODES, ERROR_CATEGORIES, createSuccessResponse } from "../utils/errorTaxonomy";
-import { revalidatePath } from "next/cache";
-import path from "path";
-import fs from "fs/promises";
-import * as cheerio from "cheerio";
+import { StandardError, ERROR_CODES, ERROR_CATEGORIES } from "../utils/errorTaxonomy";
 import { z } from "zod";
 
-import { models, AITaskType, getModelForTask } from "@/lib/ai/config";
+import { models } from "@/lib/ai/config";
 import { generateText } from "ai";
 import { db } from "@/server/db";
 import { bookName } from "@/lib/bible-books";
@@ -316,16 +312,6 @@ const BIBLE_BOOK_MAP: Record<string, number> = {
     'jude': 65, 'jud': 65, 'jd': 65,
     'revelation': 66, 'rev': 66, 're': 66, 'rv': 66
 };
-
-function getMHCVolume(bookNumber: number): string | null {
-    if (bookNumber >= 1 && bookNumber <= 5) return 'MHC-V1';
-    if (bookNumber >= 6 && bookNumber <= 17) return 'MHC-V2';
-    if (bookNumber >= 18 && bookNumber <= 22) return 'MHC-V3';
-    if (bookNumber >= 23 && bookNumber <= 39) return 'MHC-V4';
-    if (bookNumber >= 40 && bookNumber <= 43) return 'MHC-V5';
-    if (bookNumber >= 44 && bookNumber <= 66) return 'MHC-V6';
-    return null;
-}
 
 function parseBibleReference(reference: string) {
     if (!reference) return null;

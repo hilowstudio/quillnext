@@ -3,20 +3,19 @@
 import { useState, useEffect } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { generateResource } from "@/app/actions/generate-resource";
 import { toast } from "sonner";
 import Link from "next/link";
-import { MagicWand, Spinner, ArrowLeft, BookOpen, Video, ChalkboardTeacher, Sparkle, Globe, File as FileIcon, YoutubeLogo } from "@phosphor-icons/react";
+import { MagicWand, Spinner } from "@phosphor-icons/react";
 import { ResourcePicker } from "@/components/courses/ResourcePicker";
 import { getSourceMetadata, SourceType } from "@/app/actions/generator-actions";
 import { SourceTypeSelector } from "@/components/generators/SourceTypeSelector";
 import { TopicSelector } from "@/components/generators/TopicSelector";
 import { SpineBrowser, type SpineSelection } from "@/components/generators/SpineBrowser";
-import { UrlInput, FileUpload } from "@/components/generators/SimpleInputs";
+import { UrlInput } from "@/components/generators/SimpleInputs";
 import { YouTubeImport } from "@/components/creation/YouTubeImport";
 import { YouTubePlaylist } from "@/lib/api/youtube";
 
@@ -29,8 +28,6 @@ interface ResourceKind {
   strandId: string | null;
   subject: { name: string } | null;
 }
-
-type WizardStep = "SOURCE" | "TEMPLATE"; // Assuming WizardStep is defined elsewhere or needs to be defined
 
 export default function GeneratorsClient({ organizationId }: { organizationId: string }) {
   const searchParams = useSearchParams();
@@ -59,7 +56,7 @@ export default function GeneratorsClient({ organizationId }: { organizationId: s
   const [topicText, setTopicText] = useState("");
   const [spineSelection, setSpineSelection] = useState<SpineSelection | null>(null);
   const [url, setUrl] = useState(() => searchParams.get("url") || "");
-  const [file, setFile] = useState<File | null>(null);
+  const [file, _setFile] = useState<File | null>(null);
   const [fileContent, setFileContent] = useState("");
 
   const [instructions, setInstructions] = useState("");
@@ -202,15 +199,6 @@ export default function GeneratorsClient({ organizationId }: { organizationId: s
     setSourceId(playlistUrl); // Use URL as ID for YOUTUBE_PLAYLIST type if needed, or let generateResource handle precedence
     toast.success("Playlist selected! Now choose a template.");
   };
-
-  const hasSource =
-    (sourceType === "BOOK" && sourceId) ||
-    (sourceType === "VIDEO" && sourceId) ||
-    (sourceType === "COURSE" && sourceId) ||
-    (sourceType === "TOPIC") ||
-    (sourceType === "URL") ||
-    (sourceType === "FILE") ||
-    (sourceType === "SPINE" && !!spineSelection);
 
   return (
     <div className="container mx-auto max-w-5xl px-4 py-8">

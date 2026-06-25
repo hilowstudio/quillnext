@@ -1,8 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Play, Pause, SpeakerHigh, SpeakerLow, SpeakerX } from "@phosphor-icons/react";
-import { cn } from '@/lib/utils';
+import { Play, Pause, SpeakerHigh, SpeakerX } from "@phosphor-icons/react";
 
 interface BibleAudioPlayerProps {
     audioUrl?: string;
@@ -10,13 +9,12 @@ interface BibleAudioPlayerProps {
     isLoading?: boolean;
 }
 
-export default function BibleAudioPlayer({ audioUrl, reference, isLoading }: BibleAudioPlayerProps) {
+export default function BibleAudioPlayer({ audioUrl, isLoading }: BibleAudioPlayerProps) {
     const [isPlaying, setIsPlaying] = useState(false);
     const [currentTime, setCurrentTime] = useState(0);
     const [duration, setDuration] = useState(0);
     const [volume, setVolume] = useState(1);
     const audioRef = useRef<HTMLAudioElement>(null);
-    const progressBarRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         const audio = audioRef.current;

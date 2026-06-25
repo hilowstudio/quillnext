@@ -2,9 +2,7 @@
 import React from 'react';
 import { getUnreachedOfTheDayAction, getOperationWorldStats } from './actions';
 import { UnreachedOfTheDay } from './UnreachedOfTheDay';
-import { CountryInfoCard } from './CountryInfoCard';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { Card, CardContent } from "@/components/ui/card";
 import MissionsClient from './MissionsClient';
 
 export default async function MissionsPage() {

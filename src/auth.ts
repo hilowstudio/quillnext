@@ -39,7 +39,7 @@ const authInstance = NextAuth({
     },
   },
   callbacks: {
-    async jwt({ token, user, trigger, session }) {
+    async jwt({ token, user, trigger: _trigger, session: _session }) {
       if (user) {
         token.id = user.id;
         token.organizationId = user.organizationId;

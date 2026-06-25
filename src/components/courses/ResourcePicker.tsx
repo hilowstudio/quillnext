@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
-import { Button } from "@/components/ui/button";
 import { Book, Video, PresentationChart, MagicWand } from "@phosphor-icons/react";
 import { getLibraryResources } from "@/app/actions/resource-library-actions";
 import { Book as BookType, VideoResource as VideoType, Article as ArticleType, DocumentResource as DocumentType } from "@/generated/client";
@@ -46,7 +45,6 @@ export function ResourcePicker({
     const open = controlledOpen !== undefined ? controlledOpen : internalOpen;
     const setOpen = setControlledOpen || setInternalOpen;
 
-    const [loading, setLoading] = useState(false);
     const [books, setBooks] = useState<BookType[]>([]);
     const [videos, setVideos] = useState<VideoType[]>([]);
     const [articles, setArticles] = useState<ArticleType[]>([]);
@@ -192,7 +190,7 @@ export function ResourcePicker({
                     )}
 
                     <TabsContent value="books" className="flex-1 overflow-y-auto min-h-0 py-4">
-                        {loading ? <p>Loading books...</p> : (
+                        {isLoading ?<p>Loading books...</p> : (
                             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                                 {books.map(book => (
                                     <Card
@@ -219,7 +217,7 @@ export function ResourcePicker({
                     </TabsContent>
 
                     <TabsContent value="videos" className="flex-1 overflow-y-auto min-h-0 py-4">
-                        {loading ? <p>Loading videos...</p> : (
+                        {isLoading ?<p>Loading videos...</p> : (
                             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                                 {videos.map(video => (
                                     <Card
@@ -246,7 +244,7 @@ export function ResourcePicker({
                     </TabsContent>
 
                     <TabsContent value="articles" className="flex-1 overflow-y-auto min-h-0 py-4">
-                        {loading ? <p>Loading articles...</p> : (
+                        {isLoading ?<p>Loading articles...</p> : (
                             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                                 {articles.map(article => (
                                     <Card
@@ -268,7 +266,7 @@ export function ResourcePicker({
                     </TabsContent>
 
                     <TabsContent value="documents" className="flex-1 overflow-y-auto min-h-0 py-4">
-                        {loading ? <p>Loading documents...</p> : (
+                        {isLoading ?<p>Loading documents...</p> : (
                             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                                 {documents.map(doc => (
                                     <Card
@@ -291,7 +289,7 @@ export function ResourcePicker({
                     </TabsContent>
 
                     <TabsContent value="resources" className="flex-1 overflow-y-auto min-h-0 py-4">
-                        {loading ? <p>Loading resources...</p> : (
+                        {isLoading ?<p>Loading resources...</p> : (
                             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                                 {resources.map(res => (
                                     <Card
@@ -316,7 +314,7 @@ export function ResourcePicker({
 
                     {mode === "universal" && (
                         <TabsContent value="bundles" className="flex-1 overflow-y-auto min-h-0 py-4">
-                            {loading ? <p>Loading bundles...</p> : (
+                            {isLoading ?<p>Loading bundles...</p> : (
                                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                                     {bundles.map(bundle => (
                                         <Card

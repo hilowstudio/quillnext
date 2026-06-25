@@ -28,7 +28,7 @@ interface VideoListProps {
     setVideos: (videos: LibraryVideo[]) => void;
 }
 
-export function VideoList({ videos, setVideos }: VideoListProps) {
+export function VideoList({ videos, setVideos: _setVideos }: VideoListProps) {
     return (
         <div className="space-y-6">
             <div className="flex justify-end">

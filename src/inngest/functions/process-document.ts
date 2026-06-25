@@ -13,11 +13,11 @@ async function parsePdfBuffer(buffer: Buffer): Promise<string> {
             reject(errData instanceof Error ? errData : new Error(String(errData.parserError)));
         });
 
-        pdfParser.on("pdfParser_dataReady", (pdfData) => {
+        pdfParser.on("pdfParser_dataReady", (_pdfData) => {
             try {
                 const text = pdfParser.getRawTextContent();
                 resolve(text);
-            } catch (e) {
+            } catch {
                 resolve("");
             }
         });

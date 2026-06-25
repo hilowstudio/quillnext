@@ -313,9 +313,12 @@ export async function toggleItemStatus(
     return { success: true };
 }
 
-export async function moveScheduleItem(itemId: string, newDate: Date) {
+export async function moveScheduleItem(itemId: string, newDate: Date, studentId: string) {
     try {
         const organizationId = await requireOrg();
+        // The planner has per-student columns, so a drop encodes a target student as well as a date —
+        // reassign both (validating the target student is in-org), not just the date.
+        await assertStudentInOrg(studentId, organizationId);
         const item = await withTenant(
             async (tx) => {
                 const existing = await tx.studentScheduleItem.findUnique({
@@ -326,7 +329,7 @@ export async function moveScheduleItem(itemId: string, newDate: Date) {
 
                 return tx.studentScheduleItem.update({
                     where: { id: itemId },
-                    data: { date: newDate }
+                    data: { date: newDate, studentId }
                 });
             },
             undefined,

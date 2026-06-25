@@ -29,7 +29,6 @@ const CATEGORIES: { value: ActivityCategory; label: string }[] = [
 ];
 
 import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 
 export function ActivitiesSection({ activities, onChange }: ActivitiesSectionProps) {
     const handleAdd = () => {

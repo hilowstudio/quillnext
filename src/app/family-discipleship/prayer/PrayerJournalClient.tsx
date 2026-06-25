@@ -6,8 +6,7 @@ import {
     PrayerEntryInput,
     createPrayerEntry,
     updatePrayerEntry,
-    deletePrayerEntry,
-    togglePrayerAnswered
+    deletePrayerEntry
 } from '@/server/actions/prayer-journal';
 import PrayerJournalSidebar from './PrayerJournalSidebar';
 // Dynamically import editor to reduce initial bundle size (Tiptap is heavy)

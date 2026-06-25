@@ -1,13 +1,11 @@
 "use client";
 
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import {
   CheckCircle,
-  XCircle,
-  Warning,
   Info,
   CaretRight,
   HouseLine,

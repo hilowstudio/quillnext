@@ -35,7 +35,6 @@ export function serializeMasterContext(
     maxTokens = DEFAULT_MAX_TOKENS,
     includeDetails = true,
     prioritize = ["academic", "student", "family", "library", "schedule"],
-    modelType = "flash",
   } = options;
 
   const parts: string[] = [];

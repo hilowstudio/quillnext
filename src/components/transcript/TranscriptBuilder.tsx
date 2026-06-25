@@ -11,9 +11,7 @@ import {
 import {
     BookOpen,
     Trophy,
-    FileText,
     CheckCircle,
-    WarningCircle,
 } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -50,7 +48,7 @@ export function TranscriptBuilder({ initialData, studentId }: TranscriptBuilderP
                 description: "Your changes have been saved successfully.",
             });
             router.refresh();
-        } catch (error) {
+        } catch {
             toast.error("Error Saving", {
                 description: "Failed to save transcript. Please try again.",
             });

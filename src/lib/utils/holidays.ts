@@ -1,4 +1,4 @@
-import { addDays, getDate, getDay, getMonth, getYear, isSameDay } from "date-fns";
+import { addDays, getDay, getMonth, getYear, isSameDay } from "date-fns";
 
 export interface Holiday {
     date: Date;

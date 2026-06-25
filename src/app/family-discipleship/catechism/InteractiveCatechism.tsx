@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, memo } from 'react';
-import { Microphone, MicrophoneSlash, Check, X, ArrowClockwise, SpeakerHigh, SpeakerLow } from '@phosphor-icons/react/dist/ssr';
+import { Microphone, MicrophoneSlash, Check, X, ArrowClockwise, SpeakerLow } from '@phosphor-icons/react/dist/ssr';
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";

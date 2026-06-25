@@ -272,7 +272,7 @@ const ColorPicker = ({ label, property, config, onUpdate, options, required }: {
 }
 
 export function AvatarCustomizer({
-    studentId,
+    studentId: _studentId,
     initialConfig,
     initialName = "student",
     onSave,
@@ -316,7 +316,7 @@ export function AvatarCustomizer({
             } else {
                 toast.error(result.error || "Failed to save avatar");
             }
-        } catch (error) {
+        } catch {
             toast.error("An error occurred");
         } finally {
             setIsSaving(false);

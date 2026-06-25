@@ -18,10 +18,10 @@ const eslintConfig = [
   ...coreWebVitals,
   ...typescript,
   {
-    // Lint-debt ratchet (Q-01-004). Pervasively-violated rules were downgraded to "warn" so CI
-    // could adopt lint without a mass refactor, then burned down rule-by-rule. Each is promoted to
-    // "error" once it reaches 0 via genuine, behavior-preserving fixes, so new violations fail CI.
-    // The rest stay "warn" (visible, non-blocking) until they reach 0. Every other rule is enforced.
+    // Lint-debt ratchet (Q-01-004) — COMPLETE. Pervasively-violated rules were downgraded to "warn" so
+    // CI could adopt lint without a mass refactor, then burned down rule-by-rule to 0 and promoted to
+    // "error" via genuine, behavior-preserving fixes, so new violations now fail CI. The only rule left
+    // at "warn" is @next/next/no-img-element (11 remain by design — remote images bypass next/image; ch.01).
     rules: {
       // Locked — burned down to 0 and ratcheted to "error":
       "@typescript-eslint/ban-ts-comment": "error",
@@ -36,8 +36,15 @@ const eslintConfig = [
       "react-hooks/set-state-in-effect": "error",
       "react-hooks/exhaustive-deps": "error",
       "@typescript-eslint/no-explicit-any": "error",
-      // Still burning down — kept at "warn" until it reaches 0:
-      // @typescript-eslint/no-unused-vars (the final ratchet pass).
+      // Locked last (the final pass, 2026-06-25). `^_` is the sanctioned "intentionally unused" marker
+      // (contract/positional params, deliberately dropped destructures, caught errors we don't inspect) —
+      // rename to `_x`, don't delete & break the shape.
+      "@typescript-eslint/no-unused-vars": ["error", {
+        argsIgnorePattern: "^_",
+        varsIgnorePattern: "^_",
+        caughtErrorsIgnorePattern: "^_",
+        destructuredArrayIgnorePattern: "^_",
+      }],
     },
   },
 ];

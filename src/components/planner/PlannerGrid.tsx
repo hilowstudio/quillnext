@@ -134,14 +134,14 @@ export function PlannerGrid({
             try {
                 // Here we could implement optimistic UI, but for now we'll just wait for the server
                 // Ideally, we'd update local state immediately.
-                const result = await moveScheduleItem(active.id as string, newDate);
+                const result = await moveScheduleItem(active.id as string, newDate, studentId);
                 if (result.success) {
                     toast.success("Item moved");
                     router.refresh();
                 } else {
                     toast.error("Failed to move item");
                 }
-            } catch (e) {
+            } catch {
                 toast.error("Error moving item");
             }
         }
@@ -224,7 +224,7 @@ export function PlannerGrid({
                 onSelectArticle={(article) => handleResourceSelected({ title: article.title })}
                 onSelectDocument={(doc) => handleResourceSelected({ title: doc.fileName })}
                 onSelectResource={(res) => handleResourceSelected({ title: res.title })}
-                onGenerate={(kindId, kindLabel) => {
+                onGenerate={(_kindId, _kindLabel) => {
                     // Todo: Handle generation. For now just a toast.
                     // Ideally this opens the Generator form pre-filled.
                     // But we don't have a course context here.

@@ -4,7 +4,6 @@ import { getCurrentUserOrg } from "@/lib/auth-helpers";
 import { getMasterContext } from "@/lib/context/master-context";
 import { serializeMasterContext } from "@/lib/context/context-serializer";
 import { analyzeContextCompleteness } from "@/lib/context/context-suggestions";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { ContextCompleteness } from "@/components/context/ContextCompleteness";
 import { ContextInspectorClient } from "@/components/context/ContextInspectorClient";
 

@@ -325,6 +325,7 @@ export async function getFamilyContext(
     try {
       environment = classroom.environmentPreferences as FamilyContext["environment"];
     } catch (e) {
+      console.error("Failed to read classroom environment preferences", e);
       // If parsing fails, environment remains undefined
     }
   }

@@ -5,7 +5,7 @@ import { MapContainer, TileLayer, GeoJSON } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import type { Feature, FeatureCollection } from 'geojson';
 import type { Layer, LeafletMouseEvent } from 'leaflet';
-import { mapCountryToOperationWorld, findOperationWorldData, createOperationWorldLookup } from './utils/countryMapping';
+import { findOperationWorldData, createOperationWorldLookup } from './utils/countryMapping';
 import type { OperationWorldStats, OperationWorldCountry } from './actions';
 
 // The clicked/selected country is a validated Operation World entry (country/url strings + a typed
