@@ -4,6 +4,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { environmentStepSchema } from "@/lib/schemas/onboarding";
 import { saveEnvironmentStep } from "@/server/actions/blueprint";
+import type { OnboardingData } from "./onboarding-types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -63,7 +64,7 @@ export function EnvironmentStep({
   isSaving,
   setIsSaving,
 }: {
-  initialData: any;
+  initialData: OnboardingData;
   onSaveComplete: () => void;
   isSaving: boolean;
   setIsSaving: (saving: boolean) => void;

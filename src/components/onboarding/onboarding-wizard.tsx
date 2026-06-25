@@ -18,6 +18,7 @@ import { ArrowLeft } from "@/components/icons/arrow-left";
 import { ArrowRight } from "@/components/icons/arrow-right";
 import { CheckCircle } from "@/components/icons/check-circle";
 import { AnimatePresence, motion } from "framer-motion";
+import type { OnboardingData } from "./onboarding-types";
 
 const stepParam = parseAsInteger.withDefault(1);
 
@@ -26,7 +27,7 @@ export function OnboardingWizard({
   initialData,
 }: {
   initialStep: number;
-  initialData: any;
+  initialData: OnboardingData;
 }) {
   const [step, setStep] = useQueryState("step", stepParam);
   const [isSaving, setIsSaving] = useState(false);

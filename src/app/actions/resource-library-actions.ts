@@ -122,7 +122,7 @@ export async function getLibraryResources(organizationId: string) {
     return getCached();
 }
 
-export async function addArticle(url: string): Promise<{ success: boolean; error?: string; article?: any }> {
+export async function addArticle(url: string) {
     // Derive tenancy + enforce the parent gate SERVER-SIDE — never trust client-supplied
     // organizationId/userId (the action is directly invokable, outside the proxy/page gate).
     const session = await auth();
@@ -216,7 +216,7 @@ export async function addArticle(url: string): Promise<{ success: boolean; error
         const imageUrl = $('meta[property="og:image"]').attr('content') || "";
 
         // Basic content extraction - getting text from paragraphs
-        const content = $('video, script, style, nav, footer, header').remove().end().find('p').map((i: number, el: any) => $(el).text()).get().join('\n\n');
+        const content = $('video, script, style, nav, footer, header').remove().end().find('p').map((i: number, el) => $(el).text()).get().join('\n\n');
 
         // (5) Guard against silently "accepting" empty / paywalled / JS-rendered pages.
         // If we couldn't pull a meaningful amount of readable text, don't store it as EXTRACTED.
@@ -240,7 +240,10 @@ export async function addArticle(url: string): Promise<{ success: boolean; error
                     content: cleanedContent,
                     extractionStatus: "EXTRACTED", // Basic extraction done
                     extractedAt: new Date(),
-                }
+                },
+                // include subject/strand so the returned article matches the library list item shape
+                // (LibraryArticle) for the client's optimistic prepend; both are null until classified.
+                include: { subject: { select: { id: true, name: true } }, strand: { select: { id: true, name: true } } },
             }),
             undefined,
             { organizationId, userId: null }
@@ -263,7 +266,7 @@ export async function addArticle(url: string): Promise<{ success: boolean; error
     }
 }
 
-export async function addDocuments(formData: FormData): Promise<{ success: boolean; documents?: any[]; errors?: string[] }> {
+export async function addDocuments(formData: FormData) {
     // Derive tenancy + enforce the parent gate SERVER-SIDE — never trust client-supplied
     // organizationId/userId (the action is directly invokable, outside the proxy/page gate).
     const session = await auth();
@@ -317,7 +320,10 @@ export async function addDocuments(formData: FormData): Promise<{ success: boole
                             fileType: file.type || "unknown",
                             fileSize: file.size,
                             extractedText: "", // Will be populated by worker
-                        }
+                        },
+                        // include subject/strand so the returned doc matches the library list item
+                        // shape (LibraryDocument) for the client's optimistic prepend (both null here).
+                        include: { subject: { select: { id: true, name: true } }, strand: { select: { id: true, name: true } } },
                     }),
                     undefined,
                     { organizationId, userId: null }

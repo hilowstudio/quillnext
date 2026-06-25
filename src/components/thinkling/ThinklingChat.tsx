@@ -123,7 +123,7 @@ export function ThinklingChat({ studentId, mode, onModeChange }: ThinklingChatPr
                     </div>
                 )}
 
-                {messages.map((m: any, index: number) => {
+                {messages.map((m, index) => {
                     return (
                         <div key={`${m.id}-${index}`} className={`flex gap-3 ${m.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
                             <Avatar className={`w-8 h-8 mt-1 ${m.role !== 'user' ? 'rounded-none border-0' : 'border'}`}>
@@ -148,11 +148,9 @@ export function ThinklingChat({ studentId, mode, onModeChange }: ThinklingChatPr
                                             h3: ({ node, ...props }) => <h3 className="text-md font-bold mt-4 mb-2" {...props} />,
                                         }}
                                     >
-                                        {m.content
-                                            ? m.content
-                                            : (m.parts && Array.isArray(m.parts))
-                                                ? m.parts.map((p: any) => p.text).join('')
-                                                : ''}
+                                        {m.parts
+                                            .map((p) => (p.type === "text" ? p.text : ""))
+                                            .join("")}
                                     </ReactMarkdown>
                                 </div>
                             </div>

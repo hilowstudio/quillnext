@@ -5,6 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { classroomStepSchema } from "@/lib/schemas/onboarding";
 import { saveClassroomStep } from "@/server/actions/blueprint";
+import type { OnboardingData } from "./onboarding-types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -27,7 +28,7 @@ export function ClassroomStep({
   setIsSaving,
   formId,
 }: {
-  initialData: any;
+  initialData: OnboardingData;
   onSaveComplete: () => void;
   isSaving: boolean;
   setIsSaving: (saving: boolean) => void;
@@ -45,11 +46,13 @@ export function ClassroomStep({
     defaultValues: {
       name: initialData?.name || "",
       instructors: initialData?.instructors?.length
-        ? initialData.instructors.map((i: any) => ({
+        ? initialData.instructors.map((i) => ({
           firstName: i.firstName || "",
           lastName: i.lastName || "",
           sex: i.sex || undefined,
-          whatStudentsCall: i.whatStudentsCall || "",
+          // whatStudentsCall is collected in the form but not persisted on ClassroomInstructor
+          // (see master-context.ts:349) — there's nothing to read back, so default it.
+          whatStudentsCall: "",
           email: i.email || "",
         }))
         : [{ firstName: "", lastName: "", email: "" }],

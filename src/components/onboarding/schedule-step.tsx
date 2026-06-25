@@ -5,6 +5,7 @@ import { useForm, Controller, SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { scheduleStepSchema } from "@/lib/schemas/onboarding";
 import { saveScheduleStep } from "@/server/actions/blueprint";
+import type { OnboardingData } from "./onboarding-types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -51,7 +52,7 @@ export function ScheduleStep({
   setIsSaving,
   formId,
 }: {
-  initialData: any;
+  initialData: OnboardingData;
   onSaveComplete: () => void;
   isSaving: boolean;
   setIsSaving: (saving: boolean) => void;
@@ -75,22 +76,24 @@ export function ScheduleStep({
         ? new Date(initialData.schoolYearEndDate)
         : addYears(new Date(), 1),
       isYearRound: initialData?.isYearRound ?? false,
-      schoolDaysOfWeek: initialData?.schoolDaysOfWeek || [1, 2, 3, 4, 5],
+      schoolDaysOfWeek: Array.isArray(initialData?.schoolDaysOfWeek) ? (initialData.schoolDaysOfWeek as number[]) : [1, 2, 3, 4, 5],
       daysPerWeek: initialData?.daysPerWeek || undefined,
+      // dailyStartTime/EndTime are Prisma @db.Time columns → Date (preserved across the RSC boundary);
+      // new Date() also tolerates a string if one ever arrives, so the prior string-branch was dead.
       dailyStartTime: initialData?.dailyStartTime
-        ? typeof initialData.dailyStartTime === "string"
-          ? initialData.dailyStartTime.slice(0, 5)
-          : new Date(initialData.dailyStartTime).toTimeString().slice(0, 5)
+        ? new Date(initialData.dailyStartTime).toTimeString().slice(0, 5)
         : "08:00",
       dailyEndTime: initialData?.dailyEndTime
-        ? typeof initialData.dailyEndTime === "string"
-          ? initialData.dailyEndTime.slice(0, 5)
-          : new Date(initialData.dailyEndTime).toTimeString().slice(0, 5)
+        ? new Date(initialData.dailyEndTime).toTimeString().slice(0, 5)
         : "15:00",
       dailyTimesVary: initialData?.dailyTimesVary ?? false,
       hoursPerDay: initialData?.hoursPerDay || undefined,
-      breaks: initialData?.breaks || [],
-      plannedOffDays: initialData?.plannedOffDays ? initialData.plannedOffDays.map((d: any) => new Date(d)) : [],
+      // breaks are collected in-session but not persisted (see blueprint.ts "skip breaks"), so
+      // there's nothing to read back. plannedOffDays are saved as ClassroomHoliday rows — read them
+      // from `holidays` (the old `initialData.plannedOffDays` was never a Classroom field, so saved
+      // off-days silently failed to repopulate the form on resume).
+      breaks: [],
+      plannedOffDays: initialData?.holidays ? initialData.holidays.map((h) => new Date(h.holidayDate)) : [],
     },
   });
 
