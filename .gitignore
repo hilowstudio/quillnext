@@ -42,3 +42,19 @@ next-env.d.ts
 debug-connect.ts
 build_troubleshooting/
 railway_backup.sql
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+Thumbs.db
+
+# logs
+logs
+*.log
+
+# NOTE: prisma/migrations is intentionally NOT ignored — migrations are tracked + forward-only.
