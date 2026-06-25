@@ -11,7 +11,7 @@ import { toast } from "sonner";
 import Link from "next/link";
 import { MagicWand, Spinner } from "@phosphor-icons/react";
 import { ResourcePicker } from "@/components/courses/ResourcePicker";
-import { getSourceMetadata, SourceType } from "@/app/actions/generator-actions";
+import { getSourceMetadata, SourceType, extractUploadedText } from "@/app/actions/generator-actions";
 import { SourceTypeSelector } from "@/components/generators/SourceTypeSelector";
 import { TopicSelector } from "@/components/generators/TopicSelector";
 import { SpineBrowser, type SpineSelection } from "@/components/generators/SpineBrowser";
@@ -56,8 +56,9 @@ export default function GeneratorsClient({ organizationId }: { organizationId: s
   const [topicText, setTopicText] = useState("");
   const [spineSelection, setSpineSelection] = useState<SpineSelection | null>(null);
   const [url, setUrl] = useState(() => searchParams.get("url") || "");
-  const [file, _setFile] = useState<File | null>(null);
+  const [file, setFile] = useState<File | null>(null);
   const [fileContent, setFileContent] = useState("");
+  const [isExtracting, setIsExtracting] = useState(false);
 
   const [instructions, setInstructions] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
@@ -108,16 +109,40 @@ export default function GeneratorsClient({ organizationId }: { organizationId: s
     fetchMetadata();
   }, [sourceId, sourceType]);
 
-  // File Reading
-  useEffect(() => {
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (e) => setFileContent(e.target?.result as string);
-      reader.readAsText(file);
-    } else {
+  // File -> text. Plain-text formats are read in-browser; PDF/DOCX go to a transient server action
+  // that extracts the text and discards the file (nothing is stored). Only the text feeds generation.
+  const handleFileSelected = async (f: File | null) => {
+    setFile(f);
+    if (!f) {
       setFileContent("");
+      return;
     }
-  }, [file]);
+    const ext = f.name.split(".").pop()?.toLowerCase() ?? "";
+    const isPlainText = ["txt", "text", "md", "markdown", "csv", "tsv", "html", "htm", "json", "log"].includes(ext);
+    setIsExtracting(true);
+    try {
+      if (isPlainText) {
+        setFileContent((await f.text()).trim());
+      } else {
+        const formData = new FormData();
+        formData.append("file", f);
+        const res = await extractUploadedText(formData);
+        if (res.success) {
+          setFileContent(res.text.trim());
+        } else {
+          toast.error(res.error);
+          setFile(null);
+          setFileContent("");
+        }
+      }
+    } catch {
+      toast.error("Could not read this file.");
+      setFile(null);
+      setFileContent("");
+    } finally {
+      setIsExtracting(false);
+    }
+  };
 
 
   // Filter Kinds based on Metadata
@@ -308,9 +333,40 @@ export default function GeneratorsClient({ organizationId }: { organizationId: s
 
               {/* FILE */}
               {sourceType === "FILE" && (
-                <div className="p-8 border-2 border-dashed border-qc-border-subtle rounded-lg text-center">
-                  <p>File upload coming soon...</p>
-                </div>
+                !file ? (
+                  <label className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-qc-border-subtle rounded-lg text-center cursor-pointer hover:border-qc-primary/50 hover:bg-qc-surface-raised/50 transition-colors">
+                    <input
+                      type="file"
+                      accept=".txt,.text,.md,.markdown,.csv,.tsv,.html,.htm,.json,.log,.pdf,.docx"
+                      className="hidden"
+                      onChange={(e) => handleFileSelected(e.target.files?.[0] ?? null)}
+                    />
+                    <span className="text-sm font-medium text-qc-charcoal">Click to choose a file</span>
+                    <span className="text-xs text-qc-text-muted mt-1">
+                      Text, PDF, or Word (.docx) — up to 10&nbsp;MB. The file isn&apos;t saved; only its text is used.
+                    </span>
+                  </label>
+                ) : (
+                  <div className="p-4 border border-qc-border-subtle rounded-lg flex items-center justify-between gap-3 bg-qc-surface-raised/50">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-qc-charcoal truncate">{file.name}</p>
+                      <p className="text-xs text-qc-text-muted">
+                        {isExtracting
+                          ? "Extracting text…"
+                          : fileContent
+                            ? `${fileContent.length.toLocaleString()} characters ready`
+                            : "No text extracted"}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleFileSelected(null)}
+                      className="text-xs text-qc-text-muted hover:text-qc-error shrink-0"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                )
               )}
 
               {sourceType === "YOUTUBE_PLAYLIST" && (
@@ -399,7 +455,7 @@ export default function GeneratorsClient({ organizationId }: { organizationId: s
                 disabled={!selectedKindId || isGenerating ||
                   (sourceType === "TOPIC" && !topicText) ||
                   (sourceType === "URL" && !url) ||
-                  (sourceType === "FILE" && !file) ||
+                  (sourceType === "FILE" && (!fileContent || isExtracting)) ||
                   (!!sourceType && ["BOOK", "VIDEO", "COURSE"].includes(sourceType) && !sourceId)
                 }
                 onClick={handleGenerate}

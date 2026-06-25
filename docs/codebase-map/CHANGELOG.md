@@ -3651,3 +3651,19 @@ findings program (CHANGELOG rounds 1–55) is now complete: 0 open across every 
 - **UI smoke-tests owed** for the behavior changes: planner cross-student drag, ResourcePicker loading states,
   the bible-study audio button.
 - `tsconfig.tsbuildinfo` (tracked generated cache) still worth gitignoring.
+
+## 2026-06-25 (later) — Creation Station FILE upload BUILT (the flagged item above) + weighted-GPA cleanup
+
+Two follow-ups from the lint pass, owner-directed:
+- **Weighted GPA was already complete** (the `_courseType` flag was a misread). Removed the vestigial
+  `courseType` param from `getGpaPoints` + its no-op call-site args; weighting still runs through
+  `applyCourseTypeWeighting`/`calculateWeightedGPA`. Behavior-preserving.
+- **GeneratorsClient FILE upload BUILT** (replaces the "coming soon" stub). The server already consumed
+  `fileContent` (generate-resource-core.ts:631); only the client input was missing. New `src/lib/extract-text.ts`
+  (pdf2json for PDF, mammoth for DOCX — added as a dep —, utf-8 for text) + a transient `extractUploadedText`
+  server action (session-gated, 10 MB cap, content-length cap). **Extract-and-discard per the owner's call: the
+  file is read into memory and its text returned; nothing is uploaded to Storage or written to the DB.** Client
+  reads plain-text in-browser and routes PDF/DOCX to the action; the FILE source-type now shows a real
+  picker/filename/extracting state and gates generation on extracted content. Verified: tsc 0, eslint 0,
+  vitest 244/244, + a runtime check (mammoth extracted text from a real .docx; pdf2json reuses the
+  production `process-document` path). The blueprint dead `course.count` query (`_coursesCount`) was also cleared.
