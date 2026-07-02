@@ -6,7 +6,6 @@ import { z } from "zod";
 
 /** The Prisma `GradingMethod` enum values (schema.prisma:1343-1346) — kept in sync here. */
 export const gradingMethodSchema = z.enum(["AUTO", "AI_ASSISTED", "MANUAL"]);
-export type GradingMethodValue = z.infer<typeof gradingMethodSchema>;
 
 /**
  * Validates the body of `POST /api/grading/[id]` (persist a graded attempt).
@@ -34,4 +33,3 @@ export const gradeAttemptApiSchema = z.object({
   gradingMethod: gradingMethodSchema.optional(),
 });
 
-export type GradeAttemptApiData = z.infer<typeof gradeAttemptApiSchema>;

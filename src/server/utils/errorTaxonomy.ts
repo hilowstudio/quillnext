@@ -38,13 +38,3 @@ export class StandardError extends Error {
         this.category = category;
     }
 }
-
-export function createSuccessResponse<T>(data: T, message: string | null = null, meta: unknown = null, requestId: string | null = null) {
-    return {
-        success: true,
-        data,
-        message,
-        meta,
-        requestId
-    };
-}

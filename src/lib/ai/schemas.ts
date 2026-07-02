@@ -50,4 +50,3 @@ export const WorksheetSchema = z.object({
 });
 
 // Union type for type safety in the generator
-export type InteractiveContent = z.infer<typeof QuizSchema> | z.infer<typeof WorksheetSchema>;

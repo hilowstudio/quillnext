@@ -111,33 +111,3 @@ export const embeddingModel = google.textEmbeddingModel(EMBEDDING_MODEL_ID);
 export function embeddingProviderOptions(taskType: "RETRIEVAL_DOCUMENT" | "RETRIEVAL_QUERY") {
   return { google: { outputDimensionality: EMBEDDING_DIMENSIONS, taskType } };
 }
-
-/**
- * Check if content contains YouTube URLs
- * Used to automatically select gemini-2.5-pro for video processing
- */
-export function containsYouTubeUrl(content: string): boolean {
-  const youtubeRegex = /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/;
-  return youtubeRegex.test(content);
-}
-
-/**
- * Get model for task with automatic video detection
- * If content contains YouTube URLs, automatically uses gemini-2.5-pro
- * 
- * @param taskType - The task type
- * @param content - Optional content to check for YouTube URLs
- * @returns The appropriate model instance
- */
-export function getModelForTaskWithVideoCheck(
-  taskType: AITaskType,
-  content?: string,
-): typeof models.pro3 | typeof models.pro | typeof models.flash | typeof models.flashLite {
-  // If content contains YouTube URLs, MUST use gemini-2.5-pro
-  if (content && containsYouTubeUrl(content)) {
-    return models.pro3;
-  }
-
-  // Otherwise use standard task-based selection
-  return getModelForTask(taskType);
-}

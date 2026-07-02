@@ -79,7 +79,6 @@ export const createCourseApiSchema = z.object({
   gradeBandId: z.string().min(1).max(255).optional().nullable(),
 });
 
-export type CreateCourseApiData = z.infer<typeof createCourseApiSchema>;
 
 // -----------------------------------------------------------------------
 // Activity create (REST API) schema
@@ -95,7 +94,6 @@ export const activityTypeSchema = z.enum([
   "WORKSHEET",
   "OTHER",
 ]);
-export type ActivityTypeValue = z.infer<typeof activityTypeSchema>;
 
 /**
  * Validates the body of `POST /api/courses/[id]/blocks/[blockId]/activities`.
@@ -115,5 +113,4 @@ export const createActivityApiSchema = z.object({
   estimatedMinutes: z.coerce.number().int().positive().max(100000).optional().nullable(),
 });
 
-export type CreateActivityApiData = z.infer<typeof createActivityApiSchema>;
 

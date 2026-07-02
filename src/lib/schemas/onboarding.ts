@@ -113,7 +113,6 @@ export type Instructor = z.infer<typeof instructorSchema>;
 export type Classroom = z.infer<typeof classroomSchema>;
 export type Schedule = z.infer<typeof scheduleSchema>;
 export type Environment = z.infer<typeof environmentSchema>;
-export type FamilyBlueprint = z.infer<typeof familyBlueprintSchema>;
 
 // Progressive save schemas (for step-by-step saving)
 export const classroomStepSchema = classroomSchema;

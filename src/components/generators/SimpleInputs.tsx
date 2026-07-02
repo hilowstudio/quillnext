@@ -21,24 +21,3 @@ export function UrlInput({ value, onChange }: UrlInputProps) {
         </div>
     );
 }
-
-interface FileUploadProps {
-    onFileSelect: (file: File | null) => void;
-}
-
-export function FileUpload({ onFileSelect }: FileUploadProps) {
-    return (
-        <div className="space-y-2">
-            <Label>Upload Document (PDF, TXT, MD)</Label>
-            <Input
-                type="file"
-                accept=".txt,.md,.pdf"
-                onChange={(e) => {
-                    const file = e.target.files?.[0] || null;
-                    onFileSelect(file);
-                }}
-            />
-            <p className="text-xs text-muted-foreground">Text will be extracted for generation.</p>
-        </div>
-    );
-}

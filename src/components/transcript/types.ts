@@ -9,7 +9,6 @@ export type CourseType = 'Regular' | 'Honors' | 'AP/IB/Dual';
 
 export type GradeValue = string | number; // Supports percentage (0-100) or special values (IP, Fail, Pass)
 
-export type CreditValue = 1 | 0.75 | 0.67 | 0.5 | 0.34 | 0.25;
 
 export interface TranscriptCourse {
     id: string;

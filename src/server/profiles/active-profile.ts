@@ -74,7 +74,6 @@ export async function loadActiveProfile() {
 /** Request-deduped active profile (mirrors getStudentById's cache() pattern). */
 export const getActiveProfile = cache(loadActiveProfile);
 
-export type ActiveProfile = NonNullable<Awaited<ReturnType<typeof loadActiveProfile>>>;
 
 /**
  * Sign + set the active_profile cookie for the current login.

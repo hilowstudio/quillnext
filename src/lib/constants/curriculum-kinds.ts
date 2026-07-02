@@ -16,4 +16,3 @@ export const CURRICULUM_KIND_CODES = {
   RELEASE_MANIFEST: "release_manifest",
 } as const;
 
-export type CurriculumKindCode = (typeof CURRICULUM_KIND_CODES)[keyof typeof CURRICULUM_KIND_CODES];

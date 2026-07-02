@@ -19,7 +19,6 @@ export const curriculumSpecSchema = z.object({
   }),
 });
 
-export type CurriculumSpecInput = z.infer<typeof curriculumSpecSchema>;
 
 /** Defensive clamp for any code path that reads a persisted durationDays. */
 export const MAX_DURATION_DAYS = 20;

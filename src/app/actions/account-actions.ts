@@ -23,23 +23,6 @@ export async function deactivateAccount() {
   return { success: true };
 }
 
-export async function reactivateAccount() {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return { success: false, error: "Unauthorized" };
-  }
-
-  await assertParentProfile();
-
-  await db.user.update({
-    where: { id: session.user.id },
-    data: { deactivatedAt: null },
-  });
-
-  revalidatePath("/");
-  return { success: true };
-}
-
 export async function deleteAccount() {
   const session = await auth();
   if (!session?.user?.id) {
@@ -182,54 +165,5 @@ export async function deleteAccount() {
     { timeout: 30000 },
   );
 
-  return { success: true };
-}
-
-export async function transferOwnership(newOwnerUserId: string) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return { success: false, error: "Unauthorized" };
-  }
-
-  await assertParentProfile();
-
-  const currentUser = await db.user.findUnique({
-    where: { id: session.user.id },
-    select: { role: true, organizationId: true },
-  });
-
-  if (currentUser?.role !== "OWNER") {
-    return {
-      success: false,
-      error: "Only the organization owner can transfer ownership",
-    };
-  }
-
-  if (!currentUser.organizationId) {
-    return { success: false, error: "No organization found" };
-  }
-
-  const newOwner = await db.user.findUnique({
-    where: { id: newOwnerUserId },
-    select: { organizationId: true },
-  });
-
-  if (newOwner?.organizationId !== currentUser.organizationId) {
-    return {
-      success: false,
-      error: "User is not a member of your organization",
-    };
-  }
-
-  await db.user.update({
-    where: { id: newOwnerUserId },
-    data: { role: "OWNER" },
-  });
-  await db.user.update({
-    where: { id: session.user.id },
-    data: { role: "PARENT" },
-  });
-
-  revalidatePath("/");
   return { success: true };
 }

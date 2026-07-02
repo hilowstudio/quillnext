@@ -29,8 +29,3 @@ export function getRlsContext(): RlsContext | undefined {
 export function setRlsContext(ctx: RlsContext): void {
   store.enterWith(ctx);
 }
-
-/** Run `fn` with an explicit context (use for background jobs / Inngest that have no request). */
-export function runWithRlsContext<T>(ctx: RlsContext, fn: () => T): T {
-  return store.run(ctx, fn);
-}
