@@ -44,6 +44,12 @@ export async function saveClassroomStep(
       const lastName = validated.instructors[0]?.lastName || "Family";
       const orgName = `${lastName} Family`;
 
+      // TEMP DIAGNOSTIC (remove after root-causing the onboarding org-INSERT RLS 500): log the
+      // LIVE tenant GUC the org INSERT is about to be checked against, into the Postgres log. For a
+      // brand-new user this must be empty (NULL) for the null-context INSERT allowance to apply.
+      await tx.$executeRaw`SELECT set_config('app.diag_intended_org', ${organizationId ?? ""}, true), set_config('app.diag_intended_user', ${userId}, true)`;
+      await tx.$executeRaw`DO $$ BEGIN RAISE WARNING 'ONBOARDING_DIAG actual_org=[%] actual_user=[%] intended_org=[%] intended_user=[%]', current_setting('app.current_org', true), current_setting('app.current_user', true), current_setting('app.diag_intended_org', true), current_setting('app.diag_intended_user', true); END $$`;
+
       const newOrg = await tx.organization.create({
         data: {
           name: orgName,
