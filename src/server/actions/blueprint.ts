@@ -5,7 +5,6 @@ import { setRlsContext } from "@/server/rls-context";
 import {
   classroomStepSchema,
   scheduleStepSchema,
-  environmentStepSchema,
 } from "@/lib/schemas/onboarding";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -286,60 +285,6 @@ export async function saveScheduleStep(
 }
 
 /**
- * Save Environment step (Step 3)
- * Stores environment preferences in a JSON field
- * Note: Requires adding `environmentPreferences Json?` field to Classroom model
- * For now, we'll use a workaround by storing in description or create a separate table
- */
-export async function saveEnvironmentStep(
-  data: z.infer<typeof environmentStepSchema>,
-) {
-  const { organizationId: sessionOrg } = await getCurrentUserOrg();
-  if (!sessionOrg) throw new Error("Classroom not found. Please complete Step 1 first.");
-  const organizationId = sessionOrg;
-
-  const validated = environmentStepSchema.parse(data);
-
-  // Store environment data in the proper JSON field
-  const environmentData = {
-    philosophyPreferences: validated.philosophyPreferences || [],
-    resourceTypes: validated.resourceTypes || [],
-    goals: validated.goals || [],
-    deviceTypes: validated.deviceTypes || [],
-    challenges: validated.challenges || [],
-    faithBackground: validated.faithBackground || null,
-  };
-
-  // RLS: org-scoped classroom read + update share one tenant-stamped tx.
-  await withTenant(
-    async (tx) => {
-      const classroom = await tx.classroom.findFirst({
-        where: { organizationId },
-        orderBy: { createdAt: "desc" },
-      });
-
-      if (!classroom) {
-        throw new Error("Classroom not found. Please complete Step 1 first.");
-      }
-
-      // Update classroom with environment preferences
-      await tx.classroom.update({
-        where: { id: classroom.id },
-        data: {
-          environmentPreferences: environmentData,
-        },
-      });
-    },
-    undefined,
-    { organizationId, userId: null },
-  );
-
-  revalidatePath("/onboarding");
-  revalidatePath("/blueprint");
-  return { success: true, message: "Environment preferences saved" };
-}
-
-/**
  * Get current blueprint progress
  * Used to restore wizard state
  */
@@ -369,14 +314,10 @@ export async function getBlueprintProgress(organizationId: string | null) {
     return { step: 1, data: null };
   }
 
-  // Determine which step is complete
-  const hasSchedule =
-    classroom.schoolYearStartDate && classroom.schoolYearEndDate;
-
-  // Resume the 3-step wizard at the furthest incomplete step: once the schedule is
-  // saved, advance to step 3 (Environment, the optional final step); otherwise step 2.
+  // Two-step wizard now (Classroom + Schedule). Step 1 is complete once a classroom exists, so
+  // resume at the Schedule step.
   return {
-    step: hasSchedule ? 3 : 2, // 3 = Environment (final step of the 3-step wizard); 2 = Schedule
+    step: 2,
     data: classroom,
   };
 }

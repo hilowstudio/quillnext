@@ -17,8 +17,89 @@ import type { z } from "zod";
 import { motion, AnimatePresence } from "framer-motion";
 
 import { Controller } from "react-hook-form";
+import { useState } from "react";
 
 type ClassroomFormData = z.infer<typeof classroomStepSchema>;
+
+// ---- Faith conviction flags: [enum value, parent-facing label]. "Follow our tradition" = null. ----
+type Opt = readonly [string, string];
+const TRANSLATION_OPTS: readonly Opt[] = [
+  ["KJV", "KJV"], ["ESV", "ESV"], ["NKJV", "NKJV"], ["NASB", "NASB"], ["NIV", "NIV"], ["CSB", "CSB"], ["RSV-CE", "RSV-CE (Catholic)"],
+];
+const ORIGINS_OPTS: readonly Opt[] = [
+  ["YOUNG_EARTH", "Young earth (6-day)"], ["OLD_EARTH", "Old earth, God created"], ["EVOLUTIONARY_CREATION", "Evolutionary creation"], ["MULTIPLE_VIEWS", "Show the views"], ["MAINSTREAM_SCIENCE", "Mainstream science"],
+];
+const SEXUALITY_OPTS: readonly Opt[] = [
+  ["TRADITIONAL", "Traditional / biblical"], ["FACTUAL_DEFER", "Facts only, values at home"], ["AVOID", "We'll teach this ourselves"],
+];
+const SOTERIOLOGY_OPTS: readonly Opt[] = [
+  ["REFORMED_CALVINIST", "Reformed / Calvinist"], ["ARMINIAN_WESLEYAN", "Arminian / Wesleyan"],
+];
+const ESCHATOLOGY_OPTS: readonly Opt[] = [
+  ["DISPENSATIONAL_PREMIL", "Rapture / dispensational"], ["HISTORIC_PREMIL", "Historic premil"], ["AMILLENNIAL", "Amillennial"], ["POSTMILLENNIAL", "Postmillennial"], ["PRETERIST", "Preterist"],
+];
+const GIFTS_OPTS: readonly Opt[] = [
+  ["CONTINUATIONIST", "Continue today"], ["CESSATIONIST", "Ceased"], ["OPEN_CAUTIOUS", "Open but cautious"],
+];
+const STORYLINE_OPTS: readonly Opt[] = [
+  ["COVENANT", "Covenant theology"], ["DISPENSATIONALISM", "Dispensationalism"], ["PROGRESSIVE_DISPENSATIONALISM", "Progressive disp."], ["PROGRESSIVE_COVENANTALISM", "Progressive cov."], ["NEW_COVENANT_THEOLOGY", "New covenant theology"],
+];
+const CATHOLIC_EMPHASIS_OPTS: readonly Opt[] = [
+  ["TRADITIONAL_LATIN_MASS", "Traditional / Latin Mass"], ["CONSERVATIVE_JPII_BENEDICT", "Conservative (JPII/Benedict)"], ["MAINSTREAM", "Mainstream"], ["PROGRESSIVE", "Progressive"],
+];
+const CATHOLIC_FAITHS = new Set(["ROMAN_CATHOLIC", "EASTERN_CATHOLIC"]);
+const CHALLENGE_OPTS = ["Time Management", "Motivation", "Learning Differences", "Multiple Ages", "Limited Resources", "Parent Involvement"];
+const CONFESSION_OPTS = [
+  "Apostles' Creed", "Nicene Creed", "Westminster Standards", "Three Forms of Unity", "1689 London Baptist",
+  "Baptist Faith & Message 2000", "Book of Concord (Lutheran)", "Thirty-Nine Articles",
+  "Catechism of the Catholic Church", "Chicago Statement on Inerrancy", "TGC Confessional Statement",
+];
+
+const pillClass = (on: boolean) =>
+  `h-9 px-4 rounded-full text-sm ${on ? "bg-qc-primary shadow-sm" : "border-qc-border-strong hover:bg-qc-parchment hover:text-qc-primary"}`;
+
+function ConvictionFlag({ question, options, value, onSelect }: {
+  question: string;
+  options: readonly Opt[];
+  value: string | null | undefined;
+  onSelect: (v: string | null) => void;
+}) {
+  return (
+    <div className="space-y-2">
+      <Label className="text-sm font-medium text-qc-charcoal">{question}</Label>
+      <div className="flex flex-wrap gap-2">
+        <Button type="button" size="sm" variant={!value ? "default" : "outline"} className={pillClass(!value)} onClick={() => onSelect(null)}>
+          Follow our tradition
+        </Button>
+        {options.map(([val, label]) => (
+          <Button key={val} type="button" size="sm" variant={value === val ? "default" : "outline"} className={pillClass(value === val)} onClick={() => onSelect(val)}>
+            {label}
+          </Button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function MultiToggle({ options, values, onToggle }: {
+  options: readonly string[];
+  values: string[];
+  onToggle: (next: string[]) => void;
+}) {
+  return (
+    <div className="flex flex-wrap gap-2">
+      {options.map((opt) => {
+        const on = values.includes(opt);
+        return (
+          <Button key={opt} type="button" size="sm" variant={on ? "default" : "outline"} className={pillClass(on)}
+            onClick={() => onToggle(on ? values.filter((v) => v !== opt) : [...values, opt])}>
+            {opt}
+          </Button>
+        );
+      })}
+    </div>
+  );
+}
 
 export function ClassroomStep({
   initialData,
@@ -61,10 +142,22 @@ export function ClassroomStep({
       faithBackground: initialData?.faithBackground || "PROTESTANT",
       faithBackgroundOther: initialData?.faithBackgroundOther || "",
       academicGoals: initialData?.academicGoals || [],
+      challenges: initialData?.challenges || [],
+      bibleTranslation: initialData?.bibleTranslation || null,
+      confessions: initialData?.confessions || [],
+      origins: initialData?.origins || null,
+      sexualityApproach: initialData?.sexualityApproach || null,
+      soteriology: initialData?.soteriology || null,
+      eschatology: initialData?.eschatology || null,
+      spiritualGifts: initialData?.spiritualGifts || null,
+      bibleStoryline: initialData?.bibleStoryline || null,
+      catholicEmphasis: initialData?.catholicEmphasis || null,
     },
   });
 
   const instructors = watch("instructors") || [];
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const isCatholic = CATHOLIC_FAITHS.has(watch("faithBackground") ?? "");
 
   const addInstructor = () => {
     setValue("instructors", [
@@ -408,6 +501,65 @@ export function ClassroomStep({
           <p className="text-sm font-body text-qc-error mt-1">{errors.academicGoals.message}</p>
         )}
       </motion.div>
+
+      {/* Current Challenges — retained from the removed Environment step */}
+      <div className="space-y-3 pt-4 border-t border-qc-border-subtle">
+        <Label className="text-2xl font-display font-medium text-qc-primary">Current Challenges (Optional)</Label>
+        <p className="text-sm font-body text-qc-text-muted">What would you most like help with?</p>
+        <MultiToggle options={CHALLENGE_OPTS} values={watch("challenges") || []} onToggle={(next) => setValue("challenges", next)} />
+      </div>
+
+      {/* Faith Convictions — optional, opt-in; these shape generated content */}
+      <div className="space-y-5 pt-4 border-t border-qc-border-subtle">
+        <div>
+          <Label className="text-2xl font-display font-medium text-qc-primary">Faith Convictions (Optional)</Label>
+          <p className="text-sm font-body text-qc-text-muted mt-1">
+            Set only what you&apos;re passionate about — these shape the lessons we generate. &ldquo;Follow our tradition&rdquo; is the common, first-class choice, and there are no wrong answers.
+          </p>
+        </div>
+
+        <ConvictionFlag question="Which Bible translation should we use?" options={TRANSLATION_OPTS}
+          value={watch("bibleTranslation")} onSelect={(v) => setValue("bibleTranslation", v)} />
+
+        <ConvictionFlag question="How should science lessons handle the age of the earth and how life began?" options={ORIGINS_OPTS}
+          value={watch("origins")} onSelect={(v) => setValue("origins", v as ClassroomFormData["origins"])} />
+
+        <ConvictionFlag question="How should we approach the body, gender, and sexuality?" options={SEXUALITY_OPTS}
+          value={watch("sexualityApproach")} onSelect={(v) => setValue("sexualityApproach", v as ClassroomFormData["sexualityApproach"])} />
+
+        {isCatholic && (
+          <ConvictionFlag question="Where does your family land liturgically?" options={CATHOLIC_EMPHASIS_OPTS}
+            value={watch("catholicEmphasis")} onSelect={(v) => setValue("catholicEmphasis", v as ClassroomFormData["catholicEmphasis"])} />
+        )}
+
+        <div className="pt-1">
+          <Button type="button" variant="ghost" size="sm" className="text-qc-primary px-0 hover:bg-transparent"
+            onClick={() => setShowAdvanced((s) => !s)}>
+            {showAdvanced ? "− Hide advanced convictions" : "+ Advanced convictions (optional)"}
+          </Button>
+          {showAdvanced && (
+            <div className="space-y-5 mt-3 pl-3 border-l-2 border-qc-border-subtle">
+              <p className="text-sm font-body text-qc-text-muted">
+                New vocabulary here is completely normal — &ldquo;follow our tradition&rdquo; is a real answer, and the most common one.
+              </p>
+              <ConvictionFlag question="When lessons touch on salvation, whose emphasis feels like home?" options={SOTERIOLOGY_OPTS}
+                value={watch("soteriology")} onSelect={(v) => setValue("soteriology", v as ClassroomFormData["soteriology"])} />
+              <ConvictionFlag question="How should end-times topics be handled?" options={ESCHATOLOGY_OPTS}
+                value={watch("eschatology")} onSelect={(v) => setValue("eschatology", v as ClassroomFormData["eschatology"])} />
+              <ConvictionFlag question="Do gifts like tongues, prophecy, and healing continue today?" options={GIFTS_OPTS}
+                value={watch("spiritualGifts")} onSelect={(v) => setValue("spiritualGifts", v as ClassroomFormData["spiritualGifts"])} />
+              <ConvictionFlag question="How do Israel, the church, and God's promises fit together across the Bible?" options={STORYLINE_OPTS}
+                value={watch("bibleStoryline")} onSelect={(v) => setValue("bibleStoryline", v as ClassroomFormData["bibleStoryline"])} />
+            </div>
+          )}
+        </div>
+
+        <div className="space-y-2 pt-2">
+          <Label className="text-sm font-medium text-qc-charcoal">Confessions or statements of faith your family affirms (optional)</Label>
+          <p className="text-sm font-body text-qc-text-muted">If you have one, it tells us a lot in a single click.</p>
+          <MultiToggle options={CONFESSION_OPTS} values={watch("confessions") || []} onToggle={(next) => setValue("confessions", next)} />
+        </div>
+      </div>
 
       {/* Save Button */}
       <div className="flex justify-end pt-6">

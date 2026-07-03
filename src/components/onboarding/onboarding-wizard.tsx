@@ -13,7 +13,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { ClassroomStep } from "./classroom-step";
 import { ScheduleStep } from "./schedule-step";
-import { EnvironmentStep } from "./environment-step";
 import { ArrowLeft } from "@/components/icons/arrow-left";
 import { ArrowRight } from "@/components/icons/arrow-right";
 import { CheckCircle } from "@/components/icons/check-circle";
@@ -35,7 +34,6 @@ export function OnboardingWizard({
   const steps = [
     { number: 1, title: "Classroom Setup", component: ClassroomStep },
     { number: 2, title: "Schedule", component: ScheduleStep },
-    { number: 3, title: "Environment", component: EnvironmentStep },
   ];
 
   const currentStepIndex = Math.max(0, Math.min(step - 1, steps.length - 1));
