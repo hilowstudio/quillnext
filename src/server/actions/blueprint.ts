@@ -108,6 +108,7 @@ export async function saveClassroomStep(
           faithBackground: validated.faithBackground,
           faithBackgroundOther: validated.faithBackgroundOther,
           academicGoals: validated.academicGoals || [],
+          challenges: validated.challenges,
           ...convictionData,
         },
       });
@@ -124,6 +125,7 @@ export async function saveClassroomStep(
           faithBackground: validated.faithBackground,
           faithBackgroundOther: validated.faithBackgroundOther,
           academicGoals: validated.academicGoals || [],
+          challenges: validated.challenges,
           ...convictionData,
           // Default schedule dates (will be updated in schedule step)
           schoolYearStartDate: new Date(),

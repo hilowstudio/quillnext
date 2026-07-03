@@ -247,6 +247,7 @@ model Classroom {
   hoursPerDay                Int?                  @map("hours_per_day")
   isYearRound                Boolean               @default(false) @map("is_year_round")
   academicGoals              String[]              @map("academic_goals")
+  challenges                 String[]              @default([])
   holidays                   ClassroomHoliday[]
   instructors                ClassroomInstructor[]
   students                   ClassroomStudent[]

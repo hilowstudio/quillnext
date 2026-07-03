@@ -30,6 +30,8 @@ export interface FamilyContext {
     educationalPhilosophyOther: string | null;
     faithBackground: string;
     faithBackgroundOther: string | null;
+    academicGoals: string[];
+    challenges: string[];
     schoolYearStartDate: Date;
     schoolYearEndDate: Date;
     schoolDaysOfWeek: number[];
@@ -289,6 +291,8 @@ export async function getFamilyContext(
               spiritualGifts: true,
               bibleStoryline: true,
               catholicEmphasis: true,
+              academicGoals: true,
+              challenges: true,
               schoolYearStartDate: true,
               schoolYearEndDate: true,
               schoolDaysOfWeek: true,
@@ -350,6 +354,8 @@ export async function getFamilyContext(
       educationalPhilosophyOther: classroom.educationalPhilosophyOther,
       faithBackground: classroom.faithBackground,
       faithBackgroundOther: classroom.faithBackgroundOther,
+      academicGoals: classroom.academicGoals,
+      challenges: classroom.challenges,
       schoolYearStartDate: classroom.schoolYearStartDate,
       schoolYearEndDate: classroom.schoolYearEndDate,
       schoolDaysOfWeek: classroom.schoolDaysOfWeek as number[],

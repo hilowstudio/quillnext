@@ -49,6 +49,7 @@ export const classroomSchema = z.object({
   ]),
   educationalPhilosophyOther: z.string().optional(),
   academicGoals: z.array(z.string()).max(3, "Please select up to 3 goals").optional(),
+  challenges: z.array(z.string()).optional(),
   faithBackground: z.enum([
     "ROMAN_CATHOLIC",
     "EASTERN_CATHOLIC",

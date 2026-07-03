@@ -39,6 +39,8 @@ function makeFamily(): FamilyContext {
       educationalPhilosophyOther: null,
       faithBackground: "Christian",
       faithBackgroundOther: null,
+      academicGoals: [],
+      challenges: [],
       schoolYearStartDate: new Date("2025-09-01"),
       schoolYearEndDate: new Date("2026-06-15"),
       schoolDaysOfWeek: [1, 2, 3, 4, 5],

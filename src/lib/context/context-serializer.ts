@@ -124,15 +124,13 @@ function serializeFamilyContext(
     parts.push(`- Instructors: ${context.instructors.map((i) => `${i.firstName} ${i.lastName || ""}`.trim()).join(", ")}`);
   }
 
-  if (includeDetails && context.environment) {
-    // Defensive: environmentPreferences is a JSON column; the app write path Zod-validates it
-    // (blueprint.ts), but guard the read so a malformed legacy/hand-edited row degrades gracefully
-    // instead of throwing on .length/.join.
-    if (Array.isArray(context.environment.goals) && context.environment.goals.length > 0) {
-      parts.push(`- Educational Goals: ${context.environment.goals.join(", ")}`);
+  // Goals + challenges now live as first-class classroom columns (retained from the old Step 3).
+  if (includeDetails) {
+    if (context.classroom.academicGoals.length > 0) {
+      parts.push(`- Educational Goals: ${context.classroom.academicGoals.join(", ")}`);
     }
-    if (Array.isArray(context.environment.challenges) && context.environment.challenges.length > 0) {
-      parts.push(`- Current Challenges: ${context.environment.challenges.join(", ")}`);
+    if (context.classroom.challenges.length > 0) {
+      parts.push(`- Current Challenges: ${context.classroom.challenges.join(", ")}`);
     }
   }
 
