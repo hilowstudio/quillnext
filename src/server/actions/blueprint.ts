@@ -12,6 +12,7 @@ import { z } from "zod";
 import bcrypt from "bcryptjs";
 import { getCurrentUserOrg } from "@/lib/auth-helpers";
 import { parentProfileId } from "@/server/profiles/ids";
+import { randomUUID } from "node:crypto";
 
 // -----------------------------------------------------------------------
 // Family Blueprint Server Actions
@@ -44,14 +45,19 @@ export async function saveClassroomStep(
       const lastName = validated.instructors[0]?.lastName || "Family";
       const orgName = `${lastName} Family`;
 
-      // TEMP DIAGNOSTIC (remove after root-causing the onboarding org-INSERT RLS 500): log the
-      // LIVE tenant GUC the org INSERT is about to be checked against, into the Postgres log. For a
-      // brand-new user this must be empty (NULL) for the null-context INSERT allowance to apply.
-      await tx.$executeRaw`SELECT set_config('app.diag_intended_org', ${organizationId ?? ""}, true), set_config('app.diag_intended_user', ${userId}, true)`;
-      await tx.$executeRaw`DO $$ BEGIN RAISE WARNING 'ONBOARDING_DIAG actual_org=[%] actual_user=[%] intended_org=[%] intended_user=[%]', current_setting('app.current_org', true), current_setting('app.current_user', true), current_setting('app.diag_intended_org', true), current_setting('app.diag_intended_user', true); END $$`;
+      // Pre-generate the org id and stamp it as the tenant GUC BEFORE inserting, so the INSERT
+      // satisfies the organizations RLS WITH CHECK via `id = app.current_org()`. We must NOT lean on
+      // the "app.current_org() IS NULL" allowance here: a Prisma MODEL create inside this interactive
+      // transaction does NOT observe an EMPTY-string tenant GUC — raw `$executeRaw` statements do, but
+      // the model-generated INSERT is checked against a stale non-null value and fails RLS with "new
+      // row violates row-level security policy for table organizations" (2026-07-03 onboarding
+      // incident). Stamping the real new-org id is a value the model create DOES honor.
+      const newOrgId = randomUUID();
+      await tx.$executeRaw`SELECT set_config('app.current_org', ${newOrgId}, true)`;
 
       const newOrg = await tx.organization.create({
         data: {
+          id: newOrgId,
           name: orgName,
           type: "PARENT_INSTRUCTOR",
         },
@@ -66,9 +72,7 @@ export async function saveClassroomStep(
     }
 
     // RLS: re-stamp the tenant GUC to the (possibly just-created) org so the classroom +
-    // instructor inserts below satisfy their WITH CHECK. The organization INSERT above runs
-    // under the request's null context, which the relaxed organizations INSERT policy permits
-    // during first-run onboarding.
+    // instructor + profile inserts below satisfy their WITH CHECK (account_id = app.current_org()).
     await tx.$executeRaw`SELECT set_config('app.current_org', ${activeOrgId}, true)`;
     setRlsContext({ organizationId: activeOrgId, userId });
 
