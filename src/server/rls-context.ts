@@ -25,7 +25,15 @@ export function getRlsContext(): RlsContext | undefined {
   return store.getStore();
 }
 
-/** Establish context for the remainder of the current async context (per request). */
+/**
+ * Establish context for the remainder of the current async context (per request).
+ *
+ * NOTE: `enterWith` has no scope boundary (unlike `store.run`), so a context set here can persist
+ * into async frames beyond the request that set it — i.e. it can bleed across requests that share an
+ * execution context. The read side (`resolveTenant` in `src/server/db.ts`) defends against this by
+ * re-authenticating and never trusting a cached context whose `userId` != the current request's
+ * user. Keep that validation if this stays on `enterWith`.
+ */
 export function setRlsContext(ctx: RlsContext): void {
   store.enterWith(ctx);
 }

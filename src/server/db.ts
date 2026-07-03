@@ -84,42 +84,47 @@ const CONTEXT_FREE_MODELS = new Set([
 ]);
 
 /**
- * Resolve the tenant context for the current request. If `getCurrentUserOrg()` already
- * established it on this async frame, use that. Otherwise (the common React Server Components
- * case — `getCurrentUserOrg`'s `enterWith` runs in its own frame and does NOT propagate back to
- * the page's subsequent queries) fall back to reading the session for the user id and looking up
- * the CURRENT org from the DB. The DB lookup (not the login-time JWT) is what makes this correct
- * immediately after onboarding. The result is memoized on this frame. Returns null when there's
- * no session (login / background boot) → org-scoped tables fail closed.
+ * Resolve the tenant context for the current request. In a request we authenticate FIRST, then only
+ * reuse a cached (`enterWith`) context if it belongs to this request's user — `setRlsContext` uses
+ * `enterWith`, which has no scope boundary and could persist a PRIOR request's context into this
+ * async frame, so a cached context from a different user must never scope a query. When the cached
+ * context is absent or stale we look up the CURRENT org from the DB (not the login-time JWT), which
+ * is also what makes tenancy correct immediately after onboarding. Outside a request (background
+ * job / boot) `auth()` can't run: honor an explicitly-established context (jobs set it via
+ * `setRlsContext` and thread org through `withTenant`'s `ctxOverride`) and otherwise fail closed.
  */
 async function resolveTenant(): Promise<RlsContext | null> {
   const existing = getRlsContext();
-  if (existing) return existing;
+  let userId: string | undefined;
   try {
     const { auth } = await import("@/auth");
     const session = await auth();
-    const userId = session?.user?.id;
-    if (!userId) return null;
-    const user = await base.user.findUnique({
-      where: { id: userId },
-      select: { organizationId: true },
-    });
-    // RLS-cutover observability (Q-001 runbook step 2): resolveTenant only runs with RLS on. An
-    // authenticated request that resolves a NULL org makes every org-scoped query fail closed to
-    // EMPTY results — which reads like data loss, not access-denied. Surface it so a lost
-    // request-context (ALS not reaching Prisma) is detectable instead of silent.
-    if (!user?.organizationId) {
-      console.warn(
-        `[rls] authenticated user ${userId} resolved a null org — org-scoped queries will fail closed (empty results)`,
-      );
-    }
-    const ctx: RlsContext = { organizationId: user?.organizationId ?? null, userId };
-    setRlsContext(ctx);
-    return ctx;
+    userId = session?.user?.id;
   } catch {
-    // Not in a request scope (e.g. boot) — fail closed rather than throw.
-    return null;
+    // Not in a request scope (background job / boot) — trust an explicit context, else fail closed.
+    return existing ?? null;
   }
+  // In a request but unauthenticated: nothing to validate against — keep an explicit context if one
+  // was established, otherwise fail closed.
+  if (!userId) return existing ?? null;
+  // Trust the cached context ONLY when it is this user's; a mismatch means a bled/stale context.
+  if (existing && existing.userId === userId) return existing;
+  const user = await base.user.findUnique({
+    where: { id: userId },
+    select: { organizationId: true },
+  });
+  // RLS-cutover observability (Q-001 runbook step 2): resolveTenant only runs with RLS on. An
+  // authenticated request that resolves a NULL org makes every org-scoped query fail closed to
+  // EMPTY results — which reads like data loss, not access-denied. Surface it so a lost
+  // request-context (ALS not reaching Prisma) is detectable instead of silent.
+  if (!user?.organizationId) {
+    console.warn(
+      `[rls] authenticated user ${userId} resolved a null org — org-scoped queries will fail closed (empty results)`,
+    );
+  }
+  const ctx: RlsContext = { organizationId: user?.organizationId ?? null, userId };
+  setRlsContext(ctx);
+  return ctx;
 }
 
 function setConfigRaw(tx: Pick<PrismaClient, "$executeRaw">, ctx: RlsContext | null) {
