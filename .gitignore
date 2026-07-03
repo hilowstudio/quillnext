@@ -50,6 +50,12 @@ railway_backup.sql
 *.swo
 *~
 
+# agent tooling + local docs (untracked per owner request; prior versions remain in git history)
+.claude/
+.agents/
+.cursor/
+docs/
+
 # OS
 Thumbs.db
 
