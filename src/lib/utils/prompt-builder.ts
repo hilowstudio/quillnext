@@ -1,6 +1,7 @@
 import { getMasterContext, type MasterContextParams } from "@/lib/context/master-context";
 import { serializeMasterContext, type SerializationOptions } from "@/lib/context/context-serializer";
 import { INKLING_BASE_PERSONALITY, INKLING_ETHICAL_GUIDELINES } from "@/lib/constants/ai-guardrails";
+import { CONSTITUTION } from "@/lib/constants/constitution";
 
 /**
  * Build master prompt using Master Context Service
@@ -44,6 +45,8 @@ export async function buildMasterPrompt(
 ${INKLING_BASE_PERSONALITY}
 
 ${INKLING_ETHICAL_GUIDELINES}
+
+${CONSTITUTION}
 
 ${contextString}
 

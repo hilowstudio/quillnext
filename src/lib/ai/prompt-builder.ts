@@ -1,6 +1,8 @@
 import { Learner, Classroom } from "@/generated/client";
 import { INKLING_BASE_PERSONALITY, INKLING_ETHICAL_GUIDELINES } from "@/lib/constants/ai-guardrails";
 import { PHILOSOPHY_PROMPTS } from "@/lib/constants/educational-philosophies";
+import { CONSTITUTION } from "@/lib/constants/constitution";
+import { composeFaithFrame } from "@/lib/constants/faith-traditions";
 
 export class PromptBuilder {
     private identity: string = INKLING_BASE_PERSONALITY;
@@ -11,6 +13,9 @@ export class PromptBuilder {
     private sourceContent: string = "";
     private userInstructions: string = "";
     private pedagogicalFramework: string = "";
+    // The worldview constitution + this family's faith frame. Defaults to the constitution alone
+    // (always on); setFamilyContext refines it with the family's tradition block.
+    private faithFrame: string = CONSTITUTION;
 
     constructor() { }
 
@@ -62,6 +67,10 @@ export class PromptBuilder {
      * Sets the Family/Classroom context, specifically the Educational Philosophy.
      */
     setFamilyContext(classroom: Classroom | null) {
+        // The worldview constitution (always) + this family's tradition block. Supersedes the old
+        // one-line "integrate an X worldview" nudge — the tradition block does that job properly.
+        this.faithFrame = composeFaithFrame(classroom?.faithBackground ?? null);
+
         if (!classroom) {
             this.familyContext = "Family Context: General Homeschooling";
             // Default purely to Eclectic if no classroom
@@ -78,11 +87,6 @@ export class PromptBuilder {
 
         // Set the pedagogical framework instructions
         this.pedagogicalFramework = PHILOSOPHY_PROMPTS[philosophy] || PHILOSOPHY_PROMPTS["ECLECTIC"];
-
-        // Append faith integration if applicable
-        if (faith !== "OTHER" && faith !== "NONDENOMINATIONAL") {
-            this.pedagogicalFramework += `\n\nFaith Integration:\nIntegrate a ${faith.replace(/_/g, " ")} worldview naturally where appropriate.`;
-        }
 
         return this;
     }
@@ -107,6 +111,8 @@ export class PromptBuilder {
 ${this.identity}
 
 ${this.ethicalGuardrails}
+
+${this.faithFrame}
 
 =============================================
 CONTEXT & INPUT DATA

@@ -7,7 +7,8 @@ import type {
   ScheduleContext,
 } from "./master-context";
 import { PHILOSOPHY_PROMPTS } from "@/lib/constants/educational-philosophies";
-import { EducationalPhilosophy } from "@/generated/client";
+import { FAITH_PROMPTS } from "@/lib/constants/faith-traditions";
+import { EducationalPhilosophy, type FaithBackground } from "@/generated/client";
 
 // -----------------------------------------------------------------------
 // Context Serialization
@@ -110,6 +111,11 @@ function serializeFamilyContext(
   parts.push(`- Faith Background: ${context.classroom.faithBackground}`);
   if (context.classroom.faithBackgroundOther) {
     parts.push(`- Faith Details: ${context.classroom.faithBackgroundOther}`);
+  }
+  // Inject the tradition block so this path carries the same faith framing as resource generation.
+  const faithBlock = FAITH_PROMPTS[context.classroom.faithBackground as FaithBackground];
+  if (faithBlock) {
+    parts.push(`\n${faithBlock}`);
   }
 
   if (includeDetails && context.instructors.length > 0) {
