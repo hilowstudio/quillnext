@@ -1,5 +1,6 @@
 import type { FaithBackground } from "@/generated/client";
 import { CONSTITUTION } from "./constitution";
+import { composeConfession, composeConvictions, type FaithSelections } from "./conviction-prompts";
 
 /**
  * Machine-optimized tradition blocks — one per FaithBackground — mirroring PHILOSOPHY_PROMPTS.
@@ -102,22 +103,28 @@ export const FAITH_PROMPTS: Record<FaithBackground, string> = {
     `- Defer fully to the family's stated faith notes; make no denominational assumptions; mirror their language and values; integrate respectfully and lightly.`,
 };
 
-/** The family-profile block (Phase 1: tradition only; conviction flags are added later). */
-export function composeFamilyProfile(faith: FaithBackground | null | undefined): string {
-  if (!faith) return "";
-  const tradition = FAITH_PROMPTS[faith];
-  if (!tradition) return "";
-  return `<family_profile>
-<tradition name="${faith}">
-${tradition}
-</tradition>
-</family_profile>`;
+/**
+ * The <family_profile> block: this family's tradition + affirmed confessions + set conviction flags.
+ * Emits only what is present; returns "" when the family has set nothing.
+ */
+export function composeFamilyProfile(sel: FaithSelections): string {
+  const faith = sel.faithBackground ?? null;
+  const parts: string[] = [];
+  if (faith && FAITH_PROMPTS[faith]) {
+    parts.push(`<tradition name="${faith}">\n${FAITH_PROMPTS[faith]}\n</tradition>`);
+  }
+  const confession = composeConfession(sel.confessions);
+  if (confession) parts.push(confession);
+  const convictions = composeConvictions(sel);
+  if (convictions) parts.push(convictions);
+  if (parts.length === 0) return "";
+  return `<family_profile>\n${parts.join("\n")}\n</family_profile>`;
 }
 
 /**
- * The full faith frame injected into a generation: the fixed constitution, then this family's
- * profile. Safe to call with a null faith (returns just the constitution — the frame is always on).
+ * The full faith frame: the fixed constitution, then this family's profile. Safe to call with empty
+ * selections (returns just the constitution — the frame is always on).
  */
-export function composeFaithFrame(faith: FaithBackground | null | undefined): string {
-  return [CONSTITUTION, composeFamilyProfile(faith)].filter(Boolean).join("\n\n");
+export function composeFaithFrame(sel: FaithSelections): string {
+  return [CONSTITUTION, composeFamilyProfile(sel)].filter(Boolean).join("\n\n");
 }

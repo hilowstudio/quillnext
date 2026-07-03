@@ -7,8 +7,8 @@ import type {
   ScheduleContext,
 } from "./master-context";
 import { PHILOSOPHY_PROMPTS } from "@/lib/constants/educational-philosophies";
-import { FAITH_PROMPTS } from "@/lib/constants/faith-traditions";
-import { EducationalPhilosophy, type FaithBackground } from "@/generated/client";
+import { composeFamilyProfile } from "@/lib/constants/faith-traditions";
+import { EducationalPhilosophy } from "@/generated/client";
 
 // -----------------------------------------------------------------------
 // Context Serialization
@@ -112,10 +112,12 @@ function serializeFamilyContext(
   if (context.classroom.faithBackgroundOther) {
     parts.push(`- Faith Details: ${context.classroom.faithBackgroundOther}`);
   }
-  // Inject the tradition block so this path carries the same faith framing as resource generation.
-  const faithBlock = FAITH_PROMPTS[context.classroom.faithBackground as FaithBackground];
-  if (faithBlock) {
-    parts.push(`\n${faithBlock}`);
+  // The family's full faith profile (tradition + confessions + conviction flags), so this path
+  // carries the same faith framing as resource generation. The constitution is prepended upstream
+  // in buildMasterPrompt.
+  const familyProfile = composeFamilyProfile(context.faithSelections ?? {});
+  if (familyProfile) {
+    parts.push(`\n${familyProfile}`);
   }
 
   if (includeDetails && context.instructors.length > 0) {

@@ -82,6 +82,20 @@ export async function saveClassroomStep(
       orderBy: { createdAt: "desc" },
     });
 
+    // Faith-aware conviction flags + affirmed confessions. undefined leaves a field unchanged;
+    // null clears it ("follow our tradition"). Shared by the update and create paths below.
+    const convictionData = {
+      bibleTranslation: validated.bibleTranslation,
+      confessions: validated.confessions,
+      origins: validated.origins,
+      sexualityApproach: validated.sexualityApproach,
+      soteriology: validated.soteriology,
+      eschatology: validated.eschatology,
+      spiritualGifts: validated.spiritualGifts,
+      bibleStoryline: validated.bibleStoryline,
+      catholicEmphasis: validated.catholicEmphasis,
+    };
+
     if (classroom) {
       // Update existing classroom
       classroom = await tx.classroom.update({
@@ -94,6 +108,7 @@ export async function saveClassroomStep(
           faithBackground: validated.faithBackground,
           faithBackgroundOther: validated.faithBackgroundOther,
           academicGoals: validated.academicGoals || [],
+          ...convictionData,
         },
       });
     } else {
@@ -109,6 +124,7 @@ export async function saveClassroomStep(
           faithBackground: validated.faithBackground,
           faithBackgroundOther: validated.faithBackgroundOther,
           academicGoals: validated.academicGoals || [],
+          ...convictionData,
           // Default schedule dates (will be updated in schedule step)
           schoolYearStartDate: new Date(),
           schoolYearEndDate: new Date(),

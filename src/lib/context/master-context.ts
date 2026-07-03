@@ -5,6 +5,7 @@ import {
   parseLearningStyleData,
   parseInterestsData,
 } from "@/lib/students/learner-profile";
+import type { FaithSelections } from "@/lib/constants/conviction-prompts";
 
 // -----------------------------------------------------------------------
 // Master Context System
@@ -53,6 +54,8 @@ export interface FamilyContext {
     challenges: string[];
     faithBackground: string | null;
   };
+  // The family's faith customization (tradition + confessions + conviction flags), for the composer.
+  faithSelections?: FaithSelections;
 }
 
 export interface StudentContext {
@@ -277,6 +280,15 @@ export async function getFamilyContext(
               educationalPhilosophyOther: true,
               faithBackground: true,
               faithBackgroundOther: true,
+              bibleTranslation: true,
+              confessions: true,
+              origins: true,
+              sexualityApproach: true,
+              soteriology: true,
+              eschatology: true,
+              spiritualGifts: true,
+              bibleStoryline: true,
+              catholicEmphasis: true,
               schoolYearStartDate: true,
               schoolYearEndDate: true,
               schoolDaysOfWeek: true,
@@ -355,6 +367,18 @@ export async function getFamilyContext(
       name: holiday.name,
     })),
     environment,
+    faithSelections: {
+      faithBackground: classroom.faithBackground,
+      bibleTranslation: classroom.bibleTranslation,
+      confessions: classroom.confessions,
+      origins: classroom.origins,
+      sexualityApproach: classroom.sexualityApproach,
+      soteriology: classroom.soteriology,
+      eschatology: classroom.eschatology,
+      spiritualGifts: classroom.spiritualGifts,
+      bibleStoryline: classroom.bibleStoryline,
+      catholicEmphasis: classroom.catholicEmphasis,
+    },
   };
 }
 

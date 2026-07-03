@@ -1,5 +1,14 @@
 import { z } from "zod";
 import { pinSchema } from "@/lib/schemas/pin";
+import {
+  OriginsStance,
+  SexualityStance,
+  SoteriologyStance,
+  EschatologyStance,
+  SpiritualGiftsStance,
+  BibleStorylineStance,
+  CatholicEmphasisStance,
+} from "@/generated/client";
 
 // -----------------------------------------------------------------------
 // Family Blueprint Wizard Schemas
@@ -62,6 +71,17 @@ export const classroomSchema = z.object({
     "OTHER",
   ]),
   faithBackgroundOther: z.string().optional(),
+  // Faith-aware generation — optional conviction flags + affirmed confessions (onboarding Step 1).
+  // null clears a flag ("follow our tradition"); undefined leaves it unchanged.
+  bibleTranslation: z.string().trim().min(1).optional().nullable(),
+  confessions: z.array(z.string()).optional(),
+  origins: z.nativeEnum(OriginsStance).optional().nullable(),
+  sexualityApproach: z.nativeEnum(SexualityStance).optional().nullable(),
+  soteriology: z.nativeEnum(SoteriologyStance).optional().nullable(),
+  eschatology: z.nativeEnum(EschatologyStance).optional().nullable(),
+  spiritualGifts: z.nativeEnum(SpiritualGiftsStance).optional().nullable(),
+  bibleStoryline: z.nativeEnum(BibleStorylineStance).optional().nullable(),
+  catholicEmphasis: z.nativeEnum(CatholicEmphasisStance).optional().nullable(),
 });
 
 export const scheduleSchema = z.object({

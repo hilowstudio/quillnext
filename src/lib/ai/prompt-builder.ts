@@ -67,9 +67,9 @@ export class PromptBuilder {
      * Sets the Family/Classroom context, specifically the Educational Philosophy.
      */
     setFamilyContext(classroom: Classroom | null) {
-        // The worldview constitution (always) + this family's tradition block. Supersedes the old
-        // one-line "integrate an X worldview" nudge — the tradition block does that job properly.
-        this.faithFrame = composeFaithFrame(classroom?.faithBackground ?? null);
+        // The worldview constitution (always) + this family's full profile (tradition, confessions,
+        // conviction flags). Supersedes the old one-line "integrate an X worldview" nudge.
+        this.faithFrame = composeFaithFrame(classroom ?? {});
 
         if (!classroom) {
             this.familyContext = "Family Context: General Homeschooling";

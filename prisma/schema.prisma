@@ -223,6 +223,17 @@ model Classroom {
   educationalPhilosophyOther String?               @map("educational_philosophy_other")
   faithBackground            FaithBackground
   faithBackgroundOther       String?               @map("faith_background_other")
+  // Faith-aware generation — optional conviction flags (null = follow the tradition default) and
+  // affirmed confessions. Set in onboarding Step 1 alongside faithBackground.
+  bibleTranslation           String?               @map("bible_translation")
+  confessions                String[]              @default([])
+  origins                    OriginsStance?
+  sexualityApproach          SexualityStance?      @map("sexuality_approach")
+  soteriology                SoteriologyStance?
+  eschatology                EschatologyStance?
+  spiritualGifts             SpiritualGiftsStance? @map("spiritual_gifts")
+  bibleStoryline             BibleStorylineStance? @map("bible_storyline")
+  catholicEmphasis           CatholicEmphasisStance? @map("catholic_emphasis")
   schoolYearStartDate        DateTime              @map("school_year_start_date") @db.Date
   schoolYearEndDate          DateTime              @map("school_year_end_date") @db.Date
   schoolDaysOfWeek           Json?                 @map("school_days_of_week")
@@ -1258,6 +1269,55 @@ enum Sex {
   FEMALE
   OTHER
   PREFER_NOT_TO_SAY
+}
+
+// Faith-aware generation — conviction-flag stances (null on Classroom = "follow our tradition").
+enum OriginsStance {
+  YOUNG_EARTH
+  OLD_EARTH
+  EVOLUTIONARY_CREATION
+  MULTIPLE_VIEWS
+  MAINSTREAM_SCIENCE
+}
+
+enum SexualityStance {
+  TRADITIONAL
+  FACTUAL_DEFER
+  AVOID
+}
+
+enum SoteriologyStance {
+  REFORMED_CALVINIST
+  ARMINIAN_WESLEYAN
+}
+
+enum EschatologyStance {
+  DISPENSATIONAL_PREMIL
+  HISTORIC_PREMIL
+  AMILLENNIAL
+  POSTMILLENNIAL
+  PRETERIST
+}
+
+enum SpiritualGiftsStance {
+  CONTINUATIONIST
+  CESSATIONIST
+  OPEN_CAUTIOUS
+}
+
+enum BibleStorylineStance {
+  COVENANT
+  DISPENSATIONALISM
+  PROGRESSIVE_DISPENSATIONALISM
+  PROGRESSIVE_COVENANTALISM
+  NEW_COVENANT_THEOLOGY
+}
+
+enum CatholicEmphasisStance {
+  TRADITIONAL_LATIN_MASS
+  CONSERVATIVE_JPII_BENEDICT
+  MAINSTREAM
+  PROGRESSIVE
 }
 
 enum InstructorRole {

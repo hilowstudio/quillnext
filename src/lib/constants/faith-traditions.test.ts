@@ -37,20 +37,37 @@ describe("FAITH_PROMPTS", () => {
 });
 
 describe("composeFaithFrame", () => {
-  it("always includes the constitution, even with no faith set", () => {
-    const frame = composeFaithFrame(null);
+  it("always includes the constitution, even with no selections", () => {
+    const frame = composeFaithFrame({});
     expect(frame).toContain("<constitution>");
     expect(frame).not.toContain("<family_profile>");
   });
 
   it("wraps the family's tradition block in a family_profile", () => {
-    const frame = composeFaithFrame("BAPTIST");
+    const frame = composeFaithFrame({ faithBackground: "BAPTIST" });
     expect(frame).toContain("<constitution>");
     expect(frame).toContain('<tradition name="BAPTIST">');
     expect(frame).toContain("believer's baptism by immersion");
   });
 
-  it("composeFamilyProfile is empty when no faith is set", () => {
-    expect(composeFamilyProfile(null)).toBe("");
+  it("emits set conviction flags and confessions (and only those)", () => {
+    const frame = composeFaithFrame({
+      faithBackground: "BAPTIST",
+      origins: "YOUNG_EARTH",
+      bibleTranslation: "KJV",
+      confessions: ["1689 London Baptist"],
+    });
+    expect(frame).toContain("<convictions>");
+    expect(frame).toContain('<origins value="YOUNG_EARTH">');
+    expect(frame).toContain("six-day creation");
+    expect(frame).toContain("Quote all Scripture from the KJV");
+    expect(frame).toContain('<confession affirms="1689 London Baptist">');
+    // unset flags are absent
+    expect(frame).not.toContain("<end_times");
+    expect(frame).not.toContain("<sexuality");
+  });
+
+  it("composeFamilyProfile is empty when nothing is set", () => {
+    expect(composeFamilyProfile({})).toBe("");
   });
 });
