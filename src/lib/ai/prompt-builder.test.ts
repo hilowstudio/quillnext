@@ -34,6 +34,13 @@ describe("PromptBuilder.setStudentContext — Generation Target", () => {
     expect(prompt).toContain("The Win");
   });
 
+  it("setArtifactGuidance adds a build-guidance section only when set", () => {
+    const withGuidance = new PromptBuilder().setArtifactGuidance("Include an answer key.").build();
+    expect(withGuidance).toContain("BUILDING THIS ARTIFACT WELL");
+    expect(withGuidance).toContain("Include an answer key.");
+    expect(new PromptBuilder().build()).not.toContain("BUILDING THIS ARTIFACT WELL");
+  });
+
   it("setFamilyContext renders the family's goals, challenges, and description", () => {
     const classroom = {
       educationalPhilosophy: "CLASSICAL",

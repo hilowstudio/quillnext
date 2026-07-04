@@ -2,7 +2,6 @@ import { BookOpen } from "@phosphor-icons/react/dist/ssr";
 import type { LearningStyleData } from "@/lib/students/learner-profile";
 import {
     CardContent,
-    InstructionQuote,
     ProfileCard,
     ProfileEmptyState,
     ProfileHeader,
@@ -39,12 +38,6 @@ export function LearningStyle({ learningStyleData }: LearningStyleProps) {
                                     <StatBlock key={s.label} label={s.label} value={s.value} />
                                 ))}
                             </div>
-                        )}
-
-                        {learningStyleData.formatInstructions && (
-                            <InstructionQuote label="Formatting Rules" serif>
-                                &quot;{learningStyleData.formatInstructions}&quot;
-                            </InstructionQuote>
                         )}
                     </>
                 ) : (

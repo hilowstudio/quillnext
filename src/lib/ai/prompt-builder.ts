@@ -20,6 +20,8 @@ export class PromptBuilder {
     private sourceContent: string = "";
     private userInstructions: string = "";
     private pedagogicalFramework: string = "";
+    // Deterministic "how to build this artifact type well" guidance (KIND_PROMPTS), grade-tuned.
+    private artifactGuidance: string = "";
     // The worldview constitution + this family's faith frame. Defaults to the constitution alone
     // (always on); setFamilyContext refines it with the family's tradition block.
     private faithFrame: string = CONSTITUTION;
@@ -142,6 +144,12 @@ export class PromptBuilder {
         return this;
     }
 
+    /** Deterministic per-artifact-type build guidance (KIND_PROMPTS). */
+    setArtifactGuidance(block: string) {
+        this.artifactGuidance = block;
+        return this;
+    }
+
     build(): string {
         return `
 ${this.identity}
@@ -171,7 +179,13 @@ PEDAGOGICAL FRAMEWORK & REQUIREMENTS
 =============================================
 
 ${this.pedagogicalFramework}
+${this.artifactGuidance ? `
+=============================================
+BUILDING THIS ARTIFACT WELL
+=============================================
 
+${this.artifactGuidance}
+` : ""}
 =============================================
 OUTPUT GUIDELINES
 =============================================

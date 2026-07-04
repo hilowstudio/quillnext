@@ -2,7 +2,6 @@ import { Sparkle } from "@phosphor-icons/react/dist/ssr";
 import type { InterestsData } from "@/lib/students/learner-profile";
 import {
     CardContent,
-    InstructionQuote,
     ProfileCard,
     ProfileEmptyState,
     ProfileHeader,
@@ -97,12 +96,6 @@ export function InterestsPassions({ interestsData }: InterestsPassionsProps) {
                                     value={interestsData.integrationMode}
                                 />
                             </div>
-                        )}
-
-                        {interestsData.analogyStrategy && (
-                            <InstructionQuote label="Analogy Strategy">
-                                {interestsData.analogyStrategy}
-                            </InstructionQuote>
                         )}
                     </div>
                 ) : (

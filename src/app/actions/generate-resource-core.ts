@@ -21,6 +21,8 @@ import { retrieveBookChunks, retrieveTextbookChunks } from "@/lib/utils/vector";
 import { TEXTBOOK_SOURCES } from "@/lib/sources/registry";
 import { getStudentContext } from "@/lib/context/master-context";
 import { serializeStudentContext } from "@/lib/context/context-serializer";
+import { composeKindGuidance } from "@/lib/constants/kind-prompts";
+import { gradeStringToBand, type GradeBandId } from "@/lib/constants/grade-bands";
 
 // Helper to determine ingestion tier (deprecated, using DB flag)
 
@@ -274,9 +276,17 @@ export async function generateResourceCore(params: GenerateResourceCoreParams) {
     // the assessment actually shapes generated content. `getStudentContext` is tenant-guarded (it
     // nulls a cross-org id). No student → the general-audience block is used instead (below).
     let studentBlock: string | null = null;
+    let targetGradeBand: GradeBandId | null = null;
     if (additionalData?.studentId) {
         const sc = await getStudentContext(additionalData.studentId, organizationId);
-        if (sc) studentBlock = serializeStudentContext(sc);
+        if (sc) {
+            studentBlock = serializeStudentContext(sc);
+            targetGradeBand = gradeStringToBand(sc.student.currentGrade);
+        }
+    }
+    // General-audience mode (or a student with no grade set) → the manually chosen band.
+    if (!targetGradeBand && additionalData?.targetGradeBand) {
+        targetGradeBand = additionalData.targetGradeBand as GradeBandId;
     }
 
 
@@ -696,6 +706,7 @@ export async function generateResourceCore(params: GenerateResourceCoreParams) {
             `Create a "${kind.label}" (${kind.contentType})`,
             kind.description || "No specific context provided."
         )
+        .setArtifactGuidance(composeKindGuidance(kind.contentType, targetGradeBand))
         .setSourceContent(context)
         // Inject the canonical facts + (optional) verified source excerpts + quote-grounding
         // rule into what the model sees. The excerpts block is appended AFTER the canonical

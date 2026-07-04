@@ -4,7 +4,6 @@ import { Target } from "@phosphor-icons/react/dist/ssr";
 import type { PersonalityData } from "@/lib/students/learner-profile";
 import {
     CardContent,
-    InstructionQuote,
     ProfileCard,
     ProfileEmptyState,
     ProfileHeader,
@@ -55,12 +54,6 @@ export function PersonalityProfile({ studentId, personalityData }: PersonalityPr
                                     <StatBlock key={s.label} label={s.label} value={s.value} />
                                 ))}
                             </div>
-                        )}
-
-                        {personalityData.toneInstructions && (
-                            <InstructionQuote label="Inkling Persona Instructions" serif>
-                                &quot;{personalityData.toneInstructions}&quot;
-                            </InstructionQuote>
                         )}
 
                         <Button variant="outline" size="sm" asChild>
