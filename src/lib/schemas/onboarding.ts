@@ -1,14 +1,8 @@
 import { z } from "zod";
 import { pinSchema } from "@/lib/schemas/pin";
-import {
-  OriginsStance,
-  SexualityStance,
-  SoteriologyStance,
-  EschatologyStance,
-  SpiritualGiftsStance,
-  BibleStorylineStance,
-  CatholicEmphasisStance,
-} from "@/generated/client";
+// NOTE: this schema is imported by CLIENT onboarding steps, so it must NOT import the Prisma client
+// (that pulls node: built-ins into the client bundle and breaks the build). Use string z.enum()s —
+// their inferred literal unions match the Prisma enum types, so persistence still type-checks.
 
 // -----------------------------------------------------------------------
 // Family Blueprint Wizard Schemas
@@ -76,13 +70,13 @@ export const classroomSchema = z.object({
   // null clears a flag ("follow our tradition"); undefined leaves it unchanged.
   bibleTranslation: z.string().trim().min(1).optional().nullable(),
   confessions: z.array(z.string()).optional(),
-  origins: z.nativeEnum(OriginsStance).optional().nullable(),
-  sexualityApproach: z.nativeEnum(SexualityStance).optional().nullable(),
-  soteriology: z.nativeEnum(SoteriologyStance).optional().nullable(),
-  eschatology: z.nativeEnum(EschatologyStance).optional().nullable(),
-  spiritualGifts: z.nativeEnum(SpiritualGiftsStance).optional().nullable(),
-  bibleStoryline: z.nativeEnum(BibleStorylineStance).optional().nullable(),
-  catholicEmphasis: z.nativeEnum(CatholicEmphasisStance).optional().nullable(),
+  origins: z.enum(["YOUNG_EARTH", "OLD_EARTH", "EVOLUTIONARY_CREATION", "MULTIPLE_VIEWS", "MAINSTREAM_SCIENCE"]).optional().nullable(),
+  sexualityApproach: z.enum(["TRADITIONAL", "FACTUAL_DEFER", "AVOID"]).optional().nullable(),
+  soteriology: z.enum(["REFORMED_CALVINIST", "ARMINIAN_WESLEYAN"]).optional().nullable(),
+  eschatology: z.enum(["DISPENSATIONAL_PREMIL", "HISTORIC_PREMIL", "AMILLENNIAL", "POSTMILLENNIAL", "PRETERIST"]).optional().nullable(),
+  spiritualGifts: z.enum(["CONTINUATIONIST", "CESSATIONIST", "OPEN_CAUTIOUS"]).optional().nullable(),
+  bibleStoryline: z.enum(["COVENANT", "DISPENSATIONALISM", "PROGRESSIVE_DISPENSATIONALISM", "PROGRESSIVE_COVENANTALISM", "NEW_COVENANT_THEOLOGY"]).optional().nullable(),
+  catholicEmphasis: z.enum(["TRADITIONAL_LATIN_MASS", "CONSERVATIVE_JPII_BENEDICT", "MAINSTREAM", "PROGRESSIVE"]).optional().nullable(),
 });
 
 export const scheduleSchema = z.object({
