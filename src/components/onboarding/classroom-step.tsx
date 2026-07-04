@@ -130,9 +130,6 @@ export function ClassroomStep({
           firstName: i.firstName || "",
           lastName: i.lastName || "",
           sex: i.sex || undefined,
-          // whatStudentsCall is collected in the form but not persisted on ClassroomInstructor
-          // (see master-context.ts:349) — there's nothing to read back, so default it.
-          whatStudentsCall: "",
           email: i.email || "",
         }))
         : [{ firstName: "", lastName: "", email: "" }],
@@ -290,17 +287,6 @@ export function ClassroomStep({
                       id={`instructors.${index}.email`}
                       type="email"
                       {...register(`instructors.${index}.email`)}
-                      className="h-11 border-qc-border-strong focus:ring-qc-primary/20 transition-all duration-200"
-                    />
-                  </div>
-                  <div className="space-y-3">
-                    <Label htmlFor={`instructors.${index}.whatStudentsCall`} className="text-sm font-medium">
-                      What Students Call This Instructor
-                    </Label>
-                    <Input
-                      id={`instructors.${index}.whatStudentsCall`}
-                      placeholder="e.g., Mom, Dad, Ms. Smith"
-                      {...register(`instructors.${index}.whatStudentsCall`)}
                       className="h-11 border-qc-border-strong focus:ring-qc-primary/20 transition-all duration-200"
                     />
                   </div>

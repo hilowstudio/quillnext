@@ -12,7 +12,6 @@ export const instructorSchema = z.object({
   firstName: z.string().min(1, "First name is required"),
   lastName: z.string().optional(),
   sex: z.enum(["MALE", "FEMALE", "OTHER", "PREFER_NOT_TO_SAY"]).optional(),
-  whatStudentsCall: z.string().optional(), // e.g., "Mom", "Dad", "Ms. Smith"
   email: z.string().email().optional(),
 });
 
@@ -92,16 +91,6 @@ export const scheduleSchema = z.object({
   dailyStartTime: z.string().optional(),
   dailyEndTime: z.string().optional(),
   hoursPerDay: z.number().int().min(1).max(24).optional(),
-  breaks: z
-    .array(
-      z.object({
-        type: z.enum(["BREAKFAST", "LUNCH", "DINNER", "SNACK", "RECESS", "EXERCISE", "SPORTS"]),
-        startTime: z.string().regex(/^\d{2}:\d{2}$/),
-        endTime: z.string().regex(/^\d{2}:\d{2}$/),
-        durationMinutes: z.number().int().positive().optional(),
-      }),
-    )
-    .optional(),
   plannedOffDays: z.array(z.date()).optional(), // Calendar selection
 });
 

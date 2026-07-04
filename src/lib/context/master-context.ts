@@ -41,7 +41,6 @@ export interface FamilyContext {
   instructors: Array<{
     firstName: string;
     lastName: string | null;
-    whatStudentsCall: string | null;
     role: string;
   }>;
   holidays: Array<{
@@ -368,7 +367,6 @@ export async function getFamilyContext(
     instructors: classroom.instructors.map((instructor) => ({
       firstName: instructor.firstName,
       lastName: instructor.lastName,
-      whatStudentsCall: null, // This field doesn't exist in schema, but we'll add it if needed
       role: instructor.role,
     })),
     holidays: classroom.holidays.map((holiday) => ({

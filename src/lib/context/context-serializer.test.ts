@@ -48,7 +48,7 @@ function makeFamily(): FamilyContext {
       dailyEndTime: null,
     },
     instructors: [
-      { firstName: "Mom", lastName: null, whatStudentsCall: null, role: "TEACHER" },
+      { firstName: "Mom", lastName: null, role: "TEACHER" },
     ],
     holidays: [],
   };

@@ -10,15 +10,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Card, CardContent } from "@/components/ui/card";
-import { Plus } from "@/components/icons/plus";
-import { Trash } from "@/components/icons/trash";
 import { cn } from "@/lib/utils";
 import { addYears, differenceInCalendarMonths, isSameDay, eachDayOfInterval, min, max } from "date-fns";
 import { DayPicker, type DayButtonProps } from "react-day-picker";
 import { isHoliday } from "@/lib/utils/holidays";
 import type { z } from "zod";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 
 // Styles for DayPicker
 import "react-day-picker/dist/style.css";
@@ -33,16 +30,6 @@ const DAYS_OF_WEEK = [
   { value: 5, label: "Friday" },
   { value: 6, label: "Saturday" },
   { value: 0, label: "Sunday" },
-];
-
-const BREAK_TYPES = [
-  { value: "BREAKFAST", label: "Breakfast" },
-  { value: "LUNCH", label: "Lunch" },
-  { value: "DINNER", label: "Dinner" },
-  { value: "SNACK", label: "Snack" },
-  { value: "RECESS", label: "Recess" },
-  { value: "EXERCISE", label: "Exercise" },
-  { value: "SPORTS", label: "Sports" },
 ];
 
 export function ScheduleStep({
@@ -89,11 +76,9 @@ export function ScheduleStep({
         : "15:00",
       dailyTimesVary: initialData?.dailyTimesVary ?? false,
       hoursPerDay: initialData?.hoursPerDay || undefined,
-      // breaks are collected in-session but not persisted (see blueprint.ts "skip breaks"), so
-      // there's nothing to read back. plannedOffDays are saved as ClassroomHoliday rows — read them
-      // from `holidays` (the old `initialData.plannedOffDays` was never a Classroom field, so saved
-      // off-days silently failed to repopulate the form on resume).
-      breaks: [],
+      // plannedOffDays are saved as ClassroomHoliday rows — read them from `holidays` (the old
+      // `initialData.plannedOffDays` was never a Classroom field, so saved off-days silently failed
+      // to repopulate the form on resume).
       plannedOffDays: initialData?.holidays ? initialData.holidays.map((h) => new Date(h.holidayDate)) : [],
     },
   });
@@ -108,7 +93,6 @@ export function ScheduleStep({
   const [variesWeekly, setVariesWeekly] = useState(!!initialData?.daysPerWeek);
 
   const dailyTimesVary = watch("dailyTimesVary");
-  const breaks = watch("breaks") || [];
 
   const plannedOffDays = watch("plannedOffDays") || [];
   const [lastSelectedDate, setLastSelectedDate] = useState<Date | undefined>(undefined);
@@ -141,18 +125,6 @@ export function ScheduleStep({
   const isWeekdaysOnly =
     selectedDays.length === 5 &&
     [1, 2, 3, 4, 5].every(d => selectedDays.includes(d));
-
-  const addBreak = () => {
-    setValue("breaks", [
-      ...breaks,
-      { type: "LUNCH", startTime: "12:00", endTime: "13:00" },
-    ]);
-  };
-
-  const removeBreak = (index: number) => {
-    setValue("breaks", breaks.filter((_, i) => i !== index));
-  };
-
 
   // Custom Calendar Renderers
   const footer = (
@@ -520,91 +492,6 @@ export function ScheduleStep({
             Daily times vary (no fixed schedule)
           </Label>
         </div>
-      </div>
-
-      {/* 5. Breaks */}
-      <div className="space-y-6 pt-4 border-t border-qc-border-subtle">
-        <div className="flex items-center justify-between">
-          <Label className="text-xl font-display font-medium text-qc-primary">Breaks (Optional)</Label>
-          <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-            <Button type="button" variant="outline" size="sm" onClick={addBreak} className="h-10 px-4 text-qc-primary border-qc-primary/30 hover:bg-qc-primary/5 hover:border-qc-primary">
-              <Plus weight="bold" size={16} />
-              <span className="ml-2">Add Break</span>
-            </Button>
-          </motion.div>
-        </div>
-
-        <AnimatePresence>
-          {breaks.map((breakItem, index) => (
-            <motion.div
-              key={index}
-              initial={{ opacity: 0, height: 0, scale: 0.95 }}
-              animate={{ opacity: 1, height: "auto", scale: 1 }}
-              exit={{ opacity: 0, height: 0, scale: 0.95 }}
-              transition={{ duration: 0.2 }}
-            >
-              <Card className="border-qc-border-subtle bg-qc-parchment/30 shadow-sm relative group overflow-visible mb-4">
-                <motion.div
-                  className="absolute -right-2 -top-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity"
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.9 }}
-                >
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 rounded-full shadow-md bg-qc-error-bg text-qc-error hover:bg-qc-error-bg hover:text-qc-error"
-                    onClick={() => removeBreak(index)}
-                  >
-                    <Trash weight="fill" size={14} />
-                  </Button>
-                </motion.div>
-
-                <CardContent className="p-6 space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="space-y-3">
-                      <Label htmlFor={`breaks.${index}.type`} className="text-sm font-medium">Type</Label>
-                      <Controller
-                        control={control}
-                        name={`breaks.${index}.type`}
-                        render={({ field }) => (
-                          <Select onValueChange={field.onChange} defaultValue={field.value}>
-                            <SelectTrigger className="h-11 border-qc-border-strong hover:border-qc-primary transition-colors">
-                              <SelectValue placeholder="Select type" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {BREAK_TYPES.map((t) => (
-                                <SelectItem key={t.value} value={t.value}>
-                                  {t.label}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        )}
-                      />
-                    </div>
-                    <div className="space-y-3">
-                      <Label htmlFor={`breaks.${index}.startTime`} className="text-sm font-medium">Start</Label>
-                      <Input
-                        type="time"
-                        {...register(`breaks.${index}.startTime`)}
-                        className="h-11 border-qc-border-strong hover:border-qc-primary transition-colors"
-                      />
-                    </div>
-                    <div className="space-y-3">
-                      <Label htmlFor={`breaks.${index}.endTime`} className="text-sm font-medium">End</Label>
-                      <Input
-                        type="time"
-                        {...register(`breaks.${index}.endTime`)}
-                        className="h-11 border-qc-border-strong hover:border-qc-primary transition-colors"
-                      />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </motion.div>
-          ))}
-        </AnimatePresence>
       </div>
 
       {/* Save Button */}

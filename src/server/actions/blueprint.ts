@@ -249,9 +249,6 @@ export async function saveScheduleStep(
         },
       });
 
-      // Handle breaks (store in a separate table or JSON field)
-      // For now, we'll skip breaks as they may need a separate model
-
       // Handle planned off days
       if (validated.plannedOffDays && validated.plannedOffDays.length > 0) {
         // Delete existing holidays
