@@ -63,7 +63,12 @@ export async function proxy(req: NextRequest) {
   let token: Awaited<ReturnType<typeof verifyActiveProfile>> = null;
   if (raw && secret) {
     token = await verifyActiveProfile(raw, secret, Date.now());
-    if (token && token.uid === userId && token.org === orgId) {
+    // `orgId` comes from the JWT, which lags right after onboarding: the org is created mid-session
+    // and the login-time token still carries a null org. The active-profile cookie is HMAC-signed and
+    // carries the REAL org (setActiveProfile reads it from the DB), so when the JWT org hasn't caught
+    // up (orgId absent) we trust the signed cookie's uid match and let the page's loadActiveProfile do
+    // the authoritative DB-org check. Without this, a freshly-onboarded user loops on /select-profile.
+    if (token && token.uid === userId && (token.org === orgId || !orgId)) {
       activeType = token.type;
     }
   }
