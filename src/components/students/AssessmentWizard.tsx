@@ -13,13 +13,25 @@ import {
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Checkbox } from "@/components/ui/checkbox";
+import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { CheckCircle, ArrowRight, Brain, Sparkle, BookOpen, Target } from "@phosphor-icons/react";
+import {
+    Compass,
+    Check,
+    CheckCircle,
+    ArrowRight,
+    ArrowLeft,
+    Target,
+    BookOpen,
+    Sparkle,
+} from "@phosphor-icons/react";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 
 // ----------------------------------------------------------------------
 // DATA: QUESTIONNAIRES
+// (option `value`s + payload keys are the AI contract — DO NOT rename)
 // ----------------------------------------------------------------------
 
 const PERSONALITY_QUESTIONS = [
@@ -178,7 +190,195 @@ const INTEREST_STRATEGIES = [
     },
 ];
 
+// ----------------------------------------------------------------------
+// STEP METADATA (drives the progress rail + headers)
+// ----------------------------------------------------------------------
+
 type Step = "intro" | "personality" | "learning" | "interests" | "success";
+
+const QUESTION_STEPS = [
+    {
+        key: "personality" as const,
+        title: "Personality",
+        icon: Target,
+        heading: "Personality & Motivation",
+        eyebrow: "How to hook their attention",
+        description: "How should Inkling motivate and speak to this student?",
+    },
+    {
+        key: "learning" as const,
+        title: "Learning",
+        icon: BookOpen,
+        heading: "Cognitive Preferences",
+        eyebrow: "How to format the content",
+        description: "How should lessons be shaped so they land clearly?",
+    },
+    {
+        key: "interests" as const,
+        title: "Interests",
+        icon: Sparkle,
+        heading: "Interests & Passions",
+        eyebrow: "What to weave into lessons",
+        description: "Which topics should we thread through math, reading, and more?",
+    },
+];
+
+const stepIndex = (step: Step) => QUESTION_STEPS.findIndex((s) => s.key === step);
+
+// ----------------------------------------------------------------------
+// PRESENTATIONAL PIECES
+// ----------------------------------------------------------------------
+
+/** The persistent calibration rail shown across the three question steps. */
+function ProgressRail({ activeIndex }: { activeIndex: number }) {
+    return (
+        <nav aria-label="Assessment progress" className="mb-8">
+            <div className="flex items-start justify-between">
+                {QUESTION_STEPS.map((s, index) => {
+                    const done = index < activeIndex;
+                    const active = index === activeIndex;
+                    const StepIcon = s.icon;
+                    return (
+                        <div key={s.key} className="contents">
+                            <div className="z-10 flex flex-1 flex-col items-center text-center">
+                                <div
+                                    className={cn(
+                                        "flex h-11 w-11 items-center justify-center rounded-full border-2 transition-colors",
+                                        done && "border-qc-primary bg-qc-primary text-white",
+                                        active &&
+                                            "border-qc-primary bg-white text-qc-primary shadow-qc-sm",
+                                        !done &&
+                                            !active &&
+                                            "border-qc-border-subtle bg-white/70 text-qc-text-muted",
+                                    )}
+                                >
+                                    {done ? (
+                                        <Check weight="bold" size={18} />
+                                    ) : (
+                                        <StepIcon weight={active ? "fill" : "regular"} size={20} />
+                                    )}
+                                </div>
+                                <span
+                                    className={cn(
+                                        "mt-2 text-xs tracking-wide",
+                                        active
+                                            ? "font-semibold text-qc-charcoal"
+                                            : "text-qc-text-muted",
+                                    )}
+                                >
+                                    {s.title}
+                                </span>
+                            </div>
+                            {index < QUESTION_STEPS.length - 1 && (
+                                <div
+                                    className={cn(
+                                        "mx-2 mt-[21px] h-0.5 flex-1 rounded-full transition-colors",
+                                        index < activeIndex
+                                            ? "bg-qc-primary"
+                                            : "bg-qc-border-subtle",
+                                    )}
+                                />
+                            )}
+                        </div>
+                    );
+                })}
+            </div>
+        </nav>
+    );
+}
+
+/** A single selectable answer — an accessible radio styled as a card. */
+function OptionCard({
+    groupId,
+    value,
+    label,
+    desc,
+    selected,
+}: {
+    groupId: string;
+    value: string;
+    label: string;
+    desc: string;
+    selected: boolean;
+}) {
+    return (
+        <Label
+            htmlFor={`${groupId}-${value}`}
+            className={cn(
+                "group relative flex cursor-pointer items-start gap-3 rounded-qc-lg border p-4 pr-9 transition-all",
+                "has-[button:focus-visible]:ring-2 has-[button:focus-visible]:ring-qc-primary has-[button:focus-visible]:ring-offset-2",
+                selected
+                    ? "border-qc-primary bg-qc-primary/[0.06] shadow-qc-sm"
+                    : "border-qc-border-subtle bg-white/60 hover:border-qc-primary/40 hover:bg-qc-primary/[0.03]",
+            )}
+        >
+            {/* Real radio kept for keyboard/AT; visually replaced by the card state. */}
+            <RadioGroupItem value={value} id={`${groupId}-${value}`} className="sr-only" />
+            <span
+                aria-hidden
+                className={cn(
+                    "mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition-colors",
+                    selected
+                        ? "border-qc-primary bg-qc-primary text-white"
+                        : "border-qc-border-strong bg-white text-transparent group-hover:border-qc-primary/60",
+                )}
+            >
+                <Check weight="bold" size={12} />
+            </span>
+            <span className="min-w-0">
+                <span className="block font-semibold leading-tight text-qc-charcoal">{label}</span>
+                <span className="mt-1 block text-xs leading-relaxed text-qc-text-muted">
+                    {desc}
+                </span>
+            </span>
+            <Sparkle
+                weight="fill"
+                size={14}
+                aria-hidden
+                className={cn(
+                    "absolute right-3.5 top-4 text-qc-secondary transition-opacity",
+                    selected ? "opacity-100" : "opacity-0",
+                )}
+            />
+        </Label>
+    );
+}
+
+/** Shared shell: gradient-accent glass card with a serif header. */
+function StepCard({
+    eyebrow,
+    heading,
+    description,
+    children,
+    footer,
+}: {
+    eyebrow: string;
+    heading: string;
+    description: string;
+    children: React.ReactNode;
+    footer: React.ReactNode;
+}) {
+    return (
+        <Card className="relative overflow-hidden border-qc-border-subtle bg-white/80 shadow-qc-lg backdrop-blur-sm">
+            <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-qc-primary via-qc-secondary to-qc-primary opacity-80" />
+            <CardHeader className="px-6 pt-8 md:px-10">
+                <div className="text-xs font-semibold uppercase tracking-[0.14em] text-qc-secondary">
+                    {eyebrow}
+                </div>
+                <CardTitle className="mt-1 font-display text-3xl tracking-tight text-qc-primary">
+                    {heading}
+                </CardTitle>
+                <CardDescription className="text-base text-qc-text-muted">
+                    {description}
+                </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-8 px-6 md:px-10">{children}</CardContent>
+            <CardFooter className="mt-2 flex items-center justify-between gap-4 border-t border-qc-border-subtle px-6 py-6 md:px-10">
+                {footer}
+            </CardFooter>
+        </Card>
+    );
+}
 
 interface AssessmentWizardProps {
     studentId: string;
@@ -187,6 +387,7 @@ interface AssessmentWizardProps {
 export function AssessmentWizard({ studentId }: AssessmentWizardProps) {
     const [step, setStep] = useState<Step>("intro");
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const reduceMotion = useReducedMotion();
 
     // Form State
     const [personalityAnswers, setPersonalityAnswers] = useState<Record<string, string>>({});
@@ -239,286 +440,478 @@ export function AssessmentWizard({ studentId }: AssessmentWizardProps) {
         }
     };
 
-    // Renderers
+    const personalityAnswered = Object.keys(personalityAnswers).length;
+    const learningAnswered = Object.keys(learningAnswers).length;
+
+    // Motion (respects prefers-reduced-motion)
+    const variants = reduceMotion
+        ? { initial: { opacity: 0 }, animate: { opacity: 1 }, exit: { opacity: 0 } }
+        : {
+              initial: { opacity: 0, y: 12 },
+              animate: { opacity: 1, y: 0 },
+              exit: { opacity: 0, y: -12 },
+          };
+
+    // ------------------------------------------------------------------
+    // RENDERERS
+    // ------------------------------------------------------------------
+
     const renderIntro = () => (
-        <Card className="max-w-3xl mx-auto border-2 border-qc-primary/20 shadow-lg">
-            <CardHeader className="text-center bg-qc-primary/5 pb-8 pt-8">
-                <div className="mx-auto bg-qc-primary/10 p-4 rounded-full w-20 h-20 flex items-center justify-center mb-4">
-                    <Brain size={40} className="text-qc-primary" />
+        <Card className="relative overflow-hidden border-qc-border-subtle bg-white/80 shadow-qc-lg backdrop-blur-sm">
+            <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-qc-primary via-qc-secondary to-qc-primary opacity-80" />
+            <CardHeader className="items-center px-6 pb-4 pt-12 text-center md:px-12">
+                <div className="relative mx-auto mb-5 flex h-20 w-20 items-center justify-center">
+                    <span className="absolute inset-0 rounded-full bg-qc-primary/10" />
+                    <span className="absolute inset-2 rounded-full border border-qc-secondary/40" />
+                    <Compass weight="duotone" size={40} className="relative text-qc-primary" />
                 </div>
-                <CardTitle className="text-3xl font-display text-qc-charcoal">
-                    Student Inkling Profile Setup
+                <div className="text-xs font-semibold uppercase tracking-[0.16em] text-qc-secondary">
+                    Inkling Profile
+                </div>
+                <CardTitle className="mt-2 font-display text-4xl tracking-tight text-qc-primary">
+                    Calibrate the Compass
                 </CardTitle>
-                <CardDescription className="text-lg max-w-xl mx-auto mt-2">
-                    We need to &quot;calibrate&quot; Inkling to match this student&apos;s specific needs.
-                    This process takes about 3 minutes.
+                <CardDescription className="mx-auto mt-3 max-w-xl text-lg leading-relaxed text-qc-text-muted">
+                    A few quick questions tune Inkling to how this student thinks, learns, and stays
+                    curious — so every generated lesson feels made for them.
                 </CardDescription>
+                <div className="mt-5 inline-flex items-center gap-2 rounded-full border border-qc-border-subtle bg-qc-parchment px-4 py-1.5 text-sm font-medium text-qc-text-muted">
+                    <Sparkle weight="fill" size={14} className="text-qc-secondary" />
+                    About 3 minutes
+                </div>
             </CardHeader>
-            <CardContent className="space-y-6 pt-8 px-8">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="bg-qc-parchment p-4 rounded-lg border border-qc-border-subtle">
-                        <Target size={24} className="text-qc-primary mb-2" />
-                        <h3 className="font-bold text-qc-charcoal">1. Motivation</h3>
-                        <p className="text-sm text-qc-text-muted">Determine what drives them and how to hook their attention.</p>
-                    </div>
-                    <div className="bg-qc-parchment p-4 rounded-lg border border-qc-border-subtle">
-                        <BookOpen size={24} className="text-qc-primary mb-2" />
-                        <h3 className="font-bold text-qc-charcoal">2. Learning Style</h3>
-                        <p className="text-sm text-qc-text-muted">Calibrate how content is formatted and delivered.</p>
-                    </div>
-                    <div className="bg-qc-parchment p-4 rounded-lg border border-qc-border-subtle">
-                        <Sparkle size={24} className="text-qc-primary mb-2" />
-                        <h3 className="font-bold text-qc-charcoal">3. Interests</h3>
-                        <p className="text-sm text-qc-text-muted">Inject their favorite topics/games into math & reading.</p>
-                    </div>
+            <CardContent className="px-6 pt-6 md:px-12">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                    {QUESTION_STEPS.map((s, i) => {
+                        const StepIcon = s.icon;
+                        return (
+                            <div
+                                key={s.key}
+                                className="rounded-qc-lg border border-qc-border-subtle bg-qc-parchment/70 p-5"
+                            >
+                                <div className="flex items-center gap-2">
+                                    <span className="flex h-9 w-9 items-center justify-center rounded-full bg-qc-primary/10">
+                                        <StepIcon weight="fill" size={18} className="text-qc-primary" />
+                                    </span>
+                                    <span className="text-xs font-semibold uppercase tracking-wider text-qc-text-muted">
+                                        Part {i + 1}
+                                    </span>
+                                </div>
+                                <h3 className="mt-3 font-display text-xl text-qc-charcoal">
+                                    {s.title}
+                                </h3>
+                                <p className="mt-1 text-sm leading-relaxed text-qc-text-muted">
+                                    {s.eyebrow}.
+                                </p>
+                            </div>
+                        );
+                    })}
                 </div>
             </CardContent>
-            <CardFooter className="flex justify-center pb-8">
-                <Button size="lg" onClick={() => setStep("personality")} className="w-full md:w-auto px-12">
-                    Start Calibration <ArrowRight size={16} className="ml-2" />
+            <CardFooter className="flex justify-center px-6 pb-12 pt-8 md:px-12">
+                <Button
+                    size="lg"
+                    onClick={() => setStep("personality")}
+                    className="h-auto gap-2 px-10 py-6 text-base shadow-qc-md transition-all hover:shadow-qc-lg"
+                >
+                    Begin Calibration
+                    <ArrowRight weight="bold" size={18} />
                 </Button>
             </CardFooter>
         </Card>
     );
 
-    const renderPersonality = () => (
-        <Card className="max-w-2xl mx-auto">
-            <CardHeader>
-                <div className="text-sm font-bold text-qc-primary tracking-wider uppercase mb-2">Step 1 of 3</div>
-                <CardTitle className="text-2xl font-display">Personality & Motivation</CardTitle>
-                <CardDescription>How should Inkling talk to expectations?</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-8">
-                {PERSONALITY_QUESTIONS.map((q) => (
-                    <div key={q.id} className="space-y-3">
-                        <Label className="text-base font-semibold text-qc-charcoal">{q.label}</Label>
+    const renderPersonality = () => {
+        const meta = QUESTION_STEPS[0];
+        return (
+            <StepCard
+                eyebrow={meta.eyebrow}
+                heading={meta.heading}
+                description={meta.description}
+                footer={
+                    <>
+                        <Button
+                            variant="ghost"
+                            onClick={() => setStep("intro")}
+                            className="gap-2 text-qc-text-muted hover:text-qc-primary"
+                        >
+                            <ArrowLeft weight="bold" size={16} />
+                            Back
+                        </Button>
+                        <div className="flex items-center gap-4">
+                            <span className="hidden text-sm text-qc-text-muted sm:inline">
+                                {personalityAnswered} of {PERSONALITY_QUESTIONS.length} answered
+                            </span>
+                            <Button
+                                disabled={
+                                    personalityAnswered < PERSONALITY_QUESTIONS.length ||
+                                    isSubmitting
+                                }
+                                onClick={() => handleSaveStep("personality", personalityAnswers)}
+                                className="h-auto gap-2 px-6 py-5 text-base shadow-qc-sm transition-all hover:shadow-qc-md"
+                            >
+                                {isSubmitting ? "Saving…" : "Next Step"}
+                                {!isSubmitting && <ArrowRight weight="bold" size={16} />}
+                            </Button>
+                        </div>
+                    </>
+                }
+            >
+                {PERSONALITY_QUESTIONS.map((q, i) => (
+                    <fieldset key={q.id} className="space-y-3">
+                        <legend className="flex gap-2 text-base font-semibold text-qc-charcoal">
+                            <span className="text-qc-secondary">{i + 1}.</span>
+                            <span>{q.label}</span>
+                        </legend>
                         <RadioGroup
-                            onValueChange={(val: string) => setPersonalityAnswers({ ...personalityAnswers, [q.id]: val })}
+                            onValueChange={(val: string) =>
+                                setPersonalityAnswers({ ...personalityAnswers, [q.id]: val })
+                            }
                             value={personalityAnswers[q.id]}
-                            className="grid grid-cols-1 md:grid-cols-2 gap-3"
+                            className="grid grid-cols-1 gap-3 md:grid-cols-2"
                         >
                             {q.options.map((opt) => (
-                                <Label
+                                <OptionCard
                                     key={opt.value}
-                                    className={`flex flex-col p-4 border rounded-lg cursor-pointer transition-all hover:bg-qc-primary/5 ${personalityAnswers[q.id] === opt.value
-                                        ? "border-qc-primary bg-qc-primary/5 ring-1 ring-qc-primary"
-                                        : "border-qc-border-subtle"
-                                        }`}
-                                >
-                                    <div className="flex items-center gap-2 mb-1">
-                                        <RadioGroupItem value={opt.value} id={`${q.id}-${opt.value}`} />
-                                        <span className="font-bold text-qc-charcoal">{opt.label}</span>
-                                    </div>
-                                    <span className="text-xs text-qc-text-muted ml-6 leading-relaxed">
-                                        {opt.desc}
-                                    </span>
-                                </Label>
+                                    groupId={q.id}
+                                    value={opt.value}
+                                    label={opt.label}
+                                    desc={opt.desc}
+                                    selected={personalityAnswers[q.id] === opt.value}
+                                />
                             ))}
                         </RadioGroup>
-                    </div>
+                    </fieldset>
                 ))}
-            </CardContent>
-            <CardFooter className="flex justify-between border-t pt-6 bg-qc-surface-raised/50">
-                <Button variant="ghost" onClick={() => setStep("intro")}>Back</Button>
-                <Button
-                    disabled={Object.keys(personalityAnswers).length < PERSONALITY_QUESTIONS.length || isSubmitting}
-                    onClick={() => handleSaveStep("personality", personalityAnswers)}
-                >
-                    {isSubmitting ? "Saving..." : "Next Step"}
-                </Button>
-            </CardFooter>
-        </Card>
-    );
+            </StepCard>
+        );
+    };
 
-    const renderLearning = () => (
-        <Card className="max-w-2xl mx-auto">
-            <CardHeader>
-                <div className="text-sm font-bold text-qc-primary tracking-wider uppercase mb-2">Step 2 of 3</div>
-                <CardTitle className="text-2xl font-display">Cognitive Preferences</CardTitle>
-                <CardDescription>How should content be formatted?</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-8">
-                {LEARNING_STYLE_QUESTIONS.map((q) => (
-                    <div key={q.id} className="space-y-3">
-                        <Label className="text-base font-semibold text-qc-charcoal">{q.label}</Label>
+    const renderLearning = () => {
+        const meta = QUESTION_STEPS[1];
+        return (
+            <StepCard
+                eyebrow={meta.eyebrow}
+                heading={meta.heading}
+                description={meta.description}
+                footer={
+                    <>
+                        <Button
+                            variant="ghost"
+                            onClick={() => setStep("personality")}
+                            className="gap-2 text-qc-text-muted hover:text-qc-primary"
+                        >
+                            <ArrowLeft weight="bold" size={16} />
+                            Back
+                        </Button>
+                        <div className="flex items-center gap-4">
+                            <span className="hidden text-sm text-qc-text-muted sm:inline">
+                                {learningAnswered} of {LEARNING_STYLE_QUESTIONS.length} answered
+                            </span>
+                            <Button
+                                disabled={
+                                    learningAnswered < LEARNING_STYLE_QUESTIONS.length ||
+                                    isSubmitting
+                                }
+                                onClick={() => handleSaveStep("learning", learningAnswers)}
+                                className="h-auto gap-2 px-6 py-5 text-base shadow-qc-sm transition-all hover:shadow-qc-md"
+                            >
+                                {isSubmitting ? "Saving…" : "Next Step"}
+                                {!isSubmitting && <ArrowRight weight="bold" size={16} />}
+                            </Button>
+                        </div>
+                    </>
+                }
+            >
+                {LEARNING_STYLE_QUESTIONS.map((q, i) => (
+                    <fieldset key={q.id} className="space-y-3">
+                        <legend className="flex gap-2 text-base font-semibold text-qc-charcoal">
+                            <span className="text-qc-secondary">{i + 1}.</span>
+                            <span>{q.label}</span>
+                        </legend>
                         <RadioGroup
-                            onValueChange={(val: string) => setLearningAnswers({ ...learningAnswers, [q.id]: val })}
+                            onValueChange={(val: string) =>
+                                setLearningAnswers({ ...learningAnswers, [q.id]: val })
+                            }
                             value={learningAnswers[q.id]}
-                            className="grid grid-cols-1 gap-3"
+                            className="grid grid-cols-1 gap-3 sm:grid-cols-2"
                         >
                             {q.options.map((opt) => (
-                                <Label
+                                <OptionCard
                                     key={opt.value}
-                                    className={`flex items-center p-4 border rounded-lg cursor-pointer transition-all hover:bg-qc-primary/5 ${learningAnswers[q.id] === opt.value
-                                        ? "border-qc-primary bg-qc-primary/5 ring-1 ring-qc-primary"
-                                        : "border-qc-border-subtle"
-                                        }`}
-                                >
-                                    <RadioGroupItem value={opt.value} id={`${q.id}-${opt.value}`} className="mr-3" />
-                                    <div>
-                                        <span className="font-bold text-qc-charcoal block">{opt.label}</span>
-                                        <span className="text-xs text-qc-text-muted">{opt.desc}</span>
-                                    </div>
-                                </Label>
+                                    groupId={q.id}
+                                    value={opt.value}
+                                    label={opt.label}
+                                    desc={opt.desc}
+                                    selected={learningAnswers[q.id] === opt.value}
+                                />
                             ))}
                         </RadioGroup>
-                    </div>
+                    </fieldset>
                 ))}
-            </CardContent>
-            <CardFooter className="flex justify-between border-t pt-6 bg-qc-surface-raised/50">
-                <Button variant="ghost" onClick={() => setStep("personality")}>Back</Button>
-                <Button
-                    disabled={Object.keys(learningAnswers).length < LEARNING_STYLE_QUESTIONS.length || isSubmitting}
-                    onClick={() => handleSaveStep("learning", learningAnswers)}
-                >
-                    {isSubmitting ? "Saving..." : "Next Step"}
-                </Button>
-            </CardFooter>
-        </Card>
-    );
+            </StepCard>
+        );
+    };
 
-    const renderInterests = () => (
-        <Card className="max-w-2xl mx-auto">
-            <CardHeader>
-                <div className="text-sm font-bold text-qc-primary tracking-wider uppercase mb-2">Step 3 of 3</div>
-                <CardTitle className="text-2xl font-display">Interests & Passions</CardTitle>
-                <CardDescription>What specific topics should be injected into lessons?</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-8">
+    const renderInterests = () => {
+        const meta = QUESTION_STEPS[2];
+        return (
+            <StepCard
+                eyebrow={meta.eyebrow}
+                heading={meta.heading}
+                description={meta.description}
+                footer={
+                    <>
+                        <Button
+                            variant="ghost"
+                            onClick={() => setStep("learning")}
+                            className="gap-2 text-qc-text-muted hover:text-qc-primary"
+                        >
+                            <ArrowLeft weight="bold" size={16} />
+                            Back
+                        </Button>
+                        <Button
+                            disabled={isSubmitting}
+                            onClick={() =>
+                                handleSaveStep("interests", {
+                                    hookThemes: selectedWorlds,
+                                    specificEntities,
+                                    expertTopics: [expertTopic],
+                                    integrationMode,
+                                })
+                            }
+                            className="h-auto gap-2 bg-qc-secondary px-6 py-5 text-base font-medium text-qc-charcoal shadow-qc-sm transition-all hover:bg-qc-secondary/90 hover:shadow-qc-md"
+                        >
+                            {isSubmitting ? "Finalizing…" : "Complete Setup"}
+                            {!isSubmitting && <CheckCircle weight="fill" size={18} />}
+                        </Button>
+                    </>
+                }
+            >
                 {/* World Selection */}
                 <div className="space-y-3">
-                    <Label className="text-base font-semibold">Which &quot;worlds&quot; do they enjoy?</Label>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        {INTEREST_WORLDS.map((world) => (
-                            <div key={world} className="flex items-center space-x-2">
-                                <Checkbox
-                                    id={world}
-                                    checked={selectedWorlds.includes(world)}
-                                    onCheckedChange={(checked) => {
-                                        if (checked) setSelectedWorlds([...selectedWorlds, world]);
-                                        else setSelectedWorlds(selectedWorlds.filter(w => w !== world));
-                                    }}
-                                />
-                                <label htmlFor={world} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer">
-                                    {world}
-                                </label>
-                            </div>
-                        ))}
+                    <Label className="text-base font-semibold text-qc-charcoal">
+                        Which &quot;worlds&quot; do they enjoy?
+                    </Label>
+                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                        {INTEREST_WORLDS.map((world) => {
+                            const checked = selectedWorlds.includes(world);
+                            return (
+                                <Label
+                                    key={world}
+                                    htmlFor={`world-${world}`}
+                                    className={cn(
+                                        "group relative flex cursor-pointer items-center gap-3 rounded-qc-lg border p-3.5 pr-9 transition-all",
+                                        "has-[button:focus-visible]:ring-2 has-[button:focus-visible]:ring-qc-primary has-[button:focus-visible]:ring-offset-2",
+                                        checked
+                                            ? "border-qc-primary bg-qc-primary/[0.06] shadow-qc-sm"
+                                            : "border-qc-border-subtle bg-white/60 hover:border-qc-primary/40 hover:bg-qc-primary/[0.03]",
+                                    )}
+                                >
+                                    <Checkbox
+                                        id={`world-${world}`}
+                                        checked={checked}
+                                        onCheckedChange={(v) => {
+                                            if (v) setSelectedWorlds([...selectedWorlds, world]);
+                                            else
+                                                setSelectedWorlds(
+                                                    selectedWorlds.filter((w) => w !== world),
+                                                );
+                                        }}
+                                        className="sr-only"
+                                    />
+                                    <span
+                                        aria-hidden
+                                        className={cn(
+                                            "flex h-5 w-5 shrink-0 items-center justify-center rounded-[6px] border-2 transition-colors",
+                                            checked
+                                                ? "border-qc-primary bg-qc-primary text-white"
+                                                : "border-qc-border-strong bg-white text-transparent group-hover:border-qc-primary/60",
+                                        )}
+                                    >
+                                        <Check weight="bold" size={12} />
+                                    </span>
+                                    <span className="text-sm font-medium leading-snug text-qc-charcoal">
+                                        {world}
+                                    </span>
+                                </Label>
+                            );
+                        })}
                     </div>
                 </div>
 
                 {/* Specific Favorites */}
-                <div className="space-y-4">
-                    <Label className="text-base font-semibold">Specific Favorites (For Word Replacement)</Label>
+                <div className="space-y-4 rounded-qc-lg border border-qc-border-subtle bg-qc-parchment/60 p-5">
+                    <div>
+                        <Label className="text-base font-semibold text-qc-charcoal">
+                            Specific favorites
+                        </Label>
+                        <p className="text-sm text-qc-text-muted">
+                            Named things we can drop straight into problems and prompts.
+                        </p>
+                    </div>
                     <div className="grid grid-cols-1 gap-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="fav-sport" className="text-xs uppercase text-qc-text-muted">Favorite Sport/Team</Label>
+                        <div className="space-y-1.5">
+                            <Label
+                                htmlFor="fav-sport"
+                                className="text-xs uppercase tracking-wide text-qc-text-muted"
+                            >
+                                Favorite sport / team
+                            </Label>
                             <Input
                                 id="fav-sport"
                                 placeholder="e.g. Basketball / Golden State Warriors"
                                 value={specificEntities["Sports"] || ""}
-                                onChange={(e) => setSpecificEntities({ ...specificEntities, "Sports": e.target.value })}
+                                onChange={(e) =>
+                                    setSpecificEntities({
+                                        ...specificEntities,
+                                        Sports: e.target.value,
+                                    })
+                                }
                             />
                         </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="fav-game" className="text-xs uppercase text-qc-text-muted">Favorite Video Game</Label>
+                        <div className="space-y-1.5">
+                            <Label
+                                htmlFor="fav-game"
+                                className="text-xs uppercase tracking-wide text-qc-text-muted"
+                            >
+                                Favorite video game
+                            </Label>
                             <Input
                                 id="fav-game"
                                 placeholder="e.g. Minecraft, Roblox"
                                 value={specificEntities["Video Games"] || ""}
-                                onChange={(e) => setSpecificEntities({ ...specificEntities, "Video Games": e.target.value })}
+                                onChange={(e) =>
+                                    setSpecificEntities({
+                                        ...specificEntities,
+                                        "Video Games": e.target.value,
+                                    })
+                                }
                             />
                         </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="fav-show" className="text-xs uppercase text-qc-text-muted">Favorite Show/Book</Label>
+                        <div className="space-y-1.5">
+                            <Label
+                                htmlFor="fav-show"
+                                className="text-xs uppercase tracking-wide text-qc-text-muted"
+                            >
+                                Favorite show / book
+                            </Label>
                             <Input
                                 id="fav-show"
                                 placeholder="e.g. Bluey, Harry Potter"
                                 value={specificEntities["Media"] || ""}
-                                onChange={(e) => setSpecificEntities({ ...specificEntities, "Media": e.target.value })}
+                                onChange={(e) =>
+                                    setSpecificEntities({
+                                        ...specificEntities,
+                                        Media: e.target.value,
+                                    })
+                                }
                             />
                         </div>
                     </div>
                 </div>
 
-                <div className="space-y-2">
-                    <Label className="text-base font-semibold">Expert Subject (For Analogies)</Label>
+                {/* Expert Subject */}
+                <div className="space-y-1.5">
+                    <Label
+                        htmlFor="expert-topic"
+                        className="text-base font-semibold text-qc-charcoal"
+                    >
+                        Expert subject{" "}
+                        <span className="font-normal text-qc-text-muted">(for analogies)</span>
+                    </Label>
                     <Input
-                        placeholder="Topic they know a LOT about (e.g. Dinosaurs, Cars)"
+                        id="expert-topic"
+                        placeholder="Something they know a LOT about (e.g. Dinosaurs, Cars)"
                         value={expertTopic}
                         onChange={(e) => setExpertTopic(e.target.value)}
                     />
                 </div>
 
+                {/* Integration Strategy */}
                 <div className="space-y-3">
-                    <Label className="text-base font-semibold">Integration Strategy</Label>
+                    <Label className="text-base font-semibold text-qc-charcoal">
+                        Integration strategy
+                    </Label>
                     <RadioGroup
                         onValueChange={setIntegrationMode}
                         value={integrationMode}
                         className="grid grid-cols-1 gap-3"
                     >
                         {INTEREST_STRATEGIES.map((opt) => (
-                            <Label
+                            <OptionCard
                                 key={opt.value}
-                                className={`flex items-center p-3 border rounded-lg cursor-pointer ${integrationMode === opt.value
-                                    ? "border-qc-primary bg-qc-primary/5"
-                                    : "border-qc-border-subtle"
-                                    }`}
-                            >
-                                <RadioGroupItem value={opt.value} id={`int-${opt.value}`} className="mr-3" />
-                                <div>
-                                    <span className="font-bold text-sm block">{opt.label}</span>
-                                    <span className="text-xs text-qc-text-muted">{opt.desc}</span>
-                                </div>
-                            </Label>
+                                groupId="integration"
+                                value={opt.value}
+                                label={opt.label}
+                                desc={opt.desc}
+                                selected={integrationMode === opt.value}
+                            />
                         ))}
                     </RadioGroup>
                 </div>
-
-            </CardContent>
-            <CardFooter className="flex justify-between border-t pt-6 bg-qc-surface-raised/50">
-                <Button variant="ghost" onClick={() => setStep("learning")}>Back</Button>
-                <Button
-                    disabled={isSubmitting}
-                    onClick={() => handleSaveStep("interests", {
-                        hookThemes: selectedWorlds,
-                        specificEntities,
-                        expertTopics: [expertTopic],
-                        integrationMode
-                    })}
-                >
-                    {isSubmitting ? "Finalizing..." : "Complete Setup"}
-                </Button>
-            </CardFooter>
-        </Card>
-    );
+            </StepCard>
+        );
+    };
 
     const renderSuccess = () => (
-        <Card className="max-w-md mx-auto text-center py-10">
-            <CardContent className="space-y-6">
-                <div className="mx-auto bg-green-100 text-green-600 w-20 h-20 rounded-full flex items-center justify-center">
-                    <CheckCircle size={40} />
+        <Card className="relative mx-auto max-w-lg overflow-hidden border-qc-border-subtle bg-white/80 text-center shadow-qc-lg backdrop-blur-sm">
+            <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-qc-primary via-qc-secondary to-qc-primary opacity-80" />
+            <CardContent className="space-y-6 px-8 py-12">
+                <div className="relative mx-auto flex h-20 w-20 items-center justify-center">
+                    <span className="absolute inset-0 rounded-full bg-qc-success-bg" />
+                    <span className="absolute inset-2 rounded-full border border-qc-success-border" />
+                    <CheckCircle weight="fill" size={40} className="relative text-qc-success" />
                 </div>
-                <h2 className="text-3xl font-display text-qc-charcoal text-balance">Profile Calibration Complete!</h2>
-                <p className="text-qc-text-muted qc-prose">
-                    We have configured Inkling to match this student&apos;s learning style.
-                </p>
-                <div className="pt-4">
-                    <Button asChild size="lg" className="w-full">
-                        <Link href={`/students/${studentId}`}>Return to Student Profile</Link>
+                <div className="space-y-2">
+                    <div className="text-xs font-semibold uppercase tracking-[0.16em] text-qc-secondary">
+                        Calibration complete
+                    </div>
+                    <h2 className="text-balance font-display text-3xl text-qc-primary">
+                        Inkling is tuned in
+                    </h2>
+                    <p className="mx-auto max-w-sm text-qc-text-muted">
+                        We&apos;ve configured Inkling to match this student&apos;s motivation,
+                        learning style, and interests. It&apos;ll shape everything you generate from
+                        here.
+                    </p>
+                </div>
+                <div className="pt-2">
+                    <Button
+                        asChild
+                        size="lg"
+                        className="h-auto w-full gap-2 px-8 py-6 text-base shadow-qc-sm transition-all hover:shadow-qc-md"
+                    >
+                        <Link href={`/students/${studentId}`}>
+                            Return to Student Profile
+                            <ArrowRight weight="bold" size={18} />
+                        </Link>
                     </Button>
                 </div>
             </CardContent>
         </Card>
     );
 
+    const activeIndex = stepIndex(step);
+
     return (
-        <div className="min-h-screen bg-qc-surface-raisedpy-12 px-4">
-            {step === "intro" && renderIntro()}
-            {step === "personality" && renderPersonality()}
-            {step === "learning" && renderLearning()}
-            {step === "interests" && renderInterests()}
-            {step === "success" && renderSuccess()}
+        <div className="container mx-auto max-w-3xl px-4 py-8 md:py-12">
+            {activeIndex >= 0 && <ProgressRail activeIndex={activeIndex} />}
+            <AnimatePresence mode="wait">
+                <motion.div
+                    key={step}
+                    initial={variants.initial}
+                    animate={variants.animate}
+                    exit={variants.exit}
+                    transition={{ duration: 0.25, ease: "easeInOut" }}
+                >
+                    {step === "intro" && renderIntro()}
+                    {step === "personality" && renderPersonality()}
+                    {step === "learning" && renderLearning()}
+                    {step === "interests" && renderInterests()}
+                    {step === "success" && renderSuccess()}
+                </motion.div>
+            </AnimatePresence>
         </div>
     );
 }

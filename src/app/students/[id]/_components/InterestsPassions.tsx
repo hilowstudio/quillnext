@@ -1,74 +1,117 @@
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Sparkle } from "@phosphor-icons/react/dist/ssr";
 import type { InterestsData } from "@/lib/students/learner-profile";
+import {
+    CardContent,
+    InstructionQuote,
+    ProfileCard,
+    ProfileEmptyState,
+    ProfileHeader,
+    StatBlock,
+    TraitChip,
+} from "./profile-primitives";
 
 interface InterestsPassionsProps {
     interestsData: InterestsData | null;
 }
 
 export function InterestsPassions({ interestsData }: InterestsPassionsProps) {
+    const hookThemes = interestsData?.hookThemes ?? [];
+    const expertTopics = (interestsData?.expertTopics ?? []).filter((t) => t.trim().length > 0);
+    const favorites = interestsData?.specificEntities ?? [];
+
     return (
-        <Card className="lg:col-span-2">
-            <CardHeader>
-                <CardTitle className="font-display text-xl">Interests & Passions</CardTitle>
-                <CardDescription>Contextual hooks for engagement</CardDescription>
-            </CardHeader>
+        <ProfileCard className="lg:col-span-2">
+            <ProfileHeader
+                icon={<Sparkle weight="fill" size={20} className="text-qc-primary" />}
+                title="Interests & Passions"
+                description="Contextual hooks for engagement"
+            />
             <CardContent>
                 {interestsData ? (
-                    <div className="space-y-4">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-6">
+                        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                             <div>
-                                <p className="font-body text-sm font-medium text-qc-text-muted mb-2">
+                                <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-qc-text-muted">
                                     Hook Themes (Worlds)
                                 </p>
-                                <div className="flex flex-wrap gap-2">
-                                    {interestsData.hookThemes?.map((theme: string, idx: number) => (
-                                        <span key={idx} className="px-3 py-1 bg-qc-accent/10 text-qc-accent rounded-full text-sm font-body">
-                                            {theme}
-                                        </span>
-                                    ))}
-                                </div>
+                                {hookThemes.length > 0 ? (
+                                    <div className="flex flex-wrap gap-2">
+                                        {hookThemes.map((theme) => (
+                                            <TraitChip key={theme} tone="gold">
+                                                {theme}
+                                            </TraitChip>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <p className="text-sm italic text-qc-text-muted">
+                                        No worlds selected.
+                                    </p>
+                                )}
                             </div>
 
                             <div>
-                                <p className="font-body text-sm font-medium text-qc-text-muted mb-2">
+                                <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-qc-text-muted">
                                     Specific Favorites
                                 </p>
-                                {interestsData.specificEntities && interestsData.specificEntities.length > 0 ? (
+                                {favorites.length > 0 ? (
                                     <div className="grid grid-cols-2 gap-2">
-                                        {interestsData.specificEntities.map((entity, idx) => (
-                                            <div key={idx} className="bg-qc-parchment p-2 rounded-qc-sm border border-qc-border-subtle">
-                                                <p className="text-xs text-qc-text-muted">{entity.category}</p>
-                                                <p className="text-sm font-medium text-qc-charcoal">{entity.favorite}</p>
+                                        {favorites.map((entity, idx) => (
+                                            <div
+                                                key={`${entity.category}-${idx}`}
+                                                className="rounded-qc-sm border border-qc-border-subtle bg-white/60 p-2.5"
+                                            >
+                                                <p className="text-[11px] uppercase tracking-wide text-qc-text-muted">
+                                                    {entity.category}
+                                                </p>
+                                                <p className="text-sm font-medium text-qc-charcoal">
+                                                    {entity.favorite}
+                                                </p>
                                             </div>
                                         ))}
                                     </div>
                                 ) : (
-                                    <p className="text-sm text-qc-text-muted italic">No favorites listed.</p>
+                                    <p className="text-sm italic text-qc-text-muted">
+                                        No favorites listed.
+                                    </p>
                                 )}
                             </div>
                         </div>
 
-                        {interestsData.analogyStrategy && (
+                        {expertTopics.length > 0 && (
                             <div>
-                                <p className="font-body text-sm font-medium text-qc-text-muted mb-2">
-                                    Analogy Strategy
+                                <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-qc-text-muted">
+                                    Expert Subjects (For Analogies)
                                 </p>
-                                <div className="bg-qc-warm-stone rounded-qc-md p-3">
-                                    <p className="font-body text-sm text-qc-charcoal">
-                                        {interestsData.analogyStrategy}
-                                    </p>
+                                <div className="flex flex-wrap gap-2">
+                                    {expertTopics.map((topic) => (
+                                        <TraitChip key={topic}>{topic}</TraitChip>
+                                    ))}
                                 </div>
                             </div>
                         )}
+
+                        {interestsData.integrationMode && (
+                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                <StatBlock
+                                    label="Integration Strategy"
+                                    value={interestsData.integrationMode}
+                                />
+                            </div>
+                        )}
+
+                        {interestsData.analogyStrategy && (
+                            <InstructionQuote label="Analogy Strategy">
+                                {interestsData.analogyStrategy}
+                            </InstructionQuote>
+                        )}
                     </div>
                 ) : (
-                    <div className="text-center py-8">
-                        <p className="font-body text-qc-text-muted">
-                            Interests assessment not yet completed.
-                        </p>
-                    </div>
+                    <ProfileEmptyState
+                        icon={<Sparkle size={22} className="text-qc-text-muted" />}
+                        message="Interests assessment not yet completed."
+                    />
                 )}
             </CardContent>
-        </Card>
+        </ProfileCard>
     );
 }

@@ -1,7 +1,16 @@
 import Link from "next/link";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Target } from "@phosphor-icons/react/dist/ssr";
 import type { PersonalityData } from "@/lib/students/learner-profile";
+import {
+    CardContent,
+    InstructionQuote,
+    ProfileCard,
+    ProfileEmptyState,
+    ProfileHeader,
+    StatBlock,
+    TraitChip,
+} from "./profile-primitives";
 
 interface PersonalityProfileProps {
     studentId: string;
@@ -9,60 +18,49 @@ interface PersonalityProfileProps {
 }
 
 export function PersonalityProfile({ studentId, personalityData }: PersonalityProfileProps) {
+    const stats: { label: string; value: string }[] = personalityData
+        ? [
+              { label: "Feedback Style", value: personalityData.feedbackStyle },
+              { label: "Scaffolding", value: personalityData.scaffoldingLevel },
+              { label: "Work Style", value: personalityData.workStyle },
+              { label: "Creativity", value: personalityData.creativityPreference },
+              { label: "On Mistakes", value: personalityData.frustrationResponse },
+          ].filter((s): s is { label: string; value: string } => Boolean(s.value))
+        : [];
+
     return (
-        <Card>
-            <CardHeader>
-                <CardTitle className="font-display text-xl">Personality Profile</CardTitle>
-                <CardDescription>Inkling-generated learning profile</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
+        <ProfileCard>
+            <ProfileHeader
+                icon={<Target weight="fill" size={20} className="text-qc-primary" />}
+                title="Personality Profile"
+                description="Inkling-generated learning profile"
+            />
+            <CardContent className="space-y-5">
                 {personalityData ? (
                     <>
                         {personalityData.motivationalDriver && (
                             <div>
-                                <p className="font-body text-sm font-medium text-qc-text-muted mb-1">
+                                <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-qc-text-muted">
                                     Motivational Driver
                                 </p>
-                                <span className="px-3 py-1 bg-qc-primary/10 text-qc-primary rounded-full text-sm font-body font-medium">
+                                <TraitChip tone="gold">
                                     {personalityData.motivationalDriver}
-                                </span>
+                                </TraitChip>
                             </div>
                         )}
 
-                        <div className="grid grid-cols-2 gap-4">
-                            {personalityData.feedbackStyle && (
-                                <div>
-                                    <p className="font-body text-sm font-medium text-qc-text-muted mb-1">
-                                        Feedback Style
-                                    </p>
-                                    <p className="font-body text-qc-charcoal">
-                                        {personalityData.feedbackStyle}
-                                    </p>
-                                </div>
-                            )}
-                            {personalityData.scaffoldingLevel && (
-                                <div>
-                                    <p className="font-body text-sm font-medium text-qc-text-muted mb-1">
-                                        Scaffolding Level
-                                    </p>
-                                    <p className="font-body text-qc-charcoal">
-                                        {personalityData.scaffoldingLevel}
-                                    </p>
-                                </div>
-                            )}
-                        </div>
+                        {stats.length > 0 && (
+                            <div className="grid grid-cols-2 gap-3">
+                                {stats.map((s) => (
+                                    <StatBlock key={s.label} label={s.label} value={s.value} />
+                                ))}
+                            </div>
+                        )}
 
                         {personalityData.toneInstructions && (
-                            <div>
-                                <p className="font-body text-sm font-medium text-qc-text-muted mb-2">
-                                    Inkling Persona Instructions
-                                </p>
-                                <div className="bg-qc-warm-stone rounded-qc-md p-3">
-                                    <p className="font-body text-sm text-qc-charcoal italic">
-                                        &quot;{personalityData.toneInstructions}&quot;
-                                    </p>
-                                </div>
-                            </div>
+                            <InstructionQuote label="Inkling Persona Instructions" serif>
+                                &quot;{personalityData.toneInstructions}&quot;
+                            </InstructionQuote>
                         )}
 
                         <Button variant="outline" size="sm" asChild>
@@ -70,16 +68,19 @@ export function PersonalityProfile({ studentId, personalityData }: PersonalityPr
                         </Button>
                     </>
                 ) : (
-                    <div className="text-center py-8">
-                        <p className="font-body text-qc-text-muted mb-4">
-                            No personality profile yet. Complete the assessment to enable Inkling personalization.
-                        </p>
-                        <Button asChild>
-                            <Link href={`/students/${studentId}/assessment`}>Start Assessment</Link>
-                        </Button>
-                    </div>
+                    <ProfileEmptyState
+                        icon={<Target size={22} className="text-qc-text-muted" />}
+                        message="No personality profile yet. Complete the assessment to enable Inkling personalization."
+                        action={
+                            <Button asChild size="sm">
+                                <Link href={`/students/${studentId}/assessment`}>
+                                    Start Assessment
+                                </Link>
+                            </Button>
+                        }
+                    />
                 )}
             </CardContent>
-        </Card>
+        </ProfileCard>
     );
 }
