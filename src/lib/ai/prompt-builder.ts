@@ -3,6 +3,13 @@ import { INKLING_BASE_PERSONALITY, INKLING_ETHICAL_GUIDELINES } from "@/lib/cons
 import { PHILOSOPHY_PROMPTS } from "@/lib/constants/educational-philosophies";
 import { CONSTITUTION } from "@/lib/constants/constitution";
 import { composeFaithFrame } from "@/lib/constants/faith-traditions";
+import { gradeBandLabel, difficultyLabel } from "@/lib/constants/grade-bands";
+
+/** General-audience target when generation is NOT personalized to a specific student. */
+export interface GenerationAudience {
+    gradeBand?: string;
+    difficulty?: string;
+}
 
 export class PromptBuilder {
     private identity: string = INKLING_BASE_PERSONALITY;
@@ -32,9 +39,20 @@ export class PromptBuilder {
      * Sets the student context, transforming "Learning Difficulties" into
      * "Helpful Supports & Accommodations".
      */
-    setStudentContext(student: Learner | null) {
+    setStudentContext(student: Learner | null, audience?: GenerationAudience | null) {
         if (!student) {
-            this.studentContext = "Student: Generic Profile (Age/Grade not specified)";
+            // General-audience mode: write for a manually-specified grade band + difficulty, not a
+            // named child. This is the non-personalized happy path (e.g. a resource for any 5th grader,
+            // or an adult class) — generation must never require a student.
+            const band = audience?.gradeBand ? gradeBandLabel(audience.gradeBand) : null;
+            if (band) {
+                const diff = audience?.difficulty ? difficultyLabel(audience.difficulty) : null;
+                this.studentContext = `Target Audience (general — no specific student):
+- Level: ${band}${diff ? ` (${diff})` : ""}
+- Write for this audience generally; do not address or assume a named child.`;
+            } else {
+                this.studentContext = "Student: Generic Profile (Age/Grade not specified)";
+            }
             return this;
         }
 
@@ -64,6 +82,16 @@ export class PromptBuilder {
     }
 
     /**
+     * Inject a pre-rendered, rich student block (the shared `serializeStudentContext` output:
+     * personality / learning style / interests). Overrides the thin `setStudentContext` rendering
+     * so the assessment actually reaches the model. Used when a specific student is targeted.
+     */
+    setStudentBlock(block: string) {
+        this.studentContext = block;
+        return this;
+    }
+
+    /**
      * Sets the Family/Classroom context, specifically the Educational Philosophy.
      */
     setFamilyContext(classroom: Classroom | null) {
@@ -81,9 +109,17 @@ export class PromptBuilder {
         const philosophy = classroom.educationalPhilosophy || "ECLECTIC";
         const faith = classroom.faithBackground || "OTHER";
 
-        this.familyContext = `Family Context:
-- Educational Philosophy: ${philosophy}
-- Faith Background: ${faith}`;
+        // Include the family's own goals/challenges/description — captured in onboarding but previously
+        // dropped from this (main-generator) path; they only reached the grading/suggest serializer.
+        const parts = [
+            "Family Context:",
+            `- Educational Philosophy: ${philosophy}`,
+            `- Faith Background: ${faith}`,
+        ];
+        if (classroom.description) parts.push(`- Description: ${classroom.description}`);
+        if (classroom.academicGoals?.length) parts.push(`- Educational Goals: ${classroom.academicGoals.join(", ")}`);
+        if (classroom.challenges?.length) parts.push(`- Current Challenges: ${classroom.challenges.join(", ")}`);
+        this.familyContext = parts.join("\n");
 
         // Set the pedagogical framework instructions
         this.pedagogicalFramework = PHILOSOPHY_PROMPTS[philosophy] || PHILOSOPHY_PROMPTS["ECLECTIC"];

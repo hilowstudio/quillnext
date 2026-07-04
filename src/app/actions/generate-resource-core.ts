@@ -19,6 +19,8 @@ import {
 } from "@/lib/ai/generation-guards";
 import { retrieveBookChunks, retrieveTextbookChunks } from "@/lib/utils/vector";
 import { TEXTBOOK_SOURCES } from "@/lib/sources/registry";
+import { getStudentContext } from "@/lib/context/master-context";
+import { serializeStudentContext } from "@/lib/context/context-serializer";
 
 // Helper to determine ingestion tier (deprecated, using DB flag)
 
@@ -223,6 +225,9 @@ export interface GenerateResourceCoreParams {
         fileContent?: string;
         fileName?: string;
         studentId?: string;
+        // Generation Target (general-audience mode): manual grade band + difficulty when no student.
+        targetGradeBand?: string;
+        targetDifficulty?: string;
         // Phase-2 (grounded-generation): when targeting a specific chapter of a BOOK,
         // scope generation to that section's facts sheet (book_extraction_sections).
         sectionNumber?: number;
@@ -264,15 +269,14 @@ export async function generateResourceCore(params: GenerateResourceCoreParams) {
         { organizationId, userId },
     );
 
-    // 1c. Fetch Student Context if provided
-    let student = null;
+    // 1c. Generation Target → student block. A specific student pulls their FULL profile
+    // (personality / learning style / interests) via the shared context assembler + serializer, so
+    // the assessment actually shapes generated content. `getStudentContext` is tenant-guarded (it
+    // nulls a cross-org id). No student → the general-audience block is used instead (below).
+    let studentBlock: string | null = null;
     if (additionalData?.studentId) {
-        const studentId = additionalData.studentId;
-        student = await withTenant(
-            (tx) => tx.learner.findUnique({ where: { id: studentId } }),
-            undefined,
-            { organizationId, userId },
-        );
+        const sc = await getStudentContext(additionalData.studentId, organizationId);
+        if (sc) studentBlock = serializeStudentContext(sc);
     }
 
 
@@ -674,9 +678,19 @@ export async function generateResourceCore(params: GenerateResourceCoreParams) {
 
     // 3. Generate Content
     // 3. Generate Content using PromptBuilder (Inkling 2.0)
-    const builder = new PromptBuilder()
-        .setIdentity() // Uses default INKLING_BASE_PERSONALITY
-        .setStudentContext(student)
+    // Generation Target: a specific student personalizes the output (rich block); otherwise the
+    // manual general-audience grade band + difficulty are the "who for". Never gate on a student.
+    const audience = !studentBlock && additionalData?.targetGradeBand
+        ? { gradeBand: additionalData.targetGradeBand, difficulty: additionalData.targetDifficulty }
+        : null;
+
+    const builder = new PromptBuilder().setIdentity(); // Uses default INKLING_BASE_PERSONALITY
+    if (studentBlock) {
+        builder.setStudentBlock(studentBlock);
+    } else {
+        builder.setStudentContext(null, audience);
+    }
+    builder
         .setFamilyContext(classroom)
         .setTask(
             `Create a "${kind.label}" (${kind.contentType})`,
@@ -772,6 +786,7 @@ export async function generateResourceCore(params: GenerateResourceCoreParams) {
                 description: `AI Generated from ${sourceType.toLowerCase()}: ${sourceTitle.substring(0, 100)}`,
                 storageType: storageType,
                 content: jsonContent ? toJsonInput(jsonContent) : { markdown: textContent },
+                generatedForStudentId: additionalData?.studentId ?? null,
                 generatedFromBookId: bookId,
                 generatedFromVideoId: videoId,
                 generationContext: genContext,

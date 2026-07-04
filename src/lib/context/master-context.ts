@@ -69,6 +69,9 @@ export interface StudentContext {
     currentGrade: string | null;
     birthdate: Date | null;
     learningDifficulties: string[] | null;
+    supportProfile: unknown;
+    supportIntensity: string | null;
+    supportLabels: string[];
   };
   profile: {
     personalityData: {
@@ -404,6 +407,9 @@ export async function getStudentContext(
     currentGrade: true,
     birthdate: true,
     learningDifficulties: true,
+    support_profile: true,
+    support_intensity: true,
+    support_labels: true,
     organizationId: true,
     learnerProfile: {
       select: {
@@ -544,6 +550,9 @@ export async function getStudentContext(
       learningDifficulties: student.learningDifficulties
         ? student.learningDifficulties.split(",").map(s => s.trim())
         : null,
+      supportProfile: student.support_profile,
+      supportIntensity: student.support_intensity,
+      supportLabels: student.support_labels ?? [],
     },
     profile: student.learnerProfile
       ? {

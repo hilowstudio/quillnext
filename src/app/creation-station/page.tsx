@@ -3,6 +3,7 @@ import { getCurrentUserOrg } from "@/lib/auth-helpers";
 import { redirect } from "next/navigation";
 import CreationStationClient from "./CreationStationClient";
 import { withTenant } from "@/server/db";
+import { excludeParentLearners } from "@/server/queries/learner-filters";
 
 export default async function GeneratorsPage() {
   const session = await auth();
@@ -32,5 +33,23 @@ export default async function GeneratorsPage() {
     { organizationId, userId: null }
   );
 
-  return <CreationStationClient organizationId={organizationId} initialBundles={bundles} />;
+  // Students for the Generation Target picker (real children only — exclude parent-as-learner rows).
+  const students = await withTenant(
+    (tx) =>
+      tx.learner.findMany({
+        where: { organizationId, ...excludeParentLearners },
+        select: { id: true, firstName: true, preferredName: true, currentGrade: true },
+        orderBy: { firstName: "asc" },
+      }),
+    undefined,
+    { organizationId, userId: null }
+  );
+
+  return (
+    <CreationStationClient
+      organizationId={organizationId}
+      initialBundles={bundles}
+      students={students}
+    />
+  );
 }

@@ -28,12 +28,20 @@ interface Bundle {
     }[];
 }
 
+export interface TargetStudent {
+    id: string;
+    firstName: string;
+    preferredName: string | null;
+    currentGrade: string | null;
+}
+
 interface CreationStationClientProps {
     organizationId: string;
     initialBundles: Bundle[];
+    students: TargetStudent[];
 }
 
-export default function CreationStationClient({ organizationId, initialBundles }: CreationStationClientProps) {
+export default function CreationStationClient({ organizationId, initialBundles, students }: CreationStationClientProps) {
     const bundles = initialBundles;
     const [isCompiling, setIsCompiling] = useState(false);
 
@@ -87,7 +95,7 @@ export default function CreationStationClient({ organizationId, initialBundles }
                 </TabsContent>
 
                 <TabsContent value="quick" className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-                    <GeneratorsClient organizationId={organizationId} />
+                    <GeneratorsClient organizationId={organizationId} students={students} />
                 </TabsContent>
             </Tabs>
         </div>

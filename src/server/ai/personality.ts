@@ -24,11 +24,11 @@ const PersonalityProfileSchema = z.object({
   workStyle: z
     .enum(["Autonomy", "Collaboration"])
     .describe("Preference for independent vs shared work"),
-  // Derived System Variables
+  // Derived System Variables (enum-only — no free-text/AI-authored instruction fields; those are
+  // replaced by the deterministic learner-personalization map at render time, so nothing model-written
+  // from a free-text answer is ever persisted or injected as an instruction).
   gamificationMode: z.boolean().describe("If true, use scores, XP, and challenges"),
   scaffoldingLevel: z.enum(["High", "Medium", "Low"]).describe("Amount of support/hints to provide"),
-  toneInstructions: z.string().describe("Specific instructions for the AI persona (e.g. 'Act like a sports coach')"),
-  suggestedSystemPrompt: z.string().describe("A complete, ready-to-use system prompt (2-4 sentences) an AI tutor can adopt to match this student — synthesize from the motivational driver, feedback style, scaffolding level, work style, and tone instructions."),
 });
 
 export type PersonalityProfile = z.infer<typeof PersonalityProfileSchema>;
@@ -52,8 +52,6 @@ const LearningStyleSchema = z.object({
   processingMode: z
     .enum(["The Forest", "The Trees", "Sequential"])
     .describe("Top-down (Forest) vs Bottom-up (Trees) vs Linear (Sequential) processing"),
-  // Derived System Variables
-  formatInstructions: z.string().describe("Instructions for formatting content (e.g. 'Use many diagrams')"),
 });
 
 export type LearningStyleProfile = z.infer<typeof LearningStyleSchema>;
@@ -82,8 +80,6 @@ const InterestProfileSchema = z.object({
   integrationMode: z
     .enum(["Surface", "Deep", "Reward"])
     .describe("How to use interests: Skinning (Surface), Thematic (Deep), or Reward-only"),
-  // Derived System Variables
-  analogyStrategy: z.string().describe("Strategy for using student interests in analogies"),
 });
 
 export type InterestProfile = z.infer<typeof InterestProfileSchema>;
@@ -109,9 +105,7 @@ ${answersText}
 
 Map these answers to the schema variables. For example:
 - If they like "The Win", set gamificationMode to true.
-- If they are "Overwhelmed" or "Freeze", set scaffoldingLevel to High.
-
-Also synthesize suggestedSystemPrompt: a concise, ready-to-use system prompt an AI tutor can adopt to match this student's drivers, feedback style, scaffolding level, and tone.`,
+- If they are "Overwhelmed" or "Freeze", set scaffoldingLevel to High.`,
   });
 
   return object;

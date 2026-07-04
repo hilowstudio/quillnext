@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { courseBlockKindSchema } from "./courses";
+import { GRADE_BAND_IDS, DIFFICULTY_IDS } from "@/lib/constants/grade-bands";
 
 /**
  * Comprehensive Zod validation schemas for all Server Actions
@@ -67,6 +68,10 @@ export const generateResourceSchema = z.object({
         fileContent: z.string().max(200000).optional(),
         fileName: z.string().max(500).optional(),
         studentId: z.string().uuid().optional(),
+        // Generation Target — general-audience mode (no specific student): who to write for.
+        // The student path uses `studentId` above; these are the manual audience knobs.
+        targetGradeBand: z.enum(GRADE_BAND_IDS).optional(),
+        targetDifficulty: z.enum(DIFFICULTY_IDS).optional(),
         // Phase-2 book-chapter scoping + OBJECTIVE textbook-grounding subject override
         // (match GenerateResourceCoreParams.additionalData in generate-resource-core.ts:221-233).
         sectionNumber: z.number().int().optional(),

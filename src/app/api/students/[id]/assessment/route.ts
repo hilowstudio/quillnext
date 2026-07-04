@@ -10,7 +10,39 @@ import {
   generateStudentProfile,
   generateLearningStyleProfile,
   generateInterestProfile,
+  type InterestProfile,
 } from "@/server/ai/personality";
+import { assessMessageSafety } from "@/lib/safety/guard";
+import type { SafetyAssessment } from "@/lib/safety/types";
+
+// Safety-screen the FREE-TEXT interest fields (favorite team/game/show, expert topics) before storing.
+// A parent or child could type something inappropriate into an open interest field; we scan each token
+// through the child-safety layer and drop anything flagged, so unvalidated free-text can never become
+// part of a stored student profile (nor, later, an injected generation instruction). The enum/theme
+// fields are controlled and need no scan.
+const isCleanToken = (r: SafetyAssessment): boolean => r.isSafe === true && r.category === "NONE";
+
+async function screenInterestProfile(profile: InterestProfile): Promise<InterestProfile> {
+  const favorites = (profile.specificEntities ?? []).map((e) => e.favorite).filter(Boolean);
+  const topics = (profile.expertTopics ?? []).filter(Boolean);
+  const tokens = [...new Set([...favorites, ...topics])];
+  if (tokens.length === 0) return profile;
+
+  // One combined scan first (cheap); only if it flags do we scan per-token to drop just the offenders.
+  if (isCleanToken(await assessMessageSafety(tokens.join(", ")))) return profile;
+
+  const bad = new Set<string>();
+  await Promise.all(
+    tokens.map(async (t) => {
+      if (!isCleanToken(await assessMessageSafety(t))) bad.add(t);
+    }),
+  );
+  return {
+    ...profile,
+    specificEntities: (profile.specificEntities ?? []).filter((e) => !bad.has(e.favorite)),
+    expertTopics: (profile.expertTopics ?? []).filter((t) => !bad.has(t)),
+  };
+}
 
 // The questionnaire answers are serialized into AI prompts, so we validate the SHAPE per step and
 // fail fast before the paid AI call. personality/learning send a flat Record<string,string>; the
@@ -81,7 +113,8 @@ export async function POST(
       result = profile;
     } else {
       console.log("Generating Interest Profile...");
-      const profile = await generateInterestProfile(parsed.data.answers, studentName);
+      const raw = await generateInterestProfile(parsed.data.answers, studentName);
+      const profile = await screenInterestProfile(raw); // drop any unsafe free-text before storing
       updateData.interestsData = profile as Prisma.InputJsonValue;
       result = profile;
     }

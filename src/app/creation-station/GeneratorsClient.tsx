@@ -18,6 +18,9 @@ import { SpineBrowser, type SpineSelection } from "@/components/generators/Spine
 import { UrlInput } from "@/components/generators/SimpleInputs";
 import { YouTubeImport } from "@/components/creation/YouTubeImport";
 import { YouTubePlaylist } from "@/lib/api/youtube";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { GRADE_BANDS, DIFFICULTY_OPTIONS, type GradeBandId, type DifficultyId } from "@/lib/constants/grade-bands";
+import type { TargetStudent } from "./CreationStationClient";
 
 interface ResourceKind {
   id: string;
@@ -29,10 +32,28 @@ interface ResourceKind {
   subject: { name: string } | null;
 }
 
-export default function GeneratorsClient({ organizationId }: { organizationId: string }) {
+export default function GeneratorsClient({ organizationId, students }: { organizationId: string; students: TargetStudent[] }) {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
+
+  // Generation Target: personalize for a specific student, OR a general audience (grade band +
+  // difficulty). General is always available and is the default when there are no students — a parent
+  // can still generate undifferentiated material for the Living Library or the academic spine.
+  const urlStudentId = searchParams.get("studentId");
+  const hasStudents = students.length > 0;
+  const [targetMode, setTargetMode] = useState<"student" | "audience">(
+    urlStudentId || hasStudents ? "student" : "audience",
+  );
+  const [targetStudentId, setTargetStudentId] = useState<string>(
+    urlStudentId && students.some((s) => s.id === urlStudentId)
+      ? urlStudentId
+      : students.length === 1
+        ? students[0].id
+        : "",
+  );
+  const [gradeBand, setGradeBand] = useState<GradeBandId | "">("");
+  const [difficulty, setDifficulty] = useState<DifficultyId>("AT");
 
   // Initial State derived from URL
   const [sourceType, setSourceType] = useState<SourceType | null>(() => {
@@ -177,6 +198,15 @@ export default function GeneratorsClient({ organizationId }: { organizationId: s
     try {
       toast.success("Spinning up the generator...");
 
+      // Resolve the Generation Target → additionalData. Student mode personalizes; audience mode
+      // targets a grade band + difficulty. Either may be empty (undifferentiated) — never blocked.
+      const targetData =
+        targetMode === "student" && targetStudentId
+          ? { studentId: targetStudentId }
+          : targetMode === "audience" && gradeBand
+            ? { targetGradeBand: gradeBand, targetDifficulty: difficulty }
+            : {};
+
       // SPINE generates at the selected spine level: the level IS the generation sourceType, the
       // node id is the sourceId, and the subject rides through for textbook grounding.
       const result = sourceType === "SPINE"
@@ -185,7 +215,7 @@ export default function GeneratorsClient({ organizationId }: { organizationId: s
             spineSelection!.level,
             selectedKindId,
             instructions,
-            { subject: spineSelection!.subjectName },
+            { subject: spineSelection!.subjectName, ...targetData },
           )
         : await generateResource(
             sourceId || (sourceType === "URL" ? url : sourceType === "TOPIC" ? "topic" : "file"),
@@ -197,6 +227,7 @@ export default function GeneratorsClient({ organizationId }: { organizationId: s
               url: sourceType === "URL" ? url : undefined,
               fileContent: sourceType === "FILE" ? fileContent : undefined,
               fileName: file?.name,
+              ...targetData,
             },
           );
 
@@ -434,13 +465,101 @@ export default function GeneratorsClient({ organizationId }: { organizationId: s
                     }
                   </span></li>
                   <li className="flex gap-2"><span className="w-16 font-medium text-qc-text-muted/70">Template:</span> <span className="text-qc-charcoal">{kinds.find(k => k.id === selectedKindId)?.label || "-"}</span></li>
+                  <li className="flex gap-2"><span className="w-16 font-medium text-qc-text-muted/70">For:</span> <span className="text-qc-charcoal">
+                    {targetMode === "student"
+                      ? (students.find(s => s.id === targetStudentId)?.preferredName
+                        || students.find(s => s.id === targetStudentId)?.firstName
+                        || "a student (none selected)")
+                      : gradeBand
+                        ? GRADE_BANDS.find(b => b.id === gradeBand)?.label
+                        : "general audience"}
+                  </span></li>
                 </ul>
+              </div>
+
+              {/* Generation Target — personalize for a student, or target a general audience. */}
+              <div className="space-y-3">
+                <Label>Generate for</Label>
+                <div className="inline-flex rounded-qc-md border border-qc-border-subtle p-0.5 bg-white">
+                  <button
+                    type="button"
+                    onClick={() => hasStudents && setTargetMode("student")}
+                    disabled={!hasStudents}
+                    className={`px-3 py-1.5 text-sm rounded-[6px] transition-colors ${targetMode === "student"
+                      ? "bg-qc-primary text-white"
+                      : "text-qc-text-muted hover:text-qc-charcoal"
+                      } ${!hasStudents ? "opacity-40 cursor-not-allowed" : ""}`}
+                  >
+                    A student
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTargetMode("audience")}
+                    className={`px-3 py-1.5 text-sm rounded-[6px] transition-colors ${targetMode === "audience"
+                      ? "bg-qc-primary text-white"
+                      : "text-qc-text-muted hover:text-qc-charcoal"
+                      }`}
+                  >
+                    General audience
+                  </button>
+                </div>
+
+                {targetMode === "student" ? (
+                  hasStudents ? (
+                    <Select value={targetStudentId} onValueChange={setTargetStudentId}>
+                      <SelectTrigger className="bg-white">
+                        <SelectValue placeholder="Choose a student" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {students.map((s) => (
+                          <SelectItem key={s.id} value={s.id}>
+                            {(s.preferredName || s.firstName)}{s.currentGrade ? ` · ${s.currentGrade}` : ""}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <p className="text-xs text-qc-text-muted">
+                      No students added yet — add one to personalize, or use General audience.
+                    </p>
+                  )
+                ) : (
+                  <div className="grid grid-cols-2 gap-2">
+                    <Select value={gradeBand} onValueChange={(v) => setGradeBand(v as GradeBandId)}>
+                      <SelectTrigger className="bg-white">
+                        <SelectValue placeholder="Grade band" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {GRADE_BANDS.map((b) => (
+                          <SelectItem key={b.id} value={b.id}>{b.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Select value={difficulty} onValueChange={(v) => setDifficulty(v as DifficultyId)}>
+                      <SelectTrigger className="bg-white">
+                        <SelectValue placeholder="Difficulty" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {DIFFICULTY_OPTIONS.map((d) => (
+                          <SelectItem key={d.id} value={d.id}>
+                            {d.label.charAt(0).toUpperCase() + d.label.slice(1)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+                <p className="text-xs text-qc-text-muted">
+                  {targetMode === "student"
+                    ? "Inkling tailors the content to this student's profile."
+                    : "Target any grade band — no student needed."}
+                </p>
               </div>
 
               <div className="space-y-2">
                 <Label>Special Instructions (Optional)</Label>
                 <Textarea
-                  placeholder="E.g., Make it suitable for a 5th grader. Focus on vocabulary."
+                  placeholder="E.g., Focus on vocabulary. Add a hands-on activity."
                   value={instructions}
                   onChange={(e) => setInstructions(e.target.value)}
                   className="h-32 resize-none bg-white"
