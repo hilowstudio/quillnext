@@ -745,7 +745,7 @@ export async function generateResourceCore(params: GenerateResourceCoreParams) {
         storageType = "JSON";
     } else {
         // Standard Text Generation (Markdown)
-        const { text } = await generateText({
+        const result = await generateText({
             model: modelToUse,
             prompt: prompt,
             system: builder.getIdentity(),
@@ -768,7 +768,11 @@ export async function generateResourceCore(params: GenerateResourceCoreParams) {
             // with the returned image markdown (AI SDK v5: stopWhen replaces v4's maxSteps).
             stopWhen: stepCountIs(3),
         });
-        textContent = text;
+        // AI SDK v5: `result.text` is ONLY the final step's text — empty when the model's last
+        // action was a tool call (e.g. generate_image hitting the 3-step cap), which silently
+        // produced blank resources (the Silmarillion "Literary Form Study Guide"). Concatenate the
+        // text across ALL steps so earlier-written prose isn't lost; fall back to `result.text`.
+        textContent = result.steps.map((s) => s.text).filter(Boolean).join("\n\n").trim() || result.text.trim();
         storageType = "MARKDOWN";
     }
 
@@ -784,6 +788,14 @@ export async function generateResourceCore(params: GenerateResourceCoreParams) {
     } else {
         // Markdown verification uses the fast/cheap flash model.
         textContent = await verifyAndReviseMarkdown(textContent, factsBlock, models.flash, allowedQuoteSource, antiEchoSource);
+    }
+
+    // Never persist an empty resource and report success — the user would open it to a blank page
+    // (this is exactly what happened). If generation yielded no usable content, fail so the caller
+    // surfaces a retriable error instead of a silent blank.
+    const hasContent = jsonContent != null || (typeof textContent === "string" && textContent.trim().length > 0);
+    if (!hasContent) {
+        throw new Error("Generation produced no content. Please try again.");
     }
 
     // 4. Save to DB (org-scoped write — stamp the explicit tenant).
