@@ -6,22 +6,41 @@
 # Repo root = parent of this script's directory.
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-# Put the repo-pinned Node 24 (installed via nvm in the base snapshot) at the front
-# of PATH so it wins over any other `node` on the image. `.nvmrc` pins Node 24 and
-# package.json requires `node >=24`.
+# Put the repo-pinned Node 24 at the front of PATH so it wins over any other `node`
+# on the image (the platform's `/exec-daemon/node` is earlier in PATH otherwise).
+# `.nvmrc` pins Node 24 and package.json requires `node >=24`. Installs Node 24 via
+# nvm on demand so the scripts work on any base image, not just the seeded snapshot.
 ca_use_node24() {
   local bin
   bin="$(ls -d "$HOME"/.nvm/versions/node/v24*/bin 2>/dev/null | sort -V | tail -1 || true)"
+  if [ -z "$bin" ]; then
+    echo "[cloud-agent] Node 24 not found — installing via nvm..."
+    export NVM_DIR="$HOME/.nvm"
+    if [ ! -s "$NVM_DIR/nvm.sh" ]; then
+      curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash
+    fi
+    # shellcheck disable=SC1091
+    . "$NVM_DIR/nvm.sh"
+    nvm install 24
+    bin="$(ls -d "$HOME"/.nvm/versions/node/v24*/bin 2>/dev/null | sort -V | tail -1 || true)"
+  fi
   if [ -n "$bin" ]; then
     export PATH="$bin:$PATH"
   else
-    echo "[cloud-agent] WARNING: Node 24 (nvm) not found; using default node: $(command -v node || echo none)" >&2
+    echo "[cloud-agent] WARNING: could not provision Node 24; using $(command -v node || echo none)" >&2
   fi
 }
 
 # Bring the local Postgres 16 cluster online and ensure the dev role + database exist.
+# Installs Postgres 16 + pgvector on demand so the scripts work on any base image.
 # Uses the OS `postgres` superuser (peer auth) for administration.
 ca_postgres_up() {
+  if ! command -v pg_ctlcluster >/dev/null 2>&1; then
+    echo "[cloud-agent] Postgres not found — installing postgresql-16 + pgvector..."
+    sudo apt-get update -qq
+    sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
+      postgresql postgresql-contrib postgresql-16-pgvector ssl-cert
+  fi
   sudo pg_ctlcluster 16 main start 2>/dev/null || true
   local i
   for i in $(seq 1 30); do
