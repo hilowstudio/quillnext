@@ -41,7 +41,15 @@ ca_postgres_up() {
     sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
       postgresql postgresql-contrib postgresql-16-pgvector ssl-cert
   fi
-  sudo pg_ctlcluster 16 main start 2>/dev/null || true
+  # If it is not already accepting connections, (re)start it. A snapshot taken while
+  # Postgres was running bakes a stale postmaster.pid that makes `start` refuse — clear
+  # it first (safe: we only get here when the server is confirmed not accepting).
+  if ! sudo -u postgres pg_isready -q 2>/dev/null; then
+    sudo rm -f /var/lib/postgresql/16/main/postmaster.pid 2>/dev/null || true
+    sudo pg_ctlcluster 16 main start 2>/dev/null \
+      || sudo pg_ctlcluster --skip-systemctl-redirect 16 main start 2>/dev/null \
+      || true
+  fi
   local i
   for i in $(seq 1 30); do
     if sudo -u postgres pg_isready -q 2>/dev/null; then break; fi
